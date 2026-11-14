@@ -12,6 +12,8 @@ from datathon.agents import PROFILE_FIELDS, PROFILE_MODEL, AgentRun, StrandsAgen
 from datathon.audit_view import render_comparison, render_evidence, result_label
 from datathon.counterfactual import counterfactual_options, run_counterfactual
 from datathon.data import load_market_data
+from datathon.finance import BASE_WEIGHTS
+from datathon.scope import EXTRA_WINDOW, OBJECTIVES, WITHDRAWAL_TIMES, ReplayScope
 from datathon.workflow import Case, examples, interpret_request, preset_profile, profile_policy, run_case
 
 
@@ -245,7 +247,7 @@ def edit_profile(draft, run_id, *, manual=False):
         metric = st.radio("The cap measures", tuple(METRICS), format_func=METRICS.get,
                           index=tuple(METRICS).index(initial_metric) if initial_metric in METRICS else None,
                           key=f"{run_id}-metric")
-        limit = amount("limit_bps", "Historical loss cap (%)", "Applies to both required historical windows.")
+        limit = amount("limit_bps", "Historical loss cap (%)", "Applies to every included historical window.")
         st.caption("Terminal loss compares the start and end. Maximum drawdown measures the largest fall from a prior peak.")
     edited.update({
         "metric": metric,
@@ -278,6 +280,35 @@ def edit_profile(draft, run_id, *, manual=False):
     return edited, changes, loss_cap
 
 
+def edit_scope(run_id):
+    with st.expander("Starting portfolio and planning context"):
+        custom = st.checkbox("Use custom starting weights", key=f"{run_id}-custom-weights")
+        weights = None
+        if custom:
+            weights = {
+                ticker: round(st.number_input(
+                    f"{ticker} starting weight (%)", min_value=0.0, max_value=100.0, value=value * 100,
+                    step=.01, format="%.2f", key=f"{run_id}-weight-{ticker}",
+                ) * 100)
+                for ticker, value in BASE_WEIGHTS.items()
+            }
+            st.caption(f"Total starting weight {sum(weights.values()) / 100:.2f}%")
+        include_2023 = st.checkbox(
+            "Include the fixed 2023 replay",
+            help=f"{EXTRA_WINDOW.start} through {EXTRA_WINDOW.end}. The 2022 and 2025 replays are still included.",
+            key=f"{run_id}-scope-2023",
+        )
+        objective = st.selectbox("Fictional investment objective", OBJECTIVES, index=None,
+                                 placeholder="Optional", key=f"{run_id}-objective")
+        withdrawal = st.selectbox("Timing of next meaningful withdrawal", WITHDRAWAL_TIMES, index=None,
+                                  placeholder="Optional", key=f"{run_id}-withdrawal")
+        if objective or withdrawal:
+            st.caption("Set any spending reserve and historical loss limits explicitly in the rules below.")
+    if custom or include_2023 or objective or withdrawal:
+        return ReplayScope(weights, include_2023, objective, withdrawal)
+    return None
+
+
 def live_request():
     intake = st.radio("Profile input", PROFILE_INPUT, horizontal=True, key="request_intake")
     for key in ("request_draft", "request_results", "request_confirmed", "manual_draft_id"):
@@ -285,6 +316,8 @@ def live_request():
             st.session_state.pop(key, None)
     st.session_state.active_intake = intake
     manual = intake == PROFILE_INPUT[0]
+    scope = None
+    scope_error = None
     if manual:
         st.caption("Enter the supported rules for your fictional scenario. Direct entry skips model interpretation.")
         mode = st.radio("Audit execution", ("Bedrock", "Offline"), horizontal=True, key="manual_execution")
@@ -295,6 +328,10 @@ def live_request():
         draft = AgentRun("ok", {}, ({"role": "profile", "event": "manual_profile_entered"},))
         question = None
         runtime = StrandsAgents() if mode == "Bedrock" else None
+        try:
+            scope = edit_scope(run_id)
+        except ValueError as exc:
+            scope_error = str(exc)
     else:
         runtime = StrandsAgents()
         request = st.text_area("Fictional investment request", value=ROBERT_REQUEST, height=145)
@@ -328,13 +365,17 @@ def live_request():
                 return
 
     edited, changes, loss_cap = edit_profile(draft, run_id, manual=manual)
+    if scope_error:
+        st.session_state.pop("request_confirmed", None)
+        st.warning(scope_error)
+        return
     if loss_cap and (edited["metric"] is None or edited["limit_bps"] is None):
         st.session_state.pop("request_confirmed", None)
         st.caption("Select a loss definition and enter the cap before confirming.")
         return
     body = {**edited, "status": "ok", "summary": "User confirmed the simulated audit inputs.", "evidence_ids": []}
     try:
-        policy = profile_policy(body)
+        policy = profile_policy(body, baseline=scope.baseline if scope else BASE_WEIGHTS)
     except ValueError as exc:
         st.session_state.pop("request_confirmed", None)
         if str(exc) != question:
@@ -343,11 +384,18 @@ def live_request():
     key = tuple((field, tuple(value) if isinstance(value, list) else value) for field, value in edited.items())
     if manual:
         key += (("execution", mode),)
+    if scope:
+        key += (("scope", (tuple(scope.baseline.items()), scope.include_2023, scope.objective, scope.withdrawal_time)),)
     if st.session_state.get("request_confirmed") != key:
         st.session_state.pop("request_confirmed", None)
 
     st.subheader("Confirm your inputs" if manual else "Confirm the interpretation")
     show_policy(policy)
+    if scope:
+        st.caption("Starting weights · " + " · ".join(f"{ticker} {weight:.2%}" for ticker, weight in scope.baseline.items()))
+        st.caption("Historical replays · " + ", ".join(window.id for window in scope.windows))
+        if context := " · ".join(label for label in (scope.objective, scope.withdrawal_time) if label):
+            st.caption(f"Planning context · {context}")
     complete = True
     if manual:
         complete = st.checkbox(MANUAL_SCOPE, key=f"{run_id}-complete-{key!r}")
@@ -358,7 +406,7 @@ def live_request():
         if changes and not manual:
             trace = (*trace, {"role": "profile", "event": "draft_edited", "changes": changes})
         confirmed = replace(draft, status="ok", data=body, trace=trace)
-        case = new_case(Case(run_id, "User-confirmed fictional request.", "terminal_loss", None, 0))
+        case = new_case(Case(run_id, "User-confirmed fictional request.", "terminal_loss", None, 0, scope=scope))
         report = audit(case, confirmed, runtime)
         if report is not None:
             st.session_state.request_results[key] = report
@@ -378,7 +426,7 @@ def live_request():
             for column, (metric, variant) in zip(st.columns(2), comparison_keys.items()):
                 column.markdown(f"**{METRICS[metric]}**  \n{result_label(reports[variant])}")
     show_report(reports[key])
-    active = Case(reports[key]["case"], "User-confirmed fictional request.", "terminal_loss", None, 0)
+    active = Case(reports[key]["case"], "User-confirmed fictional request.", "terminal_loss", None, 0, scope=scope)
     show_counterfactual(active, reports[key], runtime)
 
 

@@ -12,6 +12,7 @@ from .data import issuer_evidence
 from .evidence import DEFAULT_HOLDINGS_MAX_AGE_DAYS, validate_issuer_snapshot
 from .finance import BASE_WEIGHTS, STRESS_WINDOWS, MarketEvidenceError, evaluate_portfolio, solve_funding
 from .governance import audit_decision
+from .scope import ReplayScope
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,7 @@ class Case:
     missing_qqq: bool = False
     tamper: bool = False
     ambiguous: bool = False
+    scope: ReplayScope | None = None
 
 
 def examples(group, stress=False):
@@ -76,8 +78,8 @@ def preset_profile(case: Case) -> dict:
     }
 
 
-def proposed_weights(source="ZST.TO", amount=.10):
-    weights = dict(BASE_WEIGHTS)
+def proposed_weights(source="ZST.TO", amount=.10, *, baseline=BASE_WEIGHTS):
+    weights = dict(baseline)
     weights[source] -= amount
     weights["NVDA"] = weights.get("NVDA", 0) + amount
     return weights
@@ -104,7 +106,7 @@ class RoleError(RuntimeError):
     """An agent stage did not provide the required handoff."""
 
 
-def profile_policy(profile):
+def profile_policy(profile, *, baseline=BASE_WEIGHTS):
     """Validate a proposed profile before showing it for confirmation."""
     source = profile.get("initial_source")
     allowed = profile.get("allowed_sources", [])
@@ -121,7 +123,7 @@ def profile_policy(profile):
         raise ValueError("May alternatives sell QQQ, ZST.TO, or either fund?")
     if source not in allowed:
         raise ValueError("The original source is excluded from the permitted funding sources. Which source or rule should change?")
-    if target / 10000 > BASE_WEIGHTS[source] + 1e-12:
+    if target / 10000 > baseline[source] + 1e-12:
         raise ValueError(f"The proposed one-fund sale exceeds the starting {source} position. What smaller request should be evaluated?")
     if type(smaller) is not bool:
         raise ValueError("If the full purchase is infeasible, may the analysis consider a smaller purchase?")
@@ -244,6 +246,10 @@ async def run_case(
     if single_runtime is not None and (runtime is not None or confirmed_profile is None):
         raise ValueError("The single-agent benchmark requires a confirmed profile and its own runtime.")
     result = {"case": case.id, "mode": "aws" if runtime is not None or single_runtime is not None else "offline"}
+    starting_weights = case.scope.baseline if case.scope else BASE_WEIGHTS
+    replay_windows = case.scope.windows if case.scope else STRESS_WINDOWS
+    if case.scope:
+        result["confirmed_scope"] = case.scope.report()
     try:
         if confirmed_profile is None:
             fixture = preset_profile(case)
@@ -267,7 +273,7 @@ async def run_case(
             outputs["profile"] = parsed
             trace.append({"role": "profile", "event": "policy_confirmed", "run_id": case.id})
         try:
-            policy_view = profile_policy(parsed)
+            policy_view = profile_policy(parsed, baseline=starting_weights)
         except ValueError as exc:
             raise RoleError(str(exc)) from exc
         confirmed_at = perf_counter()
@@ -283,14 +289,14 @@ async def run_case(
         snapshot = None
         if include_issuer:
             try:
-                snapshot = validate_issuer_snapshot(raw_snapshot, assets=BASE_WEIGHTS, **issuer_context)
+                snapshot = validate_issuer_snapshot(raw_snapshot, assets=starting_weights, **issuer_context)
             except ValueError as exc:
                 raise RoleError(f"Invalid evidence policy: {exc}") from exc
         issuer_weights = snapshot["issuer_weights"] if snapshot else {}
         dated_ids = [f"issuer:{ticker}:{snapshot['as_of']}" for ticker, row in snapshot["holdings"].items()
                      if row["status"] == "disclosed"] if snapshot else []
         source_ids = market_ids + dated_ids
-        windows = [window.id for window in STRESS_WINDOWS]
+        windows = [window.id for window in replay_windows]
         evidence_args = {"scope": "market_and_issuer" if include_issuer else "market_replay",
                          "evidence_ids": source_ids, "holdings_as_of": (snapshot["as_of"] or "") if snapshot else ""}
         evidence = {}
@@ -323,14 +329,14 @@ async def run_case(
                                  trace_fields=tuple(evidence_args), completes_handoff=True)
 
         calculation_policy = {k: v for k, v in policy_view.items() if k not in {"initial_source", "prefer_reserve"}}
-        confirmed = {**calculation_policy, "issuer_exposure": issuer_weights, "windows": STRESS_WINDOWS}
+        confirmed = {**calculation_policy, "issuer_exposure": issuer_weights, "windows": replay_windows}
 
-        original = proposed_weights(policy_view["initial_source"], policy_view["target"])
-        portfolios = {"baseline": BASE_WEIGHTS, "proposal": original}
+        original = proposed_weights(policy_view["initial_source"], policy_view["target"], baseline=starting_weights)
+        portfolios = {"baseline": starting_weights, "proposal": original}
         for source in policy_view["allowed_sources"]:
-            if source != policy_view["initial_source"] and BASE_WEIGHTS[source] >= policy_view["target"]:
+            if source != policy_view["initial_source"] and starting_weights[source] >= policy_view["target"]:
                 label = "qqq_only" if source == "QQQ" else "zst_only"
-                portfolios[label] = proposed_weights(source, amount=policy_view["target"])
+                portfolios[label] = proposed_weights(source, amount=policy_view["target"], baseline=starting_weights)
 
         exposure = {}
 
@@ -353,7 +359,7 @@ async def run_case(
             if not evidence:
                 raise ValueError("Look up the evidence first.")
             if not stress:
-                selected_windows = [window for window in STRESS_WINDOWS if window.id in window_ids]
+                selected_windows = [window for window in replay_windows if window.id in window_ids]
                 try:
                     for label, weights in portfolios.items():
                         evaluations[label] = evaluate_portfolio(data, weights, windows=selected_windows)
@@ -391,8 +397,7 @@ async def run_case(
             if not stress or (include_issuer and not exposure):
                 raise ValueError("Complete replay and applicable exposure calculations before solving.")
             if not solution:
-                solve_kwargs = {k: v for k, v in confirmed.items() if k != "windows"}
-                solution.update(solve_funding(data, **solve_kwargs))
+                solution.update(solve_funding(data, baseline=starting_weights, **confirmed))
             option = {k: solution.get(k) for k in ("status", "frontier", "certificate")}
             return option
 
@@ -406,7 +411,7 @@ async def run_case(
             review_metrics = {label: evaluations[label] for label in ("baseline", "proposal")}
             review_metrics.update(frontier=solution.get("frontier"), solver_status=solution["status"], certificate=solution.get("certificate"))
             if case.tamper:
-                first_window = STRESS_WINDOWS[0].id
+                first_window = replay_windows[0].id
                 p = review_metrics["proposal"]
                 wrong_window = {**p["windows"][first_window], "terminal_loss": .01}
                 review_metrics["proposal"] = {**p, "windows": {**p["windows"], first_window: wrong_window}}
@@ -414,13 +419,13 @@ async def run_case(
             best = solution.get("best")
             if best and best["total"] > 1e-9:
                 best_weights = best.get("weights", best)
-                review_metrics["maximum"] = evaluate_portfolio(data, best_weights)
+                review_metrics["maximum"] = evaluate_portfolio(data, best_weights, windows=replay_windows)
             else:
                 best = None
             review_evidence = {**evidence, "fx_dates": tuple(data.fx)}
             if include_issuer:
                 review_evidence["issuer_snapshot"] = raw_snapshot
-            review_result.update(audit_decision(prices_cad=data.prices, baseline=BASE_WEIGHTS, proposal=original,
+            review_result.update(audit_decision(prices_cad=data.prices, baseline=starting_weights, proposal=original,
                                                 maximum=best, policy=confirmed, metrics=review_metrics,
                                                 evidence=review_evidence,
                                                 issuer_context=issuer_context if include_issuer else None,

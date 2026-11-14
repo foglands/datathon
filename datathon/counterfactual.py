@@ -253,6 +253,8 @@ def _comparison(before, after):
 
 
 def _unchanged_replay_inputs(baseline, replay):
+    if baseline.get("confirmed_scope") != replay.get("confirmed_scope"):
+        return False
     first = baseline["audit"]["verified"]
     second = replay["audit"]["verified"]
     evidence = baseline.get("evidence", {})
@@ -305,7 +307,7 @@ def _public_trace(trace):
 def _public_report(report):
     if report is None:
         return None
-    fields = {"case", "mode", "status", "decision_reason", "policy", "evidence", "exposure",
+    fields = {"case", "mode", "status", "decision_reason", "policy", "confirmed_scope", "evidence", "exposure",
               "scenarios", "scenario_focus", "alternatives", "audit", "elapsed_ms"}
     return {**{key: value for key, value in report.items() if key in fields},
             "trace": _public_trace(report.get("trace", ()))}
@@ -438,7 +440,8 @@ async def run_counterfactual(
     else:
         policy[option.field] = option.after
     profile = _profile(policy)
-    if profile_policy(profile) != policy:
+    baseline_kwargs = {"baseline": case.scope.baseline} if case.scope else {}
+    if profile_policy(profile, **baseline_kwargs) != policy:
         return result("invalid", "policy_changed_during_compilation", "The proposed change could not be isolated.")
     replay_case = replace(case, id=run_id)
     trace.append({"role": "review_challenge", "event": "challenge_replay", "status": "started",

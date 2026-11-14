@@ -286,6 +286,36 @@ class PortfolioAppTests(unittest.TestCase):
             self.assertEqual(self.app.session_state["request_results"][key]["policy"]["loss_limit"], .15)
             run.assert_not_awaited()
 
+    def test_manual_audit_confirms_custom_weights_and_keeps_the_scope_on_replay(self):
+        self.select("radio", "Input", "Write a request")
+        self.select("radio", "Audit execution", "Offline")
+        self.fill_manual_profile()
+        self.select("checkbox", "Use custom starting weights", True)
+        self.select("number_input", "SPY starting weight (%)", 30.0)
+        self.assertFalse(self.has_button(CONFIRM))
+        self.assertTrue(any("totaling exactly 100%" in item.value for item in self.app.warning))
+        self.select("number_input", "ZST.TO starting weight (%)", 25.0)
+        self.select("checkbox", "Include the fixed 2023 replay", True)
+        self.select("selectbox", "Fictional investment objective", "Growth")
+        self.select("selectbox", "Timing of next meaningful withdrawal", "More than 5 years")
+        self.select("checkbox", MANUAL_SCOPE, True)
+        self.click(CONFIRM)
+
+        key = self.app.session_state["request_confirmed"]
+        result = self.app.session_state["request_results"][key]
+        scope = result["confirmed_scope"]
+        self.assertEqual(scope["planning_context"], {"objective": "Growth", "withdrawal_time": "More than 5 years"})
+        self.assertEqual(scope["starting_weights"]["ZST.TO"], .25)
+        self.assertEqual(result["audit"]["verified"]["baseline"]["windows"]["2023"]["observations"], 63)
+
+        self.select("selectbox", "Check to run", "toggle_loss_metric")
+        self.click("Check once")
+        check = self.app.session_state["active_challenge"][-1]
+        self.assertTrue(check["verified"])
+        self.assertEqual(check["replay"]["confirmed_scope"], scope)
+        self.select("checkbox", "Include the fixed 2023 replay", False)
+        self.assertNotIn("request_confirmed", self.app.session_state)
+
     def test_bedrock_failure_can_recover_through_manual_entry(self):
         with patch.object(StrandsAgents, "run", return_value=AgentRun("error", {}, stop_reason="unavailable")) as run:
             self.select("radio", "Input", "Write a request")
