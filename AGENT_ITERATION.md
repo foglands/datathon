@@ -36,3 +36,15 @@ AWS competition CloudShell, Nova 2 Lite, official starter data, `50dab34`, 10 ca
 | Staged with checked tool completion | 20/20 | 20/20 | 2.74 s | 86 |
 
 All arms had zero false releases and zero avoidable holds. The staged median met the 6.5-second goal on this measured cohort. Historical staged median was 9.44 seconds in a separate run. The shared pre-optimization Profile parser obtained 6/12 on this run with six unnecessary clarifications and zero premature policies. Intake accuracy is a separate improvement target. A bundled mode that also stops after checked review is included for the fair follow-up comparison.
+
+## Step 2 · User-confirmed intent
+
+- The Profile handoff distinguishes resolvable missing fields from conflicting or unsupported material rules. It can retain exact request excerpts for user inspection, and the guard rejects ungrounded excerpts.
+- Users can edit individual supported fields, see the compiled policy and confirm it explicitly. Edits invalidate the previous displayed decision until confirmation. Unsupported and dual-cap requests require the user to resolve the original instructions.
+- The original wording and excerpts stay out of the Streamlit audit download. The extractor still relies on a model to recognize all material terms, so UI confirmation and separate live intake tests remain necessary.
+
+## Step 4 · Matched challenge benchmark
+
+- Nine new typed-policy cases test choosing the loss metric, reserve floor, exact purchase size, disclosure freshness, an evidence request and abstention. Each request can produce at most one re-audit.
+- A fixed structured-signal policy is the control. Both live arms use the same bounded text-aware selector. They differ in whether the before/after audits are bundled or staged. This comparison measures the useful text selection against a structured control and the execution trade-offs, without attributing a shared selection result to agent count.
+- The fixed control completed nine base audits with six correct follow-ups and zero unsafe releases or amendments. Choosing the expected option directly produced nine independently verified comparison outcomes. Live results follow below.

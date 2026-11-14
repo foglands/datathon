@@ -112,6 +112,7 @@ class PortfolioAppTests(unittest.TestCase):
             **preset_profile(examples("robert", stress=True)[-1]),
             "limit_bps": 1400,
             "clarification_field": "loss_metric",
+            "source_excerpts": {"limit_bps": "I cannot lose more than 14%."},
             "summary": "Does the loss cap apply to terminal loss or maximum drawdown?",
         }
 
@@ -137,21 +138,44 @@ class PortfolioAppTests(unittest.TestCase):
             self.assertFalse(self.app.session_state["request_results"])
 
             self.click(CONFIRM)
-            result = self.app.session_state["request_results"]["terminal_loss"]
+            key = self.app.session_state["request_confirmed"]
+            result = self.app.session_state["request_results"][key]
             self.assertEqual(result["policy"]["metric"], "terminal_loss")
             self.assertEqual(result["alternatives"]["status"], "feasible_full")
             self.assertIn("review", calls)
+            self.assertNotIn("user_request", result)
+            self.assertNotIn("source_excerpts", result["agent_outputs"]["profile"])
 
             calls.clear()
             self.select("radio", "The cap measures", "max_drawdown")
             self.assertEqual(calls, [])
-            self.assertNotIn("max_drawdown", self.app.session_state["request_results"])
+            self.assertNotIn("request_confirmed", self.app.session_state)
             self.assertFalse(self.app.get("download_button"))
             self.click(CONFIRM)
-            result = self.app.session_state["request_results"]["max_drawdown"]
+            key = self.app.session_state["request_confirmed"]
+            result = self.app.session_state["request_results"][key]
             self.assertEqual(result["policy"]["metric"], "max_drawdown")
             self.assertTrue(result["audit"]["verified"]["no_feasible_confirmed"])
             self.assertIn("Compare the two confirmed rules", [label.value for label in self.app.subheader])
+
+            calls.clear()
+            self.select("number_input", "Minimum ZST.TO weight (%)", 18.0)
+            self.assertEqual(calls, [])
+            self.assertNotIn("request_confirmed", self.app.session_state)
+            self.assertFalse(self.app.get("download_button"))
+            self.click(CONFIRM)
+            edited_key = self.app.session_state["request_confirmed"]
+            edited = self.app.session_state["request_results"][edited_key]
+            self.assertEqual(edited["policy"], {**result["policy"], "reserve_floor": .18})
+            self.assertTrue(any(event.get("changes", {}).get("reserve_floor_bps") == {"from": 1500, "to": 1800}
+                                for event in edited["trace"]))
+            self.assertNotIn("Compare the two confirmed rules", [label.value for label in self.app.subheader])
+
+            self.select("number_input", "Minimum ZST.TO weight (%)", 15.0)
+            self.assertNotIn("request_confirmed", self.app.session_state)
+            self.assertFalse(self.app.get("download_button"))
+            self.click(CONFIRM)
+            self.assertEqual(self.app.session_state["request_confirmed"], key)
 
             request = self.widget("text_area", "Fictional investment request").value
             self.select("text_area", "Fictional investment request", f"{request} A new instruction.")
@@ -160,3 +184,19 @@ class PortfolioAppTests(unittest.TestCase):
             self.select("text_area", "Fictional investment request", request)
             self.assertFalse(self.has_button(CONFIRM))
             self.assertNotIn("request_results", self.app.session_state)
+
+    def test_unsupported_binding_rule_blocks_confirmation(self):
+        excerpt = "Never hold more than 5% in the direct NVDA position."
+        blocked = {
+            **preset_profile(examples("robert")[0]),
+            "status": "needs_input", "summary": "This hard rule needs clarification.",
+            "clarification_field": "unsupported_constraint", "unsupported_excerpt": excerpt,
+        }
+        with patch.object(StrandsAgents, "run", return_value=AgentRun("needs_input", blocked)) as run:
+            self.select("radio", "Input", "Write a request")
+            self.select("text_area", "Fictional investment request", excerpt)
+            self.click(INTERPRET)
+            run.assert_awaited_once()
+            self.assertFalse(self.has_button(CONFIRM))
+            self.assertFalse(self.app.get("download_button"))
+            self.assertTrue(any(item.value == excerpt for item in self.app.text))
