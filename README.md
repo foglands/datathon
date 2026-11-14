@@ -4,7 +4,7 @@ PolyFinances Datathon 2026 · Banque Nationale · AWS
 
 AlphaForge AI shows how the funding source for a proposed trade changes a portfolio's risk and its fit with an investor's stated constraints. The prototype compares the original portfolio, the requested trade and feasible alternatives. It reports which rule drove the decision and which conclusions still depend on missing evidence.
 
-The current command-line demo adds **10 percentage points of NVDA** to a fictional CAD portfolio holding 35% SPY, 25% XIU.TO, 20% QQQ and 20% ZST.TO. The original request sells ZST.TO. Alternatives may sell QQQ, ZST.TO or a mix, within the preset's permitted purchase size.
+The command-line demo uses a fictional CAD portfolio holding 35% SPY, 25% XIU.TO, 20% QQQ and 20% ZST.TO. The presets add **10 percentage points of NVDA**. An interactive AWS run accepts a new simulated NVDA purchase, confirms the proposed sale and constraints with the user, then searches within the confirmed funding sources and purchase-size rules. [Changelog](CHANGELOG.md)
 
 ## What the prototype found
 
@@ -27,13 +27,13 @@ The current command-line demo adds **10 percentage points of NVDA** to a fiction
 | Review | Calls an independent recomputation to verify candidate metrics, rules, feasible ranges and infeasibility evidence. |
 | Explanation | Summarizes the audited results, funding trade-offs and remaining uncertainty with source references. |
 
-Python runs profile and evidence in parallel, then runs exposure and scenario replay in parallel. Alternatives, review and explanation follow in order. Each model role uses Strands Agents with Amazon Bedrock Converse. Python owns the portfolio calculations, checks the handoffs and sets the verdict. The JSON report records agent commentary alongside verified inputs, tool results and review findings.
+In preset runs, Python runs profile and evidence in parallel. Interactive requests confirm the profile before launching the evidence stage. Exposure and scenario replay then run in parallel, followed by alternatives, review and explanation. Each model role uses Strands Agents with Amazon Bedrock Converse. Python owns the portfolio calculations, checks the handoffs and sets the verdict. The JSON report records agent commentary alongside verified inputs, tool results and review findings.
 
 ## Data and scope
 
 - **Historical stress.** The official starter's adjusted closes and USD/CAD series drive a buy-and-hold replay on common dates. The windows are 2021-12-31 to 2022-12-30 and 2024-12-31 to 2025-04-08. Terminal loss compares the start and end values. Maximum drawdown measures the largest peak-to-trough decline within the window. [Official release](https://chatgpt.com/library?file_id=libfile_9d3dbce691dc8191993a39be5f3b9381&account_id=personal)
 - **Issuer exposure.** The SPY and QQQ SEC filings are dated 2026-06-30 and were filed on 2026-08-28. The snapshot is used for the issuer check separately from the historical price replays. Unverified ETF holdings contribute to an exposure range. [Evidence records](datathon/data.py)
-- **Current scope.** The CLI runs preset Robert and Amira scenarios with fictional thresholds. The replays use closing prices and omit execution costs, taxes and intraday movements. The results describe the tested scenarios and support educational investment simulations.
+- **Current scope.** The CLI runs preset Robert and Amira scenarios and accepts new simulated NVDA requests against the demo portfolio. The initial purchase is funded by a single sale of QQQ or ZST.TO. The replays use closing prices and omit execution costs, taxes and intraday movements. The results describe the tested scenarios and support educational investment simulations.
 
 ## Run it
 
@@ -55,6 +55,15 @@ python -m datathon --data "$DATA" --case all --mode aws --stress --report output
 ```
 
 Use `--case robert` or `--case amira` to run one persona. Offline mode simulates role handoffs and runs the financial calculations locally. The first validated release passed **6/6 offline scenarios, 6/6 live competition CloudShell scenarios and 11/11 governance tests**. The live suite recorded **62 successful Converse responses**. Complete seven-role runs took **10.3–12.7 seconds** in that run. [Reproduction and AWS notes](PROTOTYPE.md)
+
+To try the interactive audit, start with a fictional request. Select `1` for terminal loss when the clarification menu appears, then type `YES` once the interpreted terms match your intent.
+
+```bash
+python -m datathon --data "$DATA" --mode aws --report outputs/request.json \
+  --request 'Add exactly 10 percentage points of NVDA by selling only ZST.TO. Keep at least 15% in ZST.TO. A smaller purchase is not allowed. I can lose at most 14%.'
+```
+
+With the terminal-loss clarification, the full request is infeasible. The audit shows 5% of the portfolio as a diagnostic limit. Rerun with explicit permission for a smaller purchase to make that size eligible. [Changelog](CHANGELOG.md)
 
 ## Repository map
 
