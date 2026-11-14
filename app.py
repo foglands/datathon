@@ -1,6 +1,5 @@
 """Streamlit entry point for the AlphaForge portfolio simulation."""
 
-import asyncio
 import json
 from dataclasses import replace
 from uuid import uuid4
@@ -13,6 +12,9 @@ from datathon.audit_view import render_comparison, render_evidence, result_label
 from datathon.counterfactual import counterfactual_options, issuer_disclosure_options, run_counterfactual
 from datathon.data import load_market_data
 from datathon.finance import BASE_WEIGHTS
+from datathon.runtime_budget import (
+    CHALLENGE_LIMITS, PROFILE_LIMITS, RuntimeBudgetExceeded, bound_audit, run_bounded, run_sync_action,
+)
 from datathon.scope import EXTRA_WINDOW, OBJECTIVES, WITHDRAWAL_TIMES, ReplayScope
 from datathon.workflow import Case, examples, interpret_request, preset_profile, profile_policy, run_case
 
@@ -58,9 +60,12 @@ def show_policy(policy):
 
 
 def audit(case, profile, runtime):
+    async def evaluate():
+        return await run_case(market_data(), case, runtime, confirmed_profile=profile)
+
     try:
         with st.spinner("Replaying the portfolios and checking the decision"):
-            return asyncio.run(run_case(market_data(), case, runtime, confirmed_profile=profile))
+            return run_sync_action(bound_audit(evaluate(), case.id, live=runtime is not None))
     except (OSError, ValueError, BadZipFile) as exc:
         st.error(f"Market data could not be used. Check DATATHON_STARTER_PATH and the starter files. {exc}")
         return None
@@ -69,6 +74,9 @@ def audit(case, profile, runtime):
 def show_report(report):
     render_comparison(report)
     render_evidence(report)
+    if report.get("runtime_usage"):
+        with st.expander("Runtime and model usage"):
+            st.json(report["runtime_usage"], expanded=False)
     st.download_button(
         "Download audit record",
         json.dumps(report, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
@@ -124,11 +132,17 @@ def show_counterfactual(case, report, runtime):
             st.caption("No reviewed disclosure qualifies for the unresolved holdings at this audit date.")
     if st.button("Re-audit reviewed disclosures" if reviewed_ids else "Check once", key=f"{key}-run"):
         with st.spinner("Checking the assumption against the independent audit"):
-            check = asyncio.run(run_counterfactual(
-                market_data(), case, report, option_id=selected, selector_runtime=runtime, replay_runtime=runtime,
-                challenge_hint=hint.strip() or None, challenge_value=threshold,
-                issuer_disclosure_ids=reviewed_ids or None,
-            ))
+            try:
+                check, usage = run_sync_action(run_bounded(run_counterfactual(
+                    market_data(), case, report, option_id=selected, selector_runtime=runtime, replay_runtime=runtime,
+                    challenge_hint=hint.strip() or None, challenge_value=threshold,
+                    issuer_disclosure_ids=reviewed_ids or None,
+                ), CHALLENGE_LIMITS))
+            except RuntimeBudgetExceeded:
+                st.session_state.pop("active_challenge", None)
+                st.warning("The check reached its time budget before it could verify a comparison.")
+                return
+            check["runtime_usage"] = usage
         st.session_state.active_challenge = (key, selected, hint, threshold, reviewed_ids, check)
 
     saved = st.session_state.get("active_challenge")
@@ -171,7 +185,8 @@ def show_counterfactual(case, report, runtime):
             calls = sum(event.get("event") == "bedrock" and event.get("status") == "success" for event in check["trace"])
             st.caption(f"{calls} successful Bedrock response(s) during selection.")
         st.json({"selection": check["trace"], "changed_fields": check["changed_fields"],
-                 "verification": check["verified"], "issuer_evidence": check["action"]}, expanded=False)
+                  "verification": check["verified"], "issuer_evidence": check["action"],
+                 "runtime_usage": check.get("runtime_usage")}, expanded=False)
     st.download_button("Download this check", json.dumps(check, indent=2, allow_nan=False) + "\n",
                        file_name=f"{report['case']}-challenge.json", mime="application/json", key=f"{key}-download")
 
@@ -366,9 +381,16 @@ def live_request():
         if st.button("Interpret request with Bedrock", type="primary", disabled=not request.strip()):
             with st.spinner("Identifying the trade and rules that need confirmation"):
                 run_id = f"request-{uuid4().hex[:12]}"
-                draft, _, question = asyncio.run(
-                    interpret_request(request.strip(), StrandsAgents(model_id=PROFILE_MODEL), run_id)
-                )
+                try:
+                    (draft, _, question), usage = run_sync_action(run_bounded(
+                        interpret_request(request.strip(), StrandsAgents(model_id=PROFILE_MODEL), run_id), PROFILE_LIMITS,
+                    ))
+                    draft = replace(draft, trace=(*draft.trace, {"role": "profile", "event": "runtime_usage", **usage}))
+                except RuntimeBudgetExceeded:
+                    for key in ("request_draft", "request_results", "request_confirmed"):
+                        st.session_state.pop(key, None)
+                    st.warning("Interpretation reached its time budget. You can enter the simulation inputs directly.")
+                    return
             st.session_state.request_draft = (request, run_id, draft, question)
             st.session_state.request_results = {}
             st.session_state.pop("request_confirmed", None)

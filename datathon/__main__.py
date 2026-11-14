@@ -1,13 +1,13 @@
 """Run or reproduce an AlphaForge simulated trade audit."""
 
 import argparse
-import asyncio
 import json
 from dataclasses import replace
 from pathlib import Path
 
 from .agents import PROFILE_FIELDS, PROFILE_MODEL, AgentRun, StrandsAgents
 from .data import load_market_data
+from .runtime_budget import PROFILE_LIMITS, RuntimeBudgetExceeded, bound_audit, run_bounded, run_sync_action
 from .workflow import Case, examples, interpret_request, preset_profile, profile_policy, run_case
 
 
@@ -42,10 +42,12 @@ async def run_suite(args):
     for case in examples(args.case, args.stress):
         if case.ambiguous:
             intake = StrandsAgents(model_id=PROFILE_MODEL) if runtime is not None else None
-            result = await run_case(data, case, intake)
+            result = await bound_audit(run_case(data, case, intake), case.id, live=intake is not None)
         else:
             preset = AgentRun("ok", preset_profile(case), ({"role": "profile", "event": "preset_inputs_selected"},))
-            result = await run_case(data, case, runtime, confirmed_profile=preset)
+            result = await bound_audit(
+                run_case(data, case, runtime, confirmed_profile=preset), case.id, live=runtime is not None,
+            )
         result["passed"] = validate_case(result)
         results.append(result)
         alternative = result.get("alternatives", {}).get("status", "-")
@@ -107,8 +109,18 @@ async def run_request(args):
             manual_draft = None
             question = None
         else:
-            draft, policy, question = await interpret_request(request, intake_runtime, "interactive")
+            try:
+                (draft, policy, question), profile_usage = await run_bounded(
+                    interpret_request(request, intake_runtime, "interactive"), PROFILE_LIMITS,
+                )
+            except RuntimeBudgetExceeded as exc:
+                print("Profile interpretation reached its execution budget.")
+                if args.report:
+                    write_report(args.report, {"status": "execution_error", "trace": parsing_trace,
+                                               "runtime_usage": exc.usage})
+                return 1
             parsing_trace.extend(draft.trace)
+            parsing_trace.append({"role": "profile", "event": "runtime_usage", **profile_usage})
         if draft.status == "error":
             print(question)
             if args.report:
@@ -147,8 +159,10 @@ async def run_request(args):
     case = Case("interactive", "User-confirmed fictional request.", "terminal_loss", None, 0)
     confirmed = {field: draft.data.get(field) for field in PROFILE_FIELDS}
     confirmed.update(status="ok", summary="User confirmed the simulated audit inputs.", evidence_ids=[])
-    decision = await run_case(data, case, runtime,
-                              confirmed_profile=replace(draft, data=confirmed, trace=tuple(parsing_trace)))
+    decision = await bound_audit(
+        run_case(data, case, runtime, confirmed_profile=replace(draft, data=confirmed, trace=tuple(parsing_trace))),
+        case.id, live=True,
+    )
     print(f"\nAudit of original proposal: {decision['status']}")
     print(decision.get("explanation", decision.get("error", "")))
     verified = decision.get("audit", {}).get("verified", {})
@@ -191,8 +205,8 @@ def main():
     if args.request is not None:
         if args.mode != "aws" or args.stress or args.case != "all":
             parser.error("--request requires --mode aws and runs independently of the preset stress suite")
-        return asyncio.run(run_request(args))
-    results = asyncio.run(run_suite(args))
+        return run_sync_action(run_request(args))
+    results = run_sync_action(run_suite(args))
     if args.report:
         write_report(args.report, results)
     print(f"{sum(row['passed'] for row in results)}/{len(results)} scenarios passed ({args.mode})")

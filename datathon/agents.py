@@ -14,6 +14,8 @@ from time import perf_counter
 from typing import Any, Literal, Union, get_type_hints
 from uuid import uuid4
 
+from .runtime_budget import PROFILE_MAX_REQUEST_BYTES, RuntimeBudgetExceeded, current_budget
+
 DEFAULT_MODEL = "us.amazon.nova-2-lite-v1:0"
 PROFILE_MODEL = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
 DEFAULT_REGION = "us-east-1"
@@ -558,12 +560,14 @@ class StrandsAgents:
             trace.append({"event": event, "role": role, "run_id": run_id, **fields})
 
         started = perf_counter()
+        budget = current_budget()
+        timeout = min(self.timeout_seconds, budget.seconds_left()) if budget is not None else self.timeout_seconds
         record(
             "agent_start",
             model_id=self.model_id,
             region=self.region,
             kind="bedrock" if self._invoker is None else "injected",
-            timeout_seconds=self.timeout_seconds,
+            timeout_seconds=timeout,
             max_turns=self.max_turns,
             max_total_tokens=self.max_total_tokens,
             max_output_tokens=_MAX_OUTPUT_TOKENS,
@@ -596,8 +600,15 @@ class StrandsAgents:
             return fail("missing_tool", "This agent's required research tool is not configured.")
         if required_tools:
             payload = {**payload, "required_tools": list(required_tools)}
+        if role == "profile":
+            request = payload.get("user_request")
+            if isinstance(request, str) and (len(request) > PROFILE_MAX_REQUEST_BYTES
+                                             or len(request.encode("utf-8")) > PROFILE_MAX_REQUEST_BYTES):
+                return fail("input_too_large", "Shorten the simulated request or enter the supported inputs directly.")
 
         try:
+            if budget is not None:
+                budget.check_deadline()
             prompt = (
                 "Review this simulation payload according to your assigned role.\n"
                 + json.dumps(payload, ensure_ascii=False, allow_nan=False)
@@ -610,10 +621,13 @@ class StrandsAgents:
                                           terminal_requirements=must_complete)
             )
             data, stop_reason = await asyncio.wait_for(
-                invocation, timeout=self.timeout_seconds
+                invocation, timeout=timeout
             )
         except asyncio.TimeoutError:
             return fail("timeout", "This agent did not finish within its time budget.")
+        except RuntimeBudgetExceeded as exc:
+            record("runtime_limit", resource=exc.reason)
+            return fail(f"budget_{exc.reason}", "This action exhausted its execution budget.")
         except ImportError:
             return fail("runtime_unavailable", "Install the pinned Strands Agents dependencies to use Bedrock.")
         except Exception as exc:
@@ -710,27 +724,36 @@ class StrandsAgents:
             f"{role.title()}Handoff", __config__=ConfigDict(extra="forbid"), **schema_fields
         )
 
+        budget = current_budget()
+        remaining = budget.seconds_left() if budget is not None else self.timeout_seconds
         model = BedrockModel(
             model_id=self.model_id,
             region_name=self.region,
             streaming=False,
             max_tokens=_MAX_OUTPUT_TOKENS,
             boto_client_config=Config(
-                connect_timeout=3,
-                read_timeout=12,
+                connect_timeout=max(.1, min(3, remaining)),
+                read_timeout=max(.1, min(12, remaining)),
                 retries={"mode": "standard", "total_max_attempts": 2},
             ),
         )
 
         def on_bedrock_call(http_response: Any, parsed: Mapping[str, Any], **_: Any) -> None:
             parsed = parsed or {}
-            metadata = parsed.get("ResponseMetadata", {})
+            metadata = parsed.get("ResponseMetadata") or {}
             code = getattr(http_response, "status_code", None)
             usage = parsed.get("usage")
+            retries = metadata.get("RetryAttempts") or 0
+            details = parsed.get("Error") or {}
+            error_code = details.get("Code")
+            throttled = code == 429 or error_code in {"ThrottlingException", "TooManyRequestsException"}
             token_counts = {
                 name: usage[key] for key, name in _BEDROCK_USAGE_FIELDS.items()
                 if isinstance(usage, Mapping) and type(usage.get(key)) is int and usage[key] >= 0
             }
+            if budget is not None:
+                budget.observe_response(retries=retries, throttled=throttled,
+                                        total_tokens=token_counts.get("total_tokens"))
             record(
                 "bedrock",
                 operation="Converse",
@@ -739,10 +762,15 @@ class StrandsAgents:
                 status="success" if code == 200 else "error",
                 http_status=code,
                 request_id=metadata.get("RequestId"),
+                retry_attempts=retries,
+                throttled=throttled,
+                error_code=error_code,
                 **token_counts,
             )
 
         model.client.meta.events.register("after-call.bedrock-runtime.Converse", on_bedrock_call)
+        if budget is not None:
+            model.client.meta.events.register("before-send.bedrock-runtime.Converse", budget.before_send)
         terminal_tool = stop_after_tool or (
             tools[0].name
             if len(tools) == 1 and isinstance(tools[0], ToolSpec) and tools[0].completes_handoff
@@ -869,6 +897,7 @@ class StrandsAgents:
             system_prompt=instructions,
             tools=registered,
             callback_handler=None,
+            retry_strategy=None,  # Botocore owns the single bounded transport retry.
         )
         agent.hooks.add_callback(AfterToolCallEvent, on_tool_call)
         if role == "profile":
