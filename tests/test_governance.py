@@ -1,6 +1,8 @@
 import copy
 import unittest
 
+from datathon.data import MarketData
+from datathon.finance import StressWindow, solve_funding
 from datathon.governance import audit_decision
 
 
@@ -69,6 +71,7 @@ class GovernanceTests(unittest.TestCase):
             "solver_status": "feasible_full",
             "frontier": {
                 "requested_total": .10, "max_total": .10, "full_possible": True,
+                "diagnostic_max_total": .10,
                 "full_zst_min": 0.0, "full_zst_max": .044,
                 "full_zst_min_binding": "funding_domain", "full_zst_max_binding": "terminal_loss",
             },
@@ -188,6 +191,62 @@ class GovernanceTests(unittest.TestCase):
         self.assertTrue(audit["verified"]["maximum"]["passes"])
         self.assertEqual(audit["verified"]["solver_status"], "feasible_partial")
         self.assertAlmostEqual(audit["verified"]["frontier"]["max_total"], .012 / .26)
+
+    def solve_and_audit(self, evidence=EVIDENCE, **overrides):
+        policy = {**POLICY, **overrides}
+        window = StressWindow("stress", "Test stress window", DATES[0], DATES[-1])
+        market = MarketData(PRICES, dict.fromkeys(DATES, 1.0))
+        solution = solve_funding(market, **{**policy, "windows": (window,)})
+        self.metrics.update(solver_status=solution["status"], frontier=solution["frontier"],
+                            certificate=solution["certificate"], maximum=solution["best"])
+        audit = self.audit(policy=policy, maximum=solution["best"], evidence=evidence)
+        return solution, audit
+
+    def test_exact_size_excludes_otherwise_feasible_smaller_purchase(self):
+        solution, audit = self.solve_and_audit(allowed_sources=("ZST.TO",), allow_smaller=False)
+        self.assertEqual(solution["status"], "requested_size_infeasible")
+        self.assertIsNone(solution["best"])
+        self.assertIsNone(solution["frontier"]["max_total"])
+        self.assertAlmostEqual(solution["frontier"]["diagnostic_max_total"], .012 / .26)
+        self.assertEqual(audit["status"], "fail")
+        self.assertTrue(audit["verified"]["requested_size_infeasible_confirmed"])
+        self.assertIsNone(audit["verified"]["frontier"]["best_funding"])
+        self.assertAlmostEqual(audit["verified"]["frontier"]["diagnostic_max_total"], .012 / .26)
+
+    def test_exact_size_retains_full_result_and_no_size_infeasible_cases(self):
+        full, audit = self.solve_and_audit(allow_smaller=False)
+        self.assertEqual(full["status"], "feasible_full")
+        self.assertAlmostEqual(full["best"]["total"], .10)
+        self.assertTrue(audit["verified"]["maximum"]["passes"])
+        none, audit = self.solve_and_audit(metric="max_drawdown", allow_smaller=False)
+        self.assertEqual(none["status"], "no_feasible")
+        self.assertIsNone(none["frontier"]["diagnostic_max_total"])
+        self.assertTrue(audit["verified"]["no_feasible_confirmed"])
+
+    def test_exact_size_exclusion_is_known_even_when_diagnostic_is_uncertain(self):
+        exposure = {"SPY": .076, "QQQ": .076}
+        evidence = {**EVIDENCE, "issuer_snapshot": holdings_snapshot()}
+        solution, audit = self.solve_and_audit(
+            evidence=evidence, allowed_sources=("ZST.TO",), allow_smaller=False,
+            issuer_cap=.15, issuer_exposure=exposure,
+        )
+        self.assertEqual(solution["status"], "requested_size_infeasible")
+        self.assertIsNone(solution["frontier"]["diagnostic_max_total"])
+        self.assertTrue(audit["verified"]["requested_size_infeasible_confirmed"])
+        self.assertIsNone(audit["verified"]["frontier"]["diagnostic_max_total"])
+
+    def test_exact_size_catches_partial_proposal_and_false_best(self):
+        partial = fund(zst=.01)
+        partial_report = reported(partial, .128 + .26 * .01, .157 + .7 * .01)
+        self.metrics["proposal"] = partial_report
+        policy = {**POLICY, "allow_smaller": False}
+        audit = self.audit(proposal=partial, policy=policy)
+        self.assertEqual(audit["status"], "fail")
+        self.assertEqual(self.findings(audit)["proposal.requested_size.policy"]["status"], "fail")
+        self.metrics["maximum"] = partial_report
+        audit = self.audit(proposal=partial, maximum=partial, policy=policy)
+        self.assertEqual(audit["status"], "invalid")
+        self.assertEqual(self.findings(audit)["maximum.optimality"]["status"], "invalid")
 
     def test_dates_free_concentration_certificate_is_recomputed(self):
         policy = {**POLICY, "loss_limit": None, "reserve_floor": 0, "issuer_cap": .02}
