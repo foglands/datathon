@@ -160,14 +160,23 @@ async def interpret_request(request, runtime, run_id):
 async def run_case(
     data, case, runtime=None, *, confirmed_profile: AgentRun | None = None,
     evidence_date: str = "2026-11-14", holdings_max_age_days: int = DEFAULT_HOLDINGS_MAX_AGE_DAYS,
-    single_runtime=None,
+    single_runtime=None, include_agent_commentary=False,
 ):
     """Audit the frozen market replay and qualify issuer data as of the evidence date."""
     started = perf_counter()
     trace = []
     outputs = {}
 
+    def checked_handoff(name, tool_name, invocation, started):
+        retained = invocation.status != "ok"
+        trace.append({"role": name, "event": "stage_handoff", "tool_name": tool_name,
+                      "status": "checked_tool_result_retained" if retained else "checked_tool_result",
+                      "agent_status": invocation.status, "stop_reason": invocation.stop_reason,
+                      "duration_ms": round((perf_counter() - started) * 1000)})
+        outputs[name] = {"status": "ok", "summary": "The checked tool completed the stage.", "evidence_ids": []}
+
     async def role(name, payload, *, tool_name=None, operation=None, offline=None):
+        stage_started = perf_counter()
         calls = []
 
         def handler() -> dict:
@@ -182,18 +191,23 @@ async def run_case(
             supplied = offline or {"status": "ok", "summary": "Local role simulation", "evidence_ids": []}
             trace.append({"role": name, "event": "offline_role", "tool_name": tool_name, "status": supplied["status"]})
         else:
-            specs = (ToolSpec(tool_name, handler.__doc__.strip(), handler),) if tool_name else ()
+            specs = (ToolSpec(tool_name, handler.__doc__.strip(), handler, completes_handoff=True),) if tool_name else ()
             result = await runtime.run(name, {**payload, "required_tool": tool_name}, tools=specs, run_id=case.id)
             trace.extend({"role": name, **event} for event in result.trace)
             supplied = result.data
+            if operation is not None:
+                if calls:
+                    checked_handoff(name, tool_name, result, stage_started)
+                    return calls[0]
+                if result.status != "error" and supplied:
+                    raise RoleError(f"{name}: required tool {tool_name} did not run")
             if result.status == "error" or not supplied:
                 raise RoleError(f"{name}: {result.stop_reason}")
-            if operation is not None and not calls:
-                raise RoleError(f"{name}: required tool {tool_name} did not run")
         outputs[name] = supplied
         return calls[0] if calls else supplied
 
     async def routed_role(name, payload, tool, expected, operation, output):
+        stage_started = perf_counter()
         if runtime is None:
             trace.append({"role": name, "event": "tool_routing", "tool_name": tool.name,
                           "status": "offline", "arguments": expected})
@@ -202,8 +216,8 @@ async def run_case(
             return
         result = await runtime.run(name, {**payload, "required_tool": tool.name}, tools=(tool,), run_id=case.id)
         trace.extend({"role": name, **event} for event in result.trace)
-        if result.status in ("ok", "insufficient_evidence") and result.data and output:
-            outputs[name] = result.data
+        if output:
+            checked_handoff(name, tool.name, result, stage_started)
             return
         trace.append({"role": name, "event": "tool_routing", "tool_name": tool.name,
                       "status": "deterministic_fallback", "arguments": expected,
@@ -304,7 +318,8 @@ async def run_case(
                              "holdings_as_of from the catalog, which may be empty when unverified. "
                              "Do not invent evidence for the missing funds.",
         }
-        evidence_tool = ToolSpec("lookup_evidence", lookup_evidence.__doc__, lookup_evidence, trace_fields=tuple(evidence_args))
+        evidence_tool = ToolSpec("lookup_evidence", lookup_evidence.__doc__, lookup_evidence,
+                                 trace_fields=tuple(evidence_args), completes_handoff=True)
 
         calculation_policy = {k: v for k, v in policy_view.items() if k not in {"initial_source", "prefer_reserve"}}
         confirmed = {**calculation_policy, "issuer_exposure": issuer_weights, "windows": STRESS_WINDOWS}
@@ -367,7 +382,8 @@ async def run_case(
             "tool_contract": "Use the confirmed metric for a loss limit. Without a loss limit, select "
                              "comparison to report both metrics. Include every required window ID.",
         }
-        scenario_tool = ToolSpec("stress_replay", stress_replay.__doc__, stress_replay, trace_fields=tuple(scenario_args))
+        scenario_tool = ToolSpec("stress_replay", stress_replay.__doc__, stress_replay,
+                                 trace_fields=tuple(scenario_args), completes_handoff=True)
         solution = {}
 
         def find_alternatives():
@@ -412,24 +428,27 @@ async def run_case(
             trace.append({"role": "exposure", "event": "role_skipped", "status": "not_applicable",
                           "reason": "No issuer exposure cap was confirmed."})
         if single_runtime is not None:
+            stage_started = perf_counter()
             tools = [evidence_tool, scenario_tool]
             if include_issuer:
                 tools.append(ToolSpec("measure_exposure", "Use the qualified issuer disclosures to bound NVIDIA exposure.",
-                                      inspect_exposure))
+                                      inspect_exposure, completes_handoff=True))
             tools += [ToolSpec("solve_funding_range", "Solve the authorized funding range after scenario and exposure.",
-                               find_alternatives),
-                      ToolSpec("recheck_decision", "Independently verify the replay and funding claims after the solver.", review)]
+                               find_alternatives, completes_handoff=True),
+                      ToolSpec("recheck_decision", "Independently verify the replay and funding claims after the solver.",
+                               review, completes_handoff=True)]
             single_run = await single_runtime.run({
                 "policy": policy_view, "proposal": original, "evidence": evidence_payload, "scenario": scenario_payload,
                 "ordered_stages": ["lookup_evidence", "stress_replay", *(["measure_exposure"] if include_issuer else []),
                                    "solve_funding_range", "recheck_decision"],
             }, tools, run_id=case.id, required_tools=[tool.name for tool in tools])
             trace.extend(single_run.trace)
-            outputs["single"] = single_run.data
             if market_errors:
                 raise market_errors[0]
-            if not review_result or (single_run.status == "error" and review_result["status"] != "invalid"):
-                raise RoleError(f"single: {single_run.stop_reason or 'missing_checked_review'}")
+            if not review_result:
+                reason = single_run.stop_reason if single_run.status == "error" else "missing_checked_review"
+                raise RoleError(f"single: {reason}")
+            checked_handoff("single", "recheck_decision", single_run, stage_started)
             alternatives = find_alternatives()
             stated = single_run.data
         else:
@@ -438,11 +457,17 @@ async def run_case(
                 raise RoleError("evidence: no checked tool result")
             scenario_run = routed_role("scenario", scenario_payload, scenario_tool, scenario_args, stress_test, stress)
             if include_issuer:
-                await asyncio.gather(
+                branch_results = await asyncio.gather(
                     role("exposure", {"proposal": original, "data": snapshot},
                          tool_name="measure_exposure", operation=inspect_exposure),
                     scenario_run,
+                    return_exceptions=True,
                 )
+                if market_errors:
+                    raise market_errors[0]
+                for branch_result in branch_results:
+                    if isinstance(branch_result, BaseException):
+                        raise branch_result
             else:
                 await scenario_run
             if not stress:
@@ -457,12 +482,21 @@ async def run_case(
         if review_result["status"] == "invalid":
             result["explanation"] = "The independent calculation detected an invalid claim and withheld the recommendation."
         else:
-            if single_runtime is None:
-                stated = await role("explanation", {"policy": policy_view, "audited_result": review_result,
-                                                     "reason": alternatives, "exposure": exposure, "evidence_ids": source_ids})
             result["explanation"] = explain_audit(review_result, alternatives, policy_view)
-            if runtime is not None or single_runtime is not None:
-                result["agent_commentary"] = stated["summary"]
+            if include_agent_commentary:
+                if runtime is not None:
+                    try:
+                        stated = await role("explanation", {"policy": policy_view, "audited_result": review_result,
+                                                             "reason": alternatives, "exposure": exposure,
+                                                             "evidence_ids": source_ids})
+                    except RoleError:
+                        stated = {}
+                if runtime is not None or single_runtime is not None:
+                    if stated.get("status") == "ok" and set(stated.get("evidence_ids", ())).issubset(source_ids):
+                        result["agent_commentary"] = stated["summary"]
+                    else:
+                        outputs.pop("explanation", None)
+                        trace.append({"role": "explanation", "event": "commentary_unavailable", "status": "unavailable"})
         return result
     except MarketEvidenceError as exc:
         message = f"Historical replay is unavailable. {exc}"
@@ -478,7 +512,7 @@ async def run_case(
         result.update(status="execution_error", error=str(exc))
         return result
     finally:
-        result.update(agent_outputs=outputs, trace=trace, elapsed_ms=round((perf_counter() - started) * 1000))
+        result.update(agent_outputs=dict(outputs), trace=list(trace), elapsed_ms=round((perf_counter() - started) * 1000))
 
 
 def explain_audit(review, alternatives, policy):

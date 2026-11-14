@@ -1,9 +1,14 @@
 """Check routed AWS tool requests while keeping evidence and calculations in Python."""
 
+import asyncio
+import inspect
 import json
+import sys
 import unittest
+from types import ModuleType, SimpleNamespace
+from unittest.mock import patch
 
-from datathon.agents import AgentRun, StrandsAgents
+from datathon.agents import AgentRun, StrandsAgents, ToolSpec
 from datathon.data import MarketData
 from datathon.workflow import examples, preset_profile, run_case
 
@@ -41,13 +46,16 @@ def select_tool_arguments(role, payload):
 
 
 class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
-    async def run_fixture(self, case, *, changes=None, omit_roles=(), false_tool_success=()):
+    async def run_fixture(self, case, *, changes=None, omit_roles=(), false_tool_success=(),
+                          fail_after_tool=(), delay_scenario=False, include_agent_commentary=False):
         """Inject model choices, then execute the production handlers with those choices."""
         called_roles = []
         changes = changes or {}
 
         async def invoke(role, prompt, tools, record):
             called_roles.append(role)
+            if delay_scenario and role == "scenario":
+                await asyncio.sleep(.01)
             payload = json.loads(prompt.split("\n", 1)[1])
             for tool in tools:
                 if role in false_tool_success:
@@ -61,12 +69,15 @@ class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
                         status = "rejected"
                     record("tool", tool_name=tool.name, input=arguments,
                            status="error" if status == "rejected" else "success")
+            if role in fail_after_tool:
+                return {}, "limit_turns"
             # Model commentary and claimed citations must not change the audit or its evidence.
             return {"status": "ok", "summary": "Invented claim: this proposal always passes.",
                     "evidence_ids": ["model:made-up-source"]}, "end_turn"
 
         profile = AgentRun("ok", preset_profile(case))
-        report = await run_case(MARKET, case, StrandsAgents(invoker=invoke), confirmed_profile=profile)
+        report = await run_case(MARKET, case, StrandsAgents(invoker=invoke), confirmed_profile=profile,
+                                include_agent_commentary=include_agent_commentary)
         return report, called_roles
 
     def routing(self, report, role, status):
@@ -87,6 +98,7 @@ class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
             (drawdown, drawdown_calls, "max_drawdown"),
         ):
             self.assertNotIn("exposure", calls)
+            self.assertNotIn("explanation", calls)
             scope = self.routing(report, "evidence", "accepted")["arguments"]
             self.assertEqual(scope["scope"], "market_replay")
             self.assertEqual(scope["holdings_as_of"], "")
@@ -188,3 +200,93 @@ class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("explanation", calls)
         findings = {item["metric_id"]: item for item in report["audit"]["findings"]}
         self.assertEqual(findings["proposal.2022.terminal_loss"]["status"], "invalid")
+
+    async def test_checked_results_survive_the_models_post_tool_failure(self):
+        robert, _ = examples("robert")
+        checked_roles = {"evidence", "scenario", "alternatives", "review"}
+        report, _ = await self.run_fixture(robert, fail_after_tool=checked_roles | {"explanation"},
+                                           include_agent_commentary=True)
+        self.assertEqual(report["status"], "fail")
+        self.assertEqual(report["decision_reason"], "feasible_full")
+        self.assertTrue(report["explanation"])
+        self.assertNotIn("agent_commentary", report)
+        self.assertEqual({row["role"] for row in report["trace"]
+                          if row.get("status") == "checked_tool_result_retained"}, checked_roles)
+        self.assertFalse(any(row.get("status") == "deterministic_fallback" for row in report["trace"]))
+        self.assertTrue(any(row["event"] == "commentary_unavailable" for row in report["trace"]))
+
+    async def test_parallel_branches_settle_before_the_report_is_returned(self):
+        amira, = examples("amira")
+        report, calls = await self.run_fixture(amira, omit_roles={"exposure"}, delay_scenario=True)
+        self.assertEqual(report["status"], "execution_error")
+        self.assertNotIn("review", calls)
+        for role in ("scenario", "exposure"):
+            self.assertEqual(sum(row["role"] == role and row["event"] == "agent_end"
+                                 for row in report["trace"]), 1)
+        serialized = json.dumps(report, sort_keys=True)
+        await asyncio.sleep(.02)
+        self.assertEqual(json.dumps(report, sort_keys=True), serialized)
+
+
+class StrandsHandoffTests(unittest.IsolatedAsyncioTestCase):
+    async def test_terminal_tool_finishes_first_successful_response_and_keeps_schema(self):
+        test = self
+        calls = []
+
+        def install_tool(*, name, description):
+            def decorate(handler):
+                test.assertTrue(inspect.iscoroutinefunction(handler))
+                test.assertEqual(inspect.signature(handler).parameters["scope"].annotation, str)
+                return name, handler
+            return decorate
+
+        class Agent:
+            def __init__(self, *, tools, system_prompt, **_):
+                self.callbacks = {}
+                self.hooks = SimpleNamespace(add_callback=self.callbacks.__setitem__)
+                self.tools = tools
+                test.assertIn("The tool result is the final handoff", system_prompt)
+
+            async def invoke_async(self, prompt, *, structured_output_model, **_):
+                test.assertIsNone(structured_output_model)
+                tool_name, handler = self.tools[0]
+                for scope in ("invalid", "market_replay"):
+                    calls.append("Converse")
+                    try:
+                        result = {"status": "success", "content": [{"json": await handler(scope=scope)}]}
+                    except ValueError:
+                        result = {"status": "error", "content": [{"text": "Invalid scope"}]}
+                    self.callbacks["after_tool"](SimpleNamespace(
+                        tool_use={"name": tool_name, "input": {"scope": scope}}, result=result, duration=.001,
+                    ))
+                    finished = SimpleNamespace(end_turn=False)
+                    self.callbacks["after_tools"](finished)
+                    test.assertEqual(finished.end_turn, scope == "market_replay")
+                    if finished.end_turn:
+                        return SimpleNamespace(stop_reason="tool_use")
+                test.fail("A successful tool result should finish the turn.")
+
+        def lookup(scope: str) -> dict:
+            if scope != "market_replay":
+                raise ValueError("Invalid scope")
+            return {"scope": scope}
+
+        def module(name, **exports):
+            item = ModuleType(name)
+            item.__dict__.update(exports)
+            return item
+
+        events = SimpleNamespace(register=lambda *_: None)
+        client = SimpleNamespace(meta=SimpleNamespace(events=events))
+        with patch.dict(sys.modules, {
+            "botocore.config": module("botocore.config", Config=dict),
+            "pydantic": module("pydantic", ConfigDict=dict, create_model=lambda *_, **__: object()),
+            "strands": module("strands", Agent=Agent, tool=install_tool),
+            "strands.hooks": module("strands.hooks", AfterToolCallEvent="after_tool", AfterToolsEvent="after_tools"),
+            "strands.models": module("strands.models", BedrockModel=lambda **_: SimpleNamespace(client=client)),
+        }):
+            spec = ToolSpec("lookup_evidence", "Lookup data", lookup, trace_fields=("scope",), completes_handoff=True)
+            result = await StrandsAgents().run("evidence", {"required_tool": spec.name}, tools=(spec,))
+        self.assertEqual(result.status, "ok")
+        self.assertEqual(calls, ["Converse", "Converse"])
+        self.assertEqual([row["status"] for row in result.trace if row["event"] == "tool"], ["error", "success"])

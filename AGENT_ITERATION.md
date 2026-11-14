@@ -11,3 +11,10 @@ Baseline: `30fcdc2`. This iteration focuses on the Robert and Amira simulations 
 | 5. Integration | Verify the Streamlit and CLI paths, document limitations and commit results to GitHub. | Record real AWS evidence separately from local or injected tests. Keep raw starter data and credentials out of commits. |
 
 The initial live benchmark returned 20/20 on each structured arm. Single-agent median latency was 4.78 seconds with 112 calls and multi-agent median latency was 9.44 seconds with 190 calls. The follow-up free-text experiment matched 7/14 requests in both branches. These are baseline observations.
+
+## Step 1 · Stable handoffs and a shorter critical path
+
+- Reproduced the baseline failure in which Exposure stopped while Scenario still wrote to the returned report. Both branches now settle before the report returns.
+- A validated tool result remains usable if only the model's final handoff fails. Missing independent review still blocks the decision. Model explanation is optional and the default path uses the deterministic explanation of the verified result.
+- A bounded Strands role can finish after its validated tool callback. The bundled control retains its original model session. The checked result, routing event and timing remain available for comparison.
+- Local verification passed all ten targeted tests, including a Strands structured tool call with the real SDK and an injected model. The tests cover parallel settlement, post-tool failures and the independent review gate. Live completion and latency are measured separately below.

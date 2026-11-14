@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import re
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
+from functools import wraps
 from threading import Event
 from time import perf_counter
-from typing import Any, Literal, Union
+from typing import Any, Literal, Union, get_type_hints
 from uuid import uuid4
 
 DEFAULT_MODEL = "us.amazon.nova-2-lite-v1:0"
@@ -131,6 +133,12 @@ ROLES = {
         "recalculation discrepancies, missing data and very small safety margins. A candidate correctly "
         "identified as violating a constraint can still be an ok result for this audit stage."
     ),
+    "review_challenge": Role(
+        "Use select_audit_challenge to select one option from the supplied catalog based on the "
+        "confirmed policy and the independently verified outcome. Choose the check most likely to "
+        "change a material conclusion. Use only the catalog option identifiers. The tool will "
+        "record your selection. Do not claim that a hypothetical result was calculated or advise a trade."
+    ),
     "explanation": Role(
         "Summarize the verified audit in clear language. Identify the tested rule, its result, the funding "
         "trade-off, the evidence and what changes the result. Report both verified and unresolved findings. "
@@ -174,12 +182,15 @@ class ToolSpec:
     Strands derives its argument schema from the handler signature. For bounded
     choices, the handler should validate values before returning successfully.
     Set trace_fields to the public argument names safe to keep after validation.
+    Set completes_handoff for synchronous, bounded in-memory operations whose
+    successful result can finish a single-tool stage without model narration.
     """
 
     name: str
     description: str
     handler: Callable[..., Any]
     trace_fields: tuple[str, ...] | None = None
+    completes_handoff: bool = False
 
 
 @dataclass(frozen=True)
@@ -461,10 +472,32 @@ class StrandsAgents:
             )
 
         model.client.meta.events.register("after-call.bedrock-runtime.Converse", on_bedrock_call)
+        terminal_tool = (
+            tools[0].name
+            if len(tools) == 1 and isinstance(tools[0], ToolSpec) and tools[0].completes_handoff
+            else None
+        )
+
+        def inline_handler(handler: Callable[..., Any]) -> Callable[..., Awaitable[Any]]:
+            @wraps(handler)
+            async def invoke(**arguments: Any) -> Any:
+                # Strands otherwise uses a worker thread for synchronous handlers.
+                # A bounded state update must finish before a cancelled stage can return.
+                return handler(**arguments)
+
+            # Preserve the resolved annotations when a handler is declared in another module.
+            invoke.__annotations__ = get_type_hints(handler, include_extras=True)
+            return invoke
+
         registered = []
         for item in tools:
             if isinstance(item, ToolSpec):
-                registered.append(tool(name=item.name, description=item.description)(item.handler))
+                handler = (
+                    inline_handler(item.handler)
+                    if item.completes_handoff and not inspect.iscoroutinefunction(item.handler)
+                    else item.handler
+                )
+                registered.append(tool(name=item.name, description=item.description)(handler))
             elif hasattr(item, "tool_spec"):
                 registered.append(item)
             else:
@@ -474,6 +507,8 @@ class StrandsAgents:
         profile_tool_reached = False
         tool_names = {self._tool_name(item) for item in tools}
         instructions = _COMMON_PROMPT + self._role_config(role).instructions
+        if terminal_tool:
+            instructions += f" Complete this stage by calling {terminal_tool}. The tool result is the final handoff."
 
         if role == "profile":
             @tool
@@ -559,20 +594,26 @@ class StrandsAgents:
             tool_names.add("submit_profile")
             instructions += _PROFILE_TOOL_PROMPT
 
+        checked_handoff = False
+
         def on_tool_call(event: Any) -> None:
+            nonlocal checked_handoff
             use = event.tool_use
             name = use.get("name")
             if name not in tool_names:
                 return
             result = event.result
             success = isinstance(result, Mapping) and result.get("status") == "success"
+            output = _decode_tool_output(result) if isinstance(result, Mapping) else None
+            if name == terminal_tool and success and isinstance(output, Mapping):
+                checked_handoff = checked_handoff or output.get("status") not in {"error", "rejected"}
             record(
                 "tool",
                 tool_name=name,
                 tool_use_id=use.get("toolUseId"),
                 input=use.get("input", {}),
                 status="success" if success else "error",
-                output=_decode_tool_output(result) if isinstance(result, Mapping) else None,
+                output=output,
                 duration_ms=round(event.duration * 1000) if event.duration is not None else None,
             )
 
@@ -590,12 +631,18 @@ class StrandsAgents:
                     event.end_turn = True
 
             agent.hooks.add_callback(AfterToolsEvent, stop_after_submission)
+        elif terminal_tool:
+            def stop_after_handoff(event: Any) -> None:
+                if checked_handoff:
+                    event.end_turn = True
+
+            agent.hooks.add_callback(AfterToolsEvent, stop_after_handoff)
 
         cancel_signal = Event()
         try:
             result = await agent.invoke_async(
                 prompt,
-                structured_output_model=None if role == "profile" else schema,
+                structured_output_model=None if role == "profile" or terminal_tool else schema,
                 limits={"turns": self.max_turns, "total_tokens": self.max_total_tokens, "structured_output_attempts": 2},
                 cancel_signal=cancel_signal,
             )
@@ -608,6 +655,11 @@ class StrandsAgents:
                 return profile_handoff, result.stop_reason
             record("profile_submission_error", stop_reason=result.stop_reason, handler_reached=profile_tool_reached)
             return {}, "profile_tool_not_completed"
+
+        if terminal_tool:
+            if checked_handoff:
+                return {"status": "ok", "summary": "The checked tool completed the stage.", "evidence_ids": []}, result.stop_reason
+            return {}, result.stop_reason if _stop_error(result.stop_reason) else "tool_not_completed"
 
         handoff = result.structured_output
         return (handoff.model_dump(mode="json") if handoff is not None else {}), result.stop_reason
