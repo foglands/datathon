@@ -57,6 +57,24 @@ def examples(group, stress=False):
     return robert + amira
 
 
+def preset_profile(case: Case) -> dict:
+    """Return fresh form fields for a predefined simulation, in basis points."""
+    return {
+        "status": "needs_input" if case.ambiguous else "ok",
+        "summary": "Scenario fixture",
+        "evidence_ids": [],
+        "metric": case.metric if case.loss_limit is not None else None,
+        "limit_bps": round(case.loss_limit * 10000) if case.loss_limit is not None else None,
+        "target_bps": 1000,
+        "initial_source": "ZST.TO",
+        "reserve_floor_bps": round(case.reserve_floor * 10000) if case.reserve_floor else None,
+        "issuer_cap_bps": round(case.issuer_cap * 10000) if case.issuer_cap is not None else None,
+        "allowed_sources": ["QQQ", "ZST.TO"],
+        "allow_smaller": True,
+        "prefer_reserve": True if case.id.startswith("robert") else None,
+    }
+
+
 def proposed_weights(source="ZST.TO", amount=.10):
     weights = dict(BASE_WEIGHTS)
     weights[source] -= amount
@@ -195,28 +213,19 @@ async def run_case(data, case, runtime=None, *, confirmed_profile: AgentRun | No
         evidence_role = role("evidence", {"assets": list(BASE_WEIGHTS), "needs": ["CAD history", "issuer holdings with as-of date"]},
                              tool_name="lookup_evidence", operation=get_evidence)
         if confirmed_profile is None:
-            expected_profile = {
-                "metric": case.metric if case.loss_limit is not None else None,
-                "limit_bps": round(case.loss_limit * 10000) if case.loss_limit is not None else None,
-                "target_bps": 1000,
-                "initial_source": "ZST.TO",
-                "reserve_floor_bps": round(case.reserve_floor * 10000) if case.reserve_floor else None,
-                "issuer_cap_bps": round(case.issuer_cap * 10000) if case.issuer_cap is not None else None,
-                "allowed_sources": ["QQQ", "ZST.TO"],
-                "allow_smaller": True,
-                "prefer_reserve": True if case.id.startswith("robert") else None,
-            }
+            fixture = preset_profile(case)
             parsed, evidence = await asyncio.gather(
-                role("profile", {"user_request": case.user_request}, offline={
-                    "status": "needs_input" if case.ambiguous else "ok", "summary": "Scenario fixture", "evidence_ids": [],
-                    **expected_profile,
-                }), evidence_role,
+                role("profile", {"user_request": case.user_request}, offline=fixture),
+                evidence_role,
             )
             if parsed["status"] == "needs_input":
                 result.update(status="needs_input", explanation="Does 14% refer to terminal loss or maximum drawdown?")
                 return result
             if case.ambiguous:
                 raise RoleError("profile: ambiguous loss limit was accepted without clarification")
+            expected_profile = {
+                field: value for field, value in fixture.items() if field not in ("status", "summary", "evidence_ids")
+            }
             comparable = {field: parsed.get(field) for field in expected_profile}
             comparable["allowed_sources"] = sorted(parsed.get("allowed_sources", []))
             if comparable != expected_profile:

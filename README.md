@@ -39,6 +39,22 @@ In preset runs, Python runs profile and evidence in parallel. Interactive reques
 
 Use **Python 3.10+** and the organizer's `Datathon2026.zip` or extracted `alphaforge_starter/` folder. Set `DATA` to its local path. The organizer data stays outside version control.
 
+### Decision audit screen
+
+```bash
+python3.10 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+export DATATHON_STARTER_PATH=/path/to/Datathon2026.zip
+python -m streamlit run app.py
+```
+
+Open **Robert · loss definition**, confirm the inputs, then compare the change to maximum drawdown. The app replays both policies and shows the starting portfolio, proposed trade and verified outcome. The other Robert cases isolate the reserve floor and permission for a smaller purchase. **Amira · issuer exposure** shows a proven breach for the proposal and an alternative that remains unresolved. Expand the evidence and review section or download the JSON audit record to inspect the calculations and role events.
+
+Reference cases can run offline with deterministic calculations and simulated agent events. With competition AWS credentials, choose **Write a request** to have Bedrock interpret a fictional request, ask for a missing risk definition, and audit the confirmed inputs. Running a reference case in **Bedrock** mode uses its displayed structured inputs and calls the downstream agents live. Both routes use the same Python solver and independent review as the CLI.
+
+### Command-line verification
+
 ```bash
 python3.10 -m venv .venv
 source .venv/bin/activate
@@ -69,6 +85,7 @@ With the terminal-loss clarification, the full request is infeasible. The audit 
 
 | Path | Contents |
 | --- | --- |
+| [`app.py`](app.py) | Streamlit decision audit, confirmed policy comparison and JSON export |
 | [`datathon/`](datathon/) | CLI, orchestration, Strands roles, data loader, financial solver and independent governance audit |
 | [`tests/`](tests/) | Regression tests for data coverage, rule checks, bad metrics, funding and infeasibility evidence |
 | [`PROTOTYPE.md`](PROTOTYPE.md) | Detailed reproduction steps, stress test behavior and AWS handoff fix |
