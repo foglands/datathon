@@ -175,7 +175,8 @@ async def evaluate_holdout(case, trial, model, region):
     model_calls = [event for event in draft.trace if event["event"] == "bedrock" and event.get("status") == "success"]
     checked_handoff = any(event.get("status") == "success" for event in tool_calls) and bool(model_calls)
     excerpts = draft.data.get("source_excerpts", {})
-    restricted = {"source_excerpts", "unsupported_excerpt", "summary"}
+    restricted = {"source_excerpts", "unsupported_excerpt", "summary", "issue_excerpt", "loss_excerpt",
+                  "initial_source_excerpt", "funding_excerpt"}
     trace_clean = all(
         not restricted.intersection(event.get("input", {}))
         and isinstance(event.get("output"), (dict, type(None)))

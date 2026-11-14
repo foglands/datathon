@@ -18,6 +18,8 @@ from datathon.workflow import Case, examples, interpret_request, preset_profile,
 METRICS = {"terminal_loss": "Terminal loss", "max_drawdown": "Maximum drawdown"}
 FUNDING = ("QQQ", "ZST.TO")
 BLOCKING_PROFILE_FIELDS = {"unsupported_scope", "unsupported_constraint", "multiple_loss_limits", "conflict"}
+PROFILE_INPUT = ("Enter inputs directly", "Interpret text with Bedrock")
+MANUAL_SCOPE = "These inputs include every binding rule for this simulation."
 ROBERT, _ = examples("robert")
 AMIRA, = examples("amira")
 PRESETS = {
@@ -185,7 +187,7 @@ def preset_audit(mode):
     show_counterfactual(case, report, runtime)
 
 
-def edit_profile(draft, run_id):
+def edit_profile(draft, run_id, *, manual=False):
     """Collect a reviewable draft. Editing the draft never runs an audit."""
     initial = draft.data
 
@@ -202,8 +204,10 @@ def edit_profile(draft, run_id):
         index = values.index(value) if value in values else None
         return st.selectbox(label, values, index=index, format_func=format_func, key=f"{run_id}-{field}")
 
-    st.subheader("Review and edit the interpreted inputs")
-    st.caption("Check the values against your fictional request. Blank reserve and issuer limits are not applied.")
+    st.subheader("Enter simulation inputs" if manual else "Review and edit the interpreted inputs")
+    if not manual:
+        st.caption("Check the values against your fictional request.")
+    st.caption("Blank reserve and issuer limits are not applied.")
     edited = {
         "target_bps": amount("target_bps", "NVDA purchase size (percentage points)", "10 percentage points adds 10% of the portfolio to NVDA."),
         "initial_source": option("initial_source", "Funding for the original proposal", FUNDING),
@@ -239,7 +243,7 @@ def edit_profile(draft, run_id):
     extracted["allowed_sources"] = sorted(extracted["allowed_sources"] or [])
     changes = {key: {"from": extracted[key], "to": value} for key, value in edited.items() if value != extracted[key]}
     excerpts = initial.get("source_excerpts", {})
-    if excerpts or changes:
+    if not manual and (excerpts or changes):
         with st.expander("Source excerpts and manual edits"):
             if changes:
                 st.caption("Edited fields use the values you entered above.")
@@ -258,35 +262,53 @@ def edit_profile(draft, run_id):
 
 
 def live_request():
-    runtime = StrandsAgents()
-    request = st.text_area("Fictional investment request", value=ROBERT_REQUEST, height=145)
-    previous = st.session_state.get("request_draft")
-    if previous and previous[0] != request:
-        for key in ("request_draft", "request_results", "request_confirmed"):
+    intake = st.radio("Profile input", PROFILE_INPUT, horizontal=True, key="request_intake")
+    for key in ("request_draft", "request_results", "request_confirmed", "manual_draft_id"):
+        if st.session_state.get("active_intake") != intake:
             st.session_state.pop(key, None)
-    if st.button("Interpret request with Bedrock", type="primary", disabled=not request.strip()):
-        with st.spinner("Identifying the trade and rules that need confirmation"):
-            run_id = f"request-{uuid4().hex[:12]}"
-            draft, _, question = asyncio.run(interpret_request(request.strip(), runtime, run_id))
-        st.session_state.request_draft = (request, run_id, draft, question)
-        st.session_state.request_results = {}
-        st.session_state.pop("request_confirmed", None)
-    saved = st.session_state.get("request_draft")
-    if not saved:
-        return
-    _, run_id, draft, question = saved
-    if draft.status == "error":
-        st.error(question)
-        return
-    if question:
-        st.warning(question)
-        if draft.data.get("clarification_field") in BLOCKING_PROFILE_FIELDS:
-            if excerpt := draft.data.get("unsupported_excerpt"):
-                st.text(excerpt)
-            st.caption("Revise the original request before interpreting it again.")
+    st.session_state.active_intake = intake
+    manual = intake == PROFILE_INPUT[0]
+    if manual:
+        st.caption("Enter the supported rules for your fictional scenario. Direct entry skips model interpretation.")
+        mode = st.radio("Audit execution", ("Bedrock", "Offline"), horizontal=True, key="manual_execution")
+        if "manual_draft_id" not in st.session_state:
+            st.session_state.manual_draft_id = f"manual-{uuid4().hex[:12]}"
+            st.session_state.request_results = {}
+        run_id = st.session_state.manual_draft_id
+        draft = AgentRun("ok", {}, ({"role": "profile", "event": "manual_profile_entered"},))
+        question = None
+        runtime = StrandsAgents() if mode == "Bedrock" else None
+    else:
+        runtime = StrandsAgents()
+        request = st.text_area("Fictional investment request", value=ROBERT_REQUEST, height=145)
+        previous = st.session_state.get("request_draft")
+        if previous and previous[0] != request:
+            for key in ("request_draft", "request_results", "request_confirmed"):
+                st.session_state.pop(key, None)
+        if st.button("Interpret request with Bedrock", type="primary", disabled=not request.strip()):
+            with st.spinner("Identifying the trade and rules that need confirmation"):
+                run_id = f"request-{uuid4().hex[:12]}"
+                draft, _, question = asyncio.run(interpret_request(request.strip(), runtime, run_id))
+            st.session_state.request_draft = (request, run_id, draft, question)
+            st.session_state.request_results = {}
+            st.session_state.pop("request_confirmed", None)
+        saved = st.session_state.get("request_draft")
+        if not saved:
             return
+        _, run_id, draft, question = saved
+        if draft.status == "error":
+            st.error(question)
+            st.caption("Switch to Enter inputs directly to audit a complete set of supported rules without Bedrock intake.")
+            return
+        if question:
+            st.warning(question)
+            if draft.data.get("clarification_field") in BLOCKING_PROFILE_FIELDS:
+                if excerpt := draft.data.get("unsupported_excerpt"):
+                    st.text(excerpt)
+                st.caption("Revise the original request before interpreting it again. Direct entry can audit supported rules you choose to confirm.")
+                return
 
-    edited, changes, loss_cap = edit_profile(draft, run_id)
+    edited, changes, loss_cap = edit_profile(draft, run_id, manual=manual)
     if loss_cap and (edited["metric"] is None or edited["limit_bps"] is None):
         st.session_state.pop("request_confirmed", None)
         st.caption("Select a loss definition and enter the cap before confirming.")
@@ -300,14 +322,21 @@ def live_request():
             st.caption(str(exc))
         return
     key = tuple((field, tuple(value) if isinstance(value, list) else value) for field, value in edited.items())
+    if manual:
+        key += (("execution", mode),)
     if st.session_state.get("request_confirmed") != key:
         st.session_state.pop("request_confirmed", None)
 
-    st.subheader("Confirm the interpretation")
+    st.subheader("Confirm your inputs" if manual else "Confirm the interpretation")
     show_policy(policy)
-    if st.button("Confirm inputs and run audit", type="primary"):
+    complete = True
+    if manual:
+        complete = st.checkbox(MANUAL_SCOPE, key=f"{run_id}-complete-{key!r}")
+        if not complete:
+            st.session_state.pop("request_confirmed", None)
+    if st.button("Confirm inputs and run audit", type="primary", disabled=not complete):
         trace = draft.trace
-        if changes:
+        if changes and not manual:
             trace = (*trace, {"role": "profile", "event": "draft_edited", "changes": changes})
         confirmed = replace(draft, status="ok", data=body, trace=trace)
         case = new_case(Case(run_id, "User-confirmed fictional request.", "terminal_loss", None, 0))
@@ -341,10 +370,9 @@ def main():
     st.radio("Input", ("Reference case", "Write a request"), horizontal=True, key="audit_input")
     if st.session_state.audit_input != st.session_state.get("active_input"):
         st.session_state.active_input = st.session_state.audit_input
-        for key in ("preset_key", "request_draft", "request_results", "request_confirmed"):
+        for key in ("preset_key", "request_draft", "request_results", "request_confirmed", "manual_draft_id", "active_intake"):
             st.session_state.pop(key, None)
     if st.session_state.audit_input == "Write a request":
-        st.caption("Live profile interpretation and review use Strands on Amazon Bedrock.")
         live_request()
     else:
         mode = st.radio("Execution", ("Offline", "Bedrock"), horizontal=True)

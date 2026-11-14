@@ -21,6 +21,7 @@ APP = Path(__file__).resolve().parents[1] / "app.py"
 CONFIRM = "Confirm inputs and run audit"
 COMPARE = "Confirm this change and compare"
 INTERPRET = "Interpret request with Bedrock"
+MANUAL_SCOPE = "These inputs include every binding rule for this simulation."
 
 
 @unittest.skipIf(AppTest is None, "Install Streamlit to run the UI tests.")
@@ -106,6 +107,30 @@ class PortfolioAppTests(unittest.TestCase):
         self.assertTrue(any("13.39%" in item.value for item in self.app.markdown))
         self.assertTrue(any("Maximum drawdown" in table.value.columns for table in self.app.table))
 
+    def test_counterfactual_keeps_the_original_audited_policy(self):
+        self.click(CONFIRM)
+        original = self.app.session_state["preset_result"]
+        self.select("selectbox", "Check to run", "toggle_loss_metric")
+        self.click("Check once")
+
+        _, _, _, challenge = self.app.session_state["active_challenge"]
+        self.assertEqual(challenge["changed_fields"], ["metric"])
+        self.assertEqual(challenge["comparison"]["baseline"]["solver_status"], "feasible_full")
+        self.assertEqual(challenge["comparison"]["replay"]["solver_status"], "no_feasible")
+        self.assertEqual(self.app.session_state["preset_result"], original)
+        self.assertTrue(any("One hypothetical change" in item.value for item in self.app.markdown))
+
+    def test_amira_challenge_names_the_remaining_evidence_and_headroom(self):
+        self.select("selectbox", "Scenario", "Amira · issuer exposure")
+        self.click(CONFIRM)
+        self.click("Check once")
+
+        _, _, _, challenge = self.app.session_state["active_challenge"]
+        self.assertEqual(challenge["reason"], "issuer_evidence_required")
+        self.assertEqual(set(challenge["action"]["holdings"]), {"XIU.TO", "ZST.TO"})
+        self.assertIsNone(challenge["replay"])
+        self.assertTrue(any("0.60937 percentage points" in item.value for item in self.app.markdown))
+
     def test_live_clarification_waits_for_confirmation(self):
         calls = []
         ambiguous = {
@@ -126,6 +151,7 @@ class PortfolioAppTests(unittest.TestCase):
 
         with patch.object(StrandsAgents, "run", autospec=True, side_effect=simulate_bedrock):
             self.select("radio", "Input", "Write a request")
+            self.select("radio", "Profile input", "Interpret text with Bedrock")
             self.assertFalse(self.has_button(CONFIRM))
             self.click(INTERPRET)
             self.assertEqual(calls, ["profile"])
@@ -194,9 +220,65 @@ class PortfolioAppTests(unittest.TestCase):
         }
         with patch.object(StrandsAgents, "run", return_value=AgentRun("needs_input", blocked)) as run:
             self.select("radio", "Input", "Write a request")
+            self.select("radio", "Profile input", "Interpret text with Bedrock")
             self.select("text_area", "Fictional investment request", excerpt)
             self.click(INTERPRET)
             run.assert_awaited_once()
             self.assertFalse(self.has_button(CONFIRM))
             self.assertFalse(self.app.get("download_button"))
             self.assertTrue(any(item.value == excerpt for item in self.app.text))
+
+    def fill_manual_profile(self):
+        self.select("number_input", "NVDA purchase size (percentage points)", 5.0)
+        self.select("selectbox", "Funding for the original proposal", "QQQ")
+        self.select("multiselect", "Funding allowed for alternatives", ["QQQ"])
+        self.select("selectbox", "Allow a smaller purchase", False)
+        self.select("checkbox", "Apply a historical loss cap", True)
+        self.select("radio", "The cap measures", "terminal_loss")
+        self.select("number_input", "Historical loss cap (%)", 14.0)
+
+    def test_manual_entry_works_without_bedrock_and_requires_confirmation_after_edits(self):
+        with patch.object(StrandsAgents, "run", side_effect=AssertionError("Manual workflow must not call Bedrock")) as run:
+            self.select("radio", "Input", "Write a request")
+            self.assertEqual(self.widget("radio", "Profile input").value, "Enter inputs directly")
+            self.assertEqual(self.widget("radio", "Audit execution").value, "Bedrock")
+            self.select("radio", "Audit execution", "Offline")
+            self.assertFalse(self.has_button(INTERPRET))
+            self.assertFalse(self.has_button(CONFIRM))
+            self.fill_manual_profile()
+            self.assertTrue(self.widget("button", CONFIRM).disabled)
+            self.select("checkbox", MANUAL_SCOPE, True)
+            self.assertFalse(self.widget("button", CONFIRM).disabled)
+            self.assertFalse(self.app.session_state["request_results"])
+
+            self.click(CONFIRM)
+            key = self.app.session_state["request_confirmed"]
+            report = self.app.session_state["request_results"][key]
+            self.assertEqual(report["mode"], "offline")
+            self.assertEqual(report["policy"]["loss_limit"], .14)
+            self.assertTrue(any(event["event"] == "manual_profile_entered" for event in report["trace"]))
+            self.assertNotIn("source_excerpts", report["agent_outputs"]["profile"])
+            self.select("number_input", "Historical loss cap (%)", 15.0)
+            self.assertNotIn("request_confirmed", self.app.session_state)
+            self.assertFalse(self.app.get("download_button"))
+            self.assertTrue(self.widget("button", CONFIRM).disabled)
+            self.select("checkbox", MANUAL_SCOPE, True)
+            self.click(CONFIRM)
+            key = self.app.session_state["request_confirmed"]
+            self.assertEqual(self.app.session_state["request_results"][key]["policy"]["loss_limit"], .15)
+            run.assert_not_awaited()
+
+    def test_bedrock_failure_can_recover_through_manual_entry(self):
+        with patch.object(StrandsAgents, "run", return_value=AgentRun("error", {}, stop_reason="unavailable")) as run:
+            self.select("radio", "Input", "Write a request")
+            self.select("radio", "Profile input", "Interpret text with Bedrock")
+            self.click(INTERPRET)
+            self.assertFalse(self.has_button(CONFIRM))
+            self.assertTrue(any("unavailable" in item.value for item in self.app.error))
+            self.select("radio", "Profile input", "Enter inputs directly")
+            self.select("radio", "Audit execution", "Offline")
+            self.fill_manual_profile()
+            self.select("checkbox", MANUAL_SCOPE, True)
+            self.click(CONFIRM)
+            self.assertIn("request_confirmed", self.app.session_state)
+            run.assert_awaited_once()
