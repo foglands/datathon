@@ -6,7 +6,7 @@ import json
 from dataclasses import replace
 from pathlib import Path
 
-from .agents import StrandsAgents
+from .agents import PROFILE_FIELDS, StrandsAgents
 from .data import load_market_data
 from .workflow import Case, examples, interpret_request, profile_policy, run_case
 
@@ -138,8 +138,11 @@ async def run_request(args):
         request += "\nNew user clarification or correction (takes precedence): " + change
 
     data = load_market_data(args.data)
-    case = Case("interactive", request, "terminal_loss", None, 0)
-    decision = await run_case(data, case, runtime, confirmed_profile=replace(draft, trace=tuple(parsing_trace)))
+    case = Case("interactive", "User-confirmed fictional request.", "terminal_loss", None, 0)
+    confirmed = {field: draft.data.get(field) for field in PROFILE_FIELDS}
+    confirmed.update(status="ok", summary="User confirmed the simulated audit inputs.", evidence_ids=[])
+    decision = await run_case(data, case, runtime,
+                              confirmed_profile=replace(draft, data=confirmed, trace=tuple(parsing_trace)))
     print(f"\nAudit of original proposal: {decision['status']}")
     print(decision.get("explanation", decision.get("error", "")))
     verified = decision.get("audit", {}).get("verified", {})
