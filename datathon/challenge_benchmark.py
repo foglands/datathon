@@ -8,7 +8,7 @@ import json
 import math
 import statistics
 from copy import deepcopy
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from time import perf_counter
 
@@ -16,12 +16,14 @@ from .agents import DEFAULT_MODEL, DEFAULT_REGION, AgentRun, StrandsAgents
 from .benchmark import fingerprint, usage
 from .benchmark_cases import ProfileGold
 from .benchmark_single import SingleAgentRuntime
+from .challenge_expansion import cases as expanded_cases
 from .counterfactual import counterfactual_options, run_counterfactual
 from .data import load_market_data
 from .workflow import Case, run_case
 
 
 COHORT_VERSION = "held-out-challenge-v1"
+EXPANDED_COHORT_VERSION = "held-out-challenge-v2"
 OFFICIAL_STARTER_SHA256 = {
     "prices_daily.csv": "ff2a3f2d0a7d72ea835e8d616d041e0510f018340cef3d3e55b918830e8a569d",
     "fx_usdcad_daily.csv": "f04e218ac5b0145fd552b3d0dcfbf73e5e17bb9a6fb4562460dbec95cb8972b3",
@@ -43,7 +45,7 @@ LIVE_ARMS = ("bundled_single", "staged_multi")
 class Outcome:
     status: str
     decision_reason: str
-    solver_status: str
+    solver_status: str | None
     original_proposal_eligible: bool
     alternative_eligible: bool
 
@@ -63,6 +65,17 @@ class ChallengeCase:
     missing_qqq: bool = False
     holdings_max_age_days: int = 180
     required_disclosure: str | None = None
+    evidence_date: str = "2026-11-14"
+    omitted_fx_date: str | None = None
+    required_disclosure_reason: str | None = None
+    expected_issuer_ids: tuple[tuple[str, ...], tuple[str, ...] | None] | None = None
+
+    def market_inputs(self, data):
+        if self.omitted_fx_date is None:
+            return data
+        fx = dict(data.fx)
+        del fx[self.omitted_fx_date]
+        return replace(data, fx=fx)
 
     def workflow_case(self):
         return Case(self.id, "Confirmed model portfolio audit", self.profile.metric or "terminal_loss",
@@ -177,6 +190,12 @@ CHALLENGE_CASES = (
     ),
 )
 
+
+EXPANDED_CASES = expanded_cases(
+    ChallengeCase, abstain=ABSTAIN, baseline_blocked=BASELINE_BLOCKED, exact_blocked=EXACT_BLOCKED,
+    issuer_unknown=ISSUER_UNKNOWN, partial=PARTIAL, approved=PASS,
+    market_unknown=Outcome("insufficient_evidence", "market_evidence_insufficient", None, False, False),
+)
 
 def fixed_option(policy, verified, options):
     """Use the same audited signals across all fixtures, independent of their labels."""
@@ -323,6 +342,8 @@ def score(case, original, baseline, challenge, replay_calls):
     )
     action_matches = (
         verified_action and case.required_disclosure in action["holdings"]
+        and (case.required_disclosure_reason is None
+             or action["holdings"][case.required_disclosure] == case.required_disclosure_reason)
         if case.required_disclosure else action is None
     )
     replay_has_audit = audit_completed(replay)
@@ -350,15 +371,31 @@ def score(case, original, baseline, challenge, replay_calls):
         and action_matches and replay_calls == expected_replays and (not expected_replays or replay_has_audit)
     )
     before_matches = outcome_matches(before, case.before)
+    observed_ids = (tuple(before["issuer_evidence_ids"]), tuple(after["issuer_evidence_ids"]) if after else None)
+    evidence_correct = case.expected_issuer_ids is None or observed_ids == case.expected_issuer_ids
+    baseline_checked = audit_completed(baseline)
+    # Deleted official FX observations exercise the prerequisite evidence gate
+    # and never belong in the option-selection denominator.
+    selection_applicable = case.omitted_fx_date is None
+    resilience_ok = None
+    if not selection_applicable:
+        resilience_ok = (
+            before_matches and comparison_correct and evidence_correct and not baseline_checked
+            and not unsafe_alteration and not unsafe_release and chosen is None
+            and challenge["comparison"]["replay"] is None and challenge["status"] == "invalid"
+        )
     return {
         "choice": chosen,
         "expected_choice": case.expected_option,
-        "choice_correct": choice_correct,
+        "choice_correct": choice_correct if selection_applicable else None,
+        "stratum": "selection" if selection_applicable else "resilience",
+        "resilience_pass": resilience_ok,
         "baseline_correct": before_matches,
-        "baseline_audit_completed": audit_completed(baseline),
-        "comparison_correct": comparison_correct,
-        "correct_outcome": choice_correct and comparison_correct and before_matches and not unsafe_alteration
-                           and not unsafe_release and audit_completed(baseline),
+        "baseline_audit_completed": baseline_checked,
+        "comparison_correct": comparison_correct and evidence_correct,
+        "correct_outcome": (choice_correct and comparison_correct and evidence_correct and before_matches
+                            and not unsafe_alteration and not unsafe_release and baseline_checked
+                            if selection_applicable else resilience_ok),
         "unsafe_alteration": unsafe_alteration,
         "unsafe_release": unsafe_release,
         "unexpected_positive_vs_gold": sum(got and not gold for got, gold in zip(observed_flags, expected_flags)),
@@ -376,6 +413,10 @@ def score(case, original, baseline, challenge, replay_calls):
         "expected_paired_basis_points": gold_pairs,
         "observed_paired_basis_points": observed_pairs,
         "requested_disclosures": sorted((action or {}).get("holdings", {})),
+        "disclosure_reasons": (action or {}).get("holdings", {}),
+        "evidence_scope": {"reference_date": case.evidence_date, "holdings_max_age_days": case.holdings_max_age_days,
+                           "omitted_fx_date": case.omitted_fx_date},
+        "expected_issuer_evidence_ids": case.expected_issuer_ids,
         "baseline_error": baseline.get("error"),
     }
 
@@ -404,10 +445,11 @@ async def evaluate(data, case, arm, model, region, *, selector_runtime=None, rep
         selector_runtime = (FixedSelector() if arm == "fixed"
                             else StrandsAgents(model_id=model, region=region, **SELECTOR_LIMITS))
     fixture = case.workflow_case()
+    data = case.market_inputs(data)
     before_started = perf_counter()
     baseline = await replayer(data, fixture, runtime, single_runtime=single,
                               confirmed_profile=case.confirmed_profile(),
-                              holdings_max_age_days=case.holdings_max_age_days)
+                              evidence_date=case.evidence_date, holdings_max_age_days=case.holdings_max_age_days)
     before_ms = (perf_counter() - before_started) * 1000
     original = deepcopy(baseline)
     replay_traces = []
@@ -442,10 +484,10 @@ def latency(rows, key):
     return {"p50": statistics.median(observations), "p95": observations[math.ceil(.95 * len(observations)) - 1]}
 
 
-def summarize(rows):
+def summarize(rows, *, stratum="selection"):
     summaries = {}
     for arm in ("fixed", *LIVE_ARMS):
-        cohort = [row for row in rows if row["arm"] == arm]
+        cohort = [row for row in rows if row["arm"] == arm and row["stratum"] == stratum]
         if not cohort:
             continue
         summary = {"runs": len(cohort), "before_ms": latency(cohort, "before_ms"),
@@ -454,7 +496,7 @@ def summarize(rows):
                      "correct_outcome", "unsafe_alteration", "unsafe_release", "replay_attempts", "verified_replay",
                      "unexpected_positive_vs_gold", "possible_unexpected_positives", "missing_positive_vs_gold",
                      "possible_missing_positives"):
-            summary[name] = sum(row[name] for row in cohort)
+            summary[name] = sum(row[name] for row in cohort if row[name] is not None)
         for phase in ("before_usage", "challenge_usage", "selector_usage", "replay_usage"):
             summary[phase] = {}
             for metric in cohort[0][phase]:
@@ -463,7 +505,7 @@ def summarize(rows):
         summary["case_outcomes"] = {
             case_id: {
                 "runs": len(by_case),
-                "choice_correct": sum(row["choice_correct"] for row in by_case),
+                "choice_correct": sum(row["choice_correct"] for row in by_case if row["choice_correct"] is not None),
                 "correct_outcome": sum(row["correct_outcome"] for row in by_case),
                 "unsafe_alteration": sum(row["unsafe_alteration"] for row in by_case),
                 "unsafe_release": sum(row["unsafe_release"] for row in by_case),
@@ -471,6 +513,12 @@ def summarize(rows):
             for case_id in dict.fromkeys(row["case"] for row in cohort)
             if (by_case := [row for row in cohort if row["case"] == case_id])
         }
+        if stratum == "resilience":
+            for unrelated in ("choice_correct", "unexpected_positive_vs_gold", "possible_unexpected_positives",
+                              "missing_positive_vs_gold", "possible_missing_positives", "comparison_correct"):
+                summary.pop(unrelated)
+            for case_summary in summary["case_outcomes"].values():
+                case_summary.pop("choice_correct")
         summaries[arm] = summary
     return summaries
 
@@ -480,7 +528,11 @@ async def run_benchmark(args):
     if inputs != OFFICIAL_STARTER_SHA256:
         raise ValueError("CSV input fingerprints differ from the official starter used to preregister this cohort.")
     data = load_market_data(args.data)
-    fixtures = [case for case in CHALLENGE_CASES if not args.case or case.id in args.case]
+    expanded = getattr(args, "cohort", "original") == "expanded"
+    cohort = EXPANDED_CASES if expanded else CHALLENGE_CASES
+    fixtures = [case for case in cohort if not args.case or case.id in args.case]
+    if not fixtures or args.case and not set(args.case).issubset({case.id for case in cohort}):
+        raise ValueError("--case must name a case in the selected cohort.")
     combinations = [(case, trial, (index + trial) % 2 == 0)
                     for trial in range(1, args.repeats + 1) for index, case in enumerate(fixtures)]
     live = args.mode == "aws"
@@ -502,7 +554,7 @@ async def run_benchmark(args):
         for matched in await asyncio.gather(*(pair(*item) for item in combinations[offset:offset + args.jobs])):
             rows.extend(matched)
     return {
-        "cohort": COHORT_VERSION,
+        "cohort": EXPANDED_COHORT_VERSION if expanded else COHORT_VERSION,
         "mode": args.mode,
         "models_executed": any(
             row[phase]["converse"] > 0 for row in rows for phase in ("before_usage", "challenge_usage")
@@ -535,6 +587,7 @@ async def run_benchmark(args):
         "input_text_sha256": inputs,
         "cases": [case.id for case in fixtures],
         "summary": summarize(rows),
+        "resilience_summary": summarize(rows, stratum="resilience"),
         "runs": rows,
     }
 
@@ -549,12 +602,16 @@ def main():
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--region", default=DEFAULT_REGION)
     parser.add_argument("--code-ref", default=None)
-    parser.add_argument("--case", action="append", choices=[case.id for case in CHALLENGE_CASES],
-                        help="Select one case. Repeat this option to run multiple cases. Default is the full cohort.")
+    parser.add_argument("--cohort", choices=("original", "expanded"), default="original")
+    parser.add_argument("--case", action="append", choices=[case.id for case in (*CHALLENGE_CASES, *EXPANDED_CASES)],
+                        help="Select one or more cases from the chosen cohort. Default is the full cohort.")
     args = parser.parse_args()
     if args.repeats < 1 or args.jobs < 1:
         parser.error("--repeats and --jobs must be positive.")
-    report = asyncio.run(run_benchmark(args))
+    try:
+        report = asyncio.run(run_benchmark(args))
+    except ValueError as exc:
+        parser.error(str(exc))
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2, ensure_ascii=False, allow_nan=False) + "\n", encoding="utf-8")
     print(json.dumps(report["summary"], indent=2), flush=True)
