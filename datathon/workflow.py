@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Optional
+from typing import Literal, Optional
 
 from .agents import AgentRun, ToolSpec
 from .data import issuer_evidence
@@ -288,8 +288,9 @@ async def run_case(
                     evidence.update(issuer_snapshot=snapshot, issuer_weights=issuer_weights)
             return evidence
 
-        def lookup_evidence(scope: str, evidence_ids: list[str], holdings_as_of: str) -> dict:
-            """Return only the frozen market evidence and applicable issuer snapshot for the confirmed rules."""
+        def lookup_evidence(scope: Literal["market_replay", "market_and_issuer"],
+                            evidence_ids: list[str], holdings_as_of: str) -> dict:
+            """Use market_replay without an issuer cap and market_and_issuer with a cap."""
             return route("evidence", "lookup_evidence", {"scope": scope, "evidence_ids": evidence_ids,
                          "holdings_as_of": holdings_as_of}, evidence_args, get_evidence)
 

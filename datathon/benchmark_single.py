@@ -14,11 +14,14 @@ _SINGLE_ROLE = Role(
     "Wait for its result, then call stress_replay and also measure_exposure when required. "
     "Wait for every required result before calling solve_funding_range. Wait for the funding range "
     "before calling recheck_decision. Do not call dependent tools in the same batch. "
-    "Follow the catalog and tool contracts in the payload. After the review, summarize only its "
+    "Use exact machine values from the payload. For lookup_evidence, scope is 'market_replay' "
+    "when policy.issuer_cap is null and 'market_and_issuer' when it is a number. Copy every market "
+    "evidence ID and add every listed issuer evidence ID for 'market_and_issuer'. Use an empty "
+    "holdings_as_of for 'market_replay'. For stress_replay, use exactly policy.metric when "
+    "loss_limit is a number, or 'comparison' otherwise. Include every required window. "
+    "After the review, summarize only its "
     "verified conclusions and relevant evidence IDs. The review result controls the decision. "
-    + " ".join(ROLES[role].instructions for role in (
-        "evidence", "exposure", "scenario", "alternatives", "review", "explanation",
-    ))
+    + " ".join(ROLES[role].instructions for role in ("exposure", "alternatives", "review", "explanation"))
 )
 
 
