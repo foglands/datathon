@@ -11,7 +11,7 @@ from typing import Literal
 from uuid import uuid4
 
 from .agents import AgentRun, ToolSpec
-from .evidence import DEFAULT_HOLDINGS_MAX_AGE_DAYS
+from .evidence import DEFAULT_HOLDINGS_MAX_AGE_DAYS, eligible_issuer_disclosures, load_issuer_catalog
 from .workflow import profile_policy, run_case
 
 
@@ -119,9 +119,26 @@ def _issuer_thresholds(report):
 
 def _holds_context(report):
     snapshot = _evidence_snapshot(report)
-    return {
+    context = {
         "evidence_date": snapshot.get("reference_date", "2026-11-14"),
         "holdings_max_age_days": snapshot.get("max_age_days", DEFAULT_HOLDINGS_MAX_AGE_DAYS),
+    }
+    reviewed = tuple(row["reviewed_disclosure_id"] for row in snapshot.get("holdings", {}).values()
+                     if "reviewed_disclosure_id" in row)
+    if reviewed:
+        context["issuer_disclosure_ids"] = reviewed
+    return context
+
+
+def issuer_disclosure_options(report):
+    """List reviewed records that can resolve coverage in this audited case."""
+    if not _checked(report) or report.get("decision_reason") != "issuer_evidence_insufficient":
+        return {}
+    missing = _missing_issuer_evidence(report)
+    return {
+        identifier: record for identifier, record in
+        eligible_issuer_disclosures(_evidence_snapshot(report), load_issuer_catalog()).items()
+        if record.ticker in missing
     }
 
 
@@ -286,12 +303,43 @@ def _replay_matches(baseline, replay, option, expected_policy, expected_context)
 
 
 def _same_issuer_records(before, after):
-    fields = ("as_of", "published_on", "url", "source", "reported_status", "reported_weight")
+    fields = ("as_of", "published_on", "url", "source", "reported_status", "reported_weight",
+              "reviewed_disclosure_id", "source_document_sha256", "source_locator", "catalog_sha256")
     return (
         all(before.get(key) == after.get(key) for key in ("issuer", "issuer_id", "scope")) and
         before["holdings"].keys() == after["holdings"].keys() and
         all(all(original.get(field) == after["holdings"][ticker].get(field) for field in fields)
             for ticker, original in before["holdings"].items())
+    )
+
+
+def _issuer_reaudit_matches(baseline, replay, records):
+    if not _checked(replay) or replay.get("policy") != baseline["policy"]:
+        return False
+    if not _unchanged_replay_inputs(baseline, replay):
+        return False
+    before = _evidence_snapshot(baseline)
+    after = _evidence_snapshot(replay)
+    if {key: value for key, value in before.items() if key not in {"holdings", "issuer_weights"}} != {
+        key: value for key, value in after.items() if key not in {"holdings", "issuer_weights"}
+    } or before["holdings"].keys() != after["holdings"].keys():
+        return False
+    roster = {record.ticker: record for record in records}
+    for ticker, original in before["holdings"].items():
+        row = after["holdings"][ticker]
+        if ticker not in roster:
+            if row != original:
+                return False
+            continue
+        if row.get("status") != "disclosed":
+            return False
+        if any(row.get(key) != value for key, value in roster[ticker].row().items()):
+            return False
+    prior_ids = set(baseline["evidence"]["evidence_ids"])
+    expected_ids = {f"issuer:{record.ticker}:{record.as_of}" for record in records}
+    return (
+        set(replay["evidence"]["evidence_ids"]) == prior_ids | expected_ids and
+        after["issuer_weights"] == {ticker: row["weight"] for ticker, row in after["holdings"].items()}
     )
 
 
@@ -315,7 +363,7 @@ def _public_report(report):
 
 async def run_counterfactual(
     data, case, baseline_report, *, option_id=None, selector_runtime=None, replay_runtime=None,
-    single_runtime=None, replayer=run_case, challenge_hint=None, challenge_value=None,
+    single_runtime=None, replayer=run_case, challenge_hint=None, challenge_value=None, issuer_disclosure_ids=None,
 ):
     """Choose one challenge and verify it, optionally with a user-confirmed integer threshold."""
     started = perf_counter()
@@ -344,6 +392,13 @@ async def run_counterfactual(
 
     if not _checked(baseline):
         return result("invalid", "baseline_not_verified", "An independently reviewed starting audit is required.")
+    if issuer_disclosure_ids is not None and (
+        option_id != "request_issuer_evidence" or challenge_value is not None or challenge_hint is not None or
+        not isinstance(issuer_disclosure_ids, (list, tuple)) or
+        not 1 <= len(issuer_disclosure_ids) <= 64 or
+        not all(isinstance(item, str) for item in issuer_disclosure_ids)
+    ):
+        return result("invalid", "invalid_issuer_selection", "Select only reviewed issuer disclosures for one re-audit.")
     if challenge_value is not None:
         selected = options.get(option_id) if isinstance(option_id, str) else None
         if (challenge_hint is not None or selected is None or selected.value_unit is None or
@@ -414,6 +469,7 @@ async def run_counterfactual(
         trace.append({"role": "review_challenge", "event": "challenge_value_confirmed",
                       "status": "accepted", "option_id": option.id, "field": option.field,
                       "threshold_value": challenge_value, "threshold_unit": option.value_unit})
+    baseline_kwargs = {"baseline": case.scope.baseline} if case.scope else {}
     if option.action:
         if before["decision_reason"] != "issuer_evidence_insufficient":
             return result("no_recommendation", "issuer_evidence_not_binding",
@@ -429,8 +485,39 @@ async def run_counterfactual(
             "reference_date": _holds_context(baseline)["evidence_date"],
             "thresholds": thresholds,
         }
-        return result("no_recommendation", "issuer_evidence_required",
-                      "A qualified disclosure is needed before checking the unresolved issuer constraint.",
+        if issuer_disclosure_ids is None:
+            return result("no_recommendation", "issuer_evidence_required",
+                          "A qualified disclosure is needed before checking the unresolved issuer constraint.",
+                          verified=True, action=action)
+        try:
+            catalog = issuer_disclosure_options(baseline)
+        except ValueError:
+            return result("invalid", "issuer_catalog_unavailable", "The pinned issuer catalog could not be verified.")
+        if any(identifier not in catalog for identifier in issuer_disclosure_ids):
+            return result("invalid", "disclosure_not_eligible", "Select reviewed disclosures available by the audit date.")
+        records = [catalog[identifier] for identifier in issuer_disclosure_ids]
+        if len({record.ticker for record in records}) != len(records):
+            return result("invalid", "conflicting_disclosures", "Select one reviewed disclosure per fund.")
+        policy = baseline["policy"]
+        profile = _profile(policy)
+        if profile_policy(profile, **baseline_kwargs) != policy:
+            return result("invalid", "policy_changed_during_compilation", "The audited policy could not be preserved.")
+        replay_options = _holds_context(baseline)
+        replay_options["issuer_disclosure_ids"] = (*replay_options.get("issuer_disclosure_ids", ()), *issuer_disclosure_ids)
+        replay_options["confirmed_profile"] = AgentRun("ok", profile)
+        if single_runtime is not None:
+            replay_options["single_runtime"] = single_runtime
+        trace.append({"role": "review_challenge", "event": "issuer_reaudit", "status": "started"})
+        replay = await replayer(data, replace(case, id=run_id), replay_runtime, **replay_options)
+        if not _issuer_reaudit_matches(baseline, replay, records):
+            return result("invalid", "issuer_reaudit_not_verified", "The supplemented audit could not be independently verified.")
+        trace.append({"role": "review_challenge", "event": "issuer_reaudit", "status": "verified"})
+        action["type"] = "reviewed_issuer_disclosures"
+        action["reviewed_disclosures"] = [dict(record.row(), ticker=record.ticker) for record in records]
+        action["remaining_holding_gaps"] = _missing_issuer_evidence(replay)
+        remaining = " Some holdings remain unresolved." if action["remaining_holding_gaps"] else ""
+        return result("verified", "issuer_reaudit_verified",
+                      "The independent audit checked the documented issuer exposures under the original rules." + remaining,
                       verified=True, action=action)
 
     policy = dict(baseline["policy"])
@@ -440,7 +527,6 @@ async def run_counterfactual(
     else:
         policy[option.field] = option.after
     profile = _profile(policy)
-    baseline_kwargs = {"baseline": case.scope.baseline} if case.scope else {}
     if profile_policy(profile, **baseline_kwargs) != policy:
         return result("invalid", "policy_changed_during_compilation", "The proposed change could not be isolated.")
     replay_case = replace(case, id=run_id)

@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
@@ -14,6 +15,7 @@ except ModuleNotFoundError as exc:
 
 from datathon.agents import AgentRun, StrandsAgents
 from datathon.workflow import examples, preset_profile
+from tests.test_issuer_reaudit import configured_catalog, synthetic_disclosure
 from tests.test_tool_routing import select_tool_arguments
 
 
@@ -148,6 +150,24 @@ class PortfolioAppTests(unittest.TestCase):
         self.assertEqual(set(challenge["action"]["holdings"]), {"XIU.TO", "ZST.TO"})
         self.assertIsNone(challenge["replay"])
         self.assertTrue(any("0.60937 percentage points" in item.value for item in self.app.markdown))
+
+    def test_amira_reaudits_reviewed_disclosures_in_a_separate_result(self):
+        with TemporaryDirectory() as folder:
+            records = [synthetic_disclosure("xiu", "XIU.TO"), synthetic_disclosure("zst", "ZST.TO")]
+            with configured_catalog(Path(folder) / "catalog.json", records):
+                self.select("selectbox", "Scenario", "Amira · issuer exposure")
+                self.click(CONFIRM)
+                original = self.app.session_state["preset_result"]
+                self.select("selectbox", "Check to run", "request_issuer_evidence")
+                self.select("multiselect", "Reviewed holdings disclosures to apply", ["xiu", "zst"])
+                self.click("Re-audit reviewed disclosures")
+
+        challenge = self.app.session_state["active_challenge"][-1]
+        self.assertEqual(challenge["reason"], "issuer_reaudit_verified")
+        self.assertEqual(challenge["replay"]["policy"], original["policy"])
+        self.assertTrue(challenge["comparison"]["replay"]["alternative_eligible"])
+        self.assertEqual(self.app.session_state["preset_result"], original)
+        self.assertTrue(any("Independent re-audit with reviewed disclosures" in item.value for item in self.app.markdown))
 
     def test_live_clarification_waits_for_confirmation(self):
         calls = []

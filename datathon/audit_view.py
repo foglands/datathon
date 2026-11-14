@@ -337,7 +337,7 @@ def render_evidence(report: dict) -> None:
         if snapshot := evidence.get("issuer_snapshot"):
             st.write("**Issuer holdings**")
             st.caption(
-                f"Snapshot observation date: {snapshot['as_of'] or 'Unknown'}. "
+                f"Base snapshot observation date: {snapshot['as_of'] or 'Unknown'}. "
                 f"Reference date: {snapshot['reference_date']}. Publication cutoff: {snapshot['publication_cutoff']}. "
                 f"Prototype maximum age: {snapshot['max_age_days']} days. These dates apply to issuer "
                 "disclosures separately from the historical price replays."
@@ -348,8 +348,11 @@ def render_evidence(report: dict) -> None:
                     st.markdown(f"**{ticker}** · Direct position, counted in full")
                     continue
                 value = _percent(row.get("weight")) if status == "disclosed" else status.replace("_", " ").capitalize()
+                observed = row.get("as_of")
                 published = row.get("published_on")
-                dates = f" · published {published}" if published else ""
+                dates = f" · observed {observed}" if observed else ""
+                if published:
+                    dates += f" · published {published}"
                 if row.get("age_days") is not None:
                     dates += f" · {row['age_days']} days since observation"
                 url = row.get("url") or ""

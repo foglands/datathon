@@ -10,7 +10,7 @@ import streamlit as st
 
 from datathon.agents import PROFILE_FIELDS, PROFILE_MODEL, AgentRun, StrandsAgents
 from datathon.audit_view import render_comparison, render_evidence, result_label
-from datathon.counterfactual import counterfactual_options, run_counterfactual
+from datathon.counterfactual import counterfactual_options, issuer_disclosure_options, run_counterfactual
 from datathon.data import load_market_data
 from datathon.finance import BASE_WEIGHTS
 from datathon.scope import EXTRA_WINDOW, OBJECTIVES, WITHDRAWAL_TIMES, ReplayScope
@@ -80,7 +80,7 @@ def show_counterfactual(case, report, runtime):
     if not (options := counterfactual_options(report)):
         return
     st.subheader("What could change this decision?")
-    st.caption("Compare one hypothetical change. The original audited rules stay in effect.")
+    st.caption("Test one rule or recheck a missing disclosure. The original audit stays available.")
     choices = {option.id: option.label for option in options}
     default = "Review Agent selects a check" if runtime is not None else "Choose a check using fixed rules (offline)"
     choices = {None: default, **choices}
@@ -88,6 +88,7 @@ def show_counterfactual(case, report, runtime):
     selected = st.selectbox("Check to run", list(choices), format_func=choices.__getitem__, key=f"{key}-choice")
     hint = ""
     threshold = None
+    reviewed_ids = ()
     option = next((item for item in options if item.id == selected), None)
     if runtime is not None and selected is None:
         hint = st.text_input("What would you like to check?", max_chars=500, key=f"{key}-hint")
@@ -106,16 +107,32 @@ def show_counterfactual(case, report, runtime):
             min_value=option.minimum_value, max_value=option.maximum_value, value=option.preset_value,
             step=1, key=f"{key}-age",
         )
-    if st.button("Check once", key=f"{key}-run"):
+    if selected == "request_issuer_evidence":
+        try:
+            available = issuer_disclosure_options(report)
+        except ValueError:
+            available = {}
+            st.warning("The reviewed issuer catalog is unavailable.")
+        if available:
+            reviewed_ids = tuple(st.multiselect(
+                "Reviewed holdings disclosures to apply", list(available),
+                format_func=lambda item: f"{available[item].ticker} · {available[item].as_of} · {available[item].source}",
+                key=f"{key}-disclosures",
+            ))
+            st.caption("The re-audit uses the same policy and market data.")
+        else:
+            st.caption("No reviewed disclosure qualifies for the unresolved holdings at this audit date.")
+    if st.button("Re-audit reviewed disclosures" if reviewed_ids else "Check once", key=f"{key}-run"):
         with st.spinner("Checking the assumption against the independent audit"):
             check = asyncio.run(run_counterfactual(
                 market_data(), case, report, option_id=selected, selector_runtime=runtime, replay_runtime=runtime,
                 challenge_hint=hint.strip() or None, challenge_value=threshold,
+                issuer_disclosure_ids=reviewed_ids or None,
             ))
-        st.session_state.active_challenge = (key, selected, hint, threshold, check)
+        st.session_state.active_challenge = (key, selected, hint, threshold, reviewed_ids, check)
 
     saved = st.session_state.get("active_challenge")
-    if not saved or saved[:4] != (key, selected, hint, threshold):
+    if not saved or saved[:5] != (key, selected, hint, threshold, reviewed_ids):
         return
     check = saved[-1]
     if check["status"] == "invalid":
@@ -126,14 +143,21 @@ def show_counterfactual(case, report, runtime):
         st.caption(option["label"])
     if comparison := check["replay"]:
         left, right = st.columns(2)
-        left.markdown(f"**Original audited rules**  \n{result_label(report)}")
-        right.markdown(f"**One hypothetical change**  \n{result_label(comparison)}")
+        left.markdown(f"**Original audit**  \n{result_label(report)}")
+        label = "Independent re-audit with reviewed disclosures" if reviewed_ids else "One hypothetical change"
+        right.markdown(f"**{label}**  \n{result_label(comparison)}")
         with st.expander("Independent rerun evidence"):
             render_comparison(comparison)
             st.json(check["comparison"]["differences"], expanded=False)
     if action := check["action"]:
-        st.write("Disclosures to verify: " + ", ".join(action["holdings"]))
-        qqq = action.get("thresholds", {}).get("qqq_only", {})
+        for row in action.get("reviewed_disclosures", ()):
+            st.markdown(f"**{row['ticker']}** · observed {row['as_of']} · "
+                        f"published {row['published_on']} · [Source]({row['url']})")
+            st.caption(f"{row['source_locator']} · {row['weight']:.4%} issuer weight")
+        remaining = action.get("remaining_holding_gaps", action["holdings"])
+        if remaining:
+            st.write("Disclosures to verify: " + ", ".join(remaining))
+        qqq = {} if reviewed_ids else action.get("thresholds", {}).get("qqq_only", {})
         if qqq.get("status") == "unresolved" and qqq.get("maximum_combined_additional_exposure") is not None:
             headroom = qqq["maximum_combined_additional_exposure"] * 100
             covered = qqq["known_lower"] * 100
@@ -147,7 +171,7 @@ def show_counterfactual(case, report, runtime):
             calls = sum(event.get("event") == "bedrock" and event.get("status") == "success" for event in check["trace"])
             st.caption(f"{calls} successful Bedrock response(s) during selection.")
         st.json({"selection": check["trace"], "changed_fields": check["changed_fields"],
-                 "verification": check["verified"], "evidence_request": check["action"]}, expanded=False)
+                 "verification": check["verified"], "issuer_evidence": check["action"]}, expanded=False)
     st.download_button("Download this check", json.dumps(check, indent=2, allow_nan=False) + "\n",
                        file_name=f"{report['case']}-challenge.json", mime="application/json", key=f"{key}-download")
 

@@ -9,7 +9,7 @@ from typing import Literal, Optional
 
 from .agents import AgentRun, ToolSpec
 from .data import issuer_evidence
-from .evidence import DEFAULT_HOLDINGS_MAX_AGE_DAYS, validate_issuer_snapshot
+from .evidence import DEFAULT_HOLDINGS_MAX_AGE_DAYS, add_issuer_disclosures, validate_issuer_snapshot
 from .finance import BASE_WEIGHTS, STRESS_WINDOWS, MarketEvidenceError, evaluate_portfolio, solve_funding
 from .governance import audit_decision
 from .scope import ReplayScope
@@ -162,7 +162,7 @@ async def interpret_request(request, runtime, run_id):
 async def run_case(
     data, case, runtime=None, *, confirmed_profile: AgentRun | None = None,
     evidence_date: str = "2026-11-14", holdings_max_age_days: int = DEFAULT_HOLDINGS_MAX_AGE_DAYS,
-    single_runtime=None, include_agent_commentary=False,
+    single_runtime=None, include_agent_commentary=False, issuer_disclosure_ids=(),
 ):
     """Audit the frozen market replay and qualify issuer data as of the evidence date."""
     started = perf_counter()
@@ -287,13 +287,18 @@ async def run_case(
         if raw_snapshot and case.missing_qqq:
             raw_snapshot["holdings"].pop("QQQ", None)
         snapshot = None
+        if issuer_disclosure_ids and not include_issuer:
+            raise RoleError("Reviewed disclosures require a confirmed issuer exposure cap.")
         if include_issuer:
             try:
+                if issuer_disclosure_ids:
+                    raw_snapshot = add_issuer_disclosures(raw_snapshot, issuer_disclosure_ids,
+                                                          assets=starting_weights, **issuer_context)
                 snapshot = validate_issuer_snapshot(raw_snapshot, assets=starting_weights, **issuer_context)
             except ValueError as exc:
                 raise RoleError(f"Invalid evidence policy: {exc}") from exc
         issuer_weights = snapshot["issuer_weights"] if snapshot else {}
-        dated_ids = [f"issuer:{ticker}:{snapshot['as_of']}" for ticker, row in snapshot["holdings"].items()
+        dated_ids = [f"issuer:{ticker}:{row['as_of']}" for ticker, row in snapshot["holdings"].items()
                      if row["status"] == "disclosed"] if snapshot else []
         source_ids = market_ids + dated_ids
         windows = [window.id for window in replay_windows]
