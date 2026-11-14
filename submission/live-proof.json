@@ -1,0 +1,59 @@
+{
+  "test_date_montreal": "2026-11-14",
+  "code_ref": "fecddec1812115b52b6b8d3a61fae9681f2f23e6",
+  "environment": "PolyFinances competition CloudShell",
+  "region": "us-east-1",
+  "model_profile": "us.amazon.nova-2-lite-v1:0",
+  "mode": "live",
+  "report": "Sanitized summary of successful Bedrock Converse calls and independently checked decisions",
+  "cases": [
+    {
+      "case": "Robert, terminal-loss policy",
+      "proposal_status": "fail",
+      "audit_reason": "feasible_full",
+      "request_ids_by_role": {
+        "evidence": "d7084304-862e-4815-8641-7905f6acbd73",
+        "scenario": "b28bff22-53a9-46ea-9697-e37c5cf4d590",
+        "alternatives": "bb941a24-bbaf-4825-a956-bc9c1c8ac663",
+        "review": "1d54715f-8bd9-432d-bdb3-1bdccbd452bf"
+      }
+    },
+    {
+      "case": "Robert, one-rule maximum-drawdown challenge",
+      "selection": "toggle_loss_metric",
+      "changed_fields": ["metric"],
+      "audit_reason": "baseline_breaches_policy",
+      "request_ids_by_role": {
+        "review_challenge": "432546fb-e11f-4fa5-a626-d1a4882d35d4",
+        "evidence": "f96ea6cb-d7c4-491c-b7e0-af6a16764562",
+        "scenario": "c9a63170-e0bb-4976-9098-fc2f0d279ef3",
+        "alternatives": "1680763c-f1bb-4990-873b-65d812de23b2",
+        "review": "f971fd08-801f-40ba-8391-ff99289096f2"
+      }
+    },
+    {
+      "case": "Amira, issuer cap and disclosure request",
+      "proposal_status": "fail",
+      "audit_reason": "issuer_evidence_insufficient",
+      "selection": "request_issuer_evidence",
+      "challenge_reason": "issuer_evidence_required",
+      "changed_fields": [],
+      "request_ids_by_role": {
+        "evidence": "6556e011-9b14-4474-9ccd-af4a92b6943a",
+        "exposure": "6f551fba-8f9a-45e1-9835-417fd27e2330",
+        "scenario": "40ad82b0-46e7-4081-a8ce-f91cfe076c95",
+        "alternatives": "ac457a39-6b52-4370-8dd5-355e35da073a",
+        "review": "1f665533-34cd-4612-a13e-c5f672fcd122",
+        "review_challenge": "4d5d7f71-1778-41e9-9a29-0e9c5b61bf32"
+      }
+    }
+  ],
+  "intake": {
+    "model_profile": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "original_benchmark": {"correct": 12, "attempts": 12, "premature_policies": 0},
+    "original_disavowed_quote": {"correct": 2, "attempts": 2},
+    "mixed_holdout": {"correct": 18, "attempts": 20, "premature_policies": 0},
+    "separate_quote_holdout": {"correct": 12, "attempts": 12, "premature_policies": 0},
+    "mixed_incorrect_outcome": "Two unnecessary requests to clarify purchase size"
+  }
+}

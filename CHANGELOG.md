@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-14 · Competition package
+
+- Freeze the verified application revision and add the demo, judge one-pager, technical summary and sanitized Bedrock evidence.
+- Preserve clearer portfolio-point wording in Profile. Record separate original, mixed and quote-focused intake results, including unexpected clarification requests.
+- Reproduce the reference cases and full test suite from a clean checkout. [Verification and reproduction](submission/verification.md)
+
 ## 2026-11-14 · Verified funding examples and decision boundaries
 
 - Recover fully explicit NVDA purchase size and single-source funding in supported wording and keep the user's confirmation step.

@@ -6,6 +6,12 @@ AlphaForge AI shows how the funding source for a proposed trade changes a portfo
 
 The command-line demo uses a fictional CAD portfolio holding 35% SPY, 25% XIU.TO, 20% QQQ and 20% ZST.TO. The presets add **10 percentage points of NVDA**. An interactive AWS run accepts a new simulated NVDA purchase, confirms the proposed sale and constraints with the user, then searches within the confirmed funding sources and purchase-size rules. [Changelog](CHANGELOG.md)
 
+## Competition package
+
+[Release verification](submission/verification.md) · [One-page summary](submission/one-pager.pdf) · [Technical summary](submission/technical-summary.pdf) · [Demo video](submission/alphaforge-demo.mp4) · [Demo visuals](submission/visual-handout.pdf)
+
+The package includes both real competition AWS results and a reproducible offline walkthrough. See the verification record for the exact application commit, clean-checkout results and recorded Bedrock request IDs.
+
 ## What the prototype found
 
 | Preset or test | Verified outcome |
