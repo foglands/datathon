@@ -86,3 +86,10 @@ Streamlit AppTest on the exact `f0e559a` checkout in the competition AWS environ
 The initial final-candidate CLI regression scored 1/6 because it sent the already-defined reference policies back through the experimentally weak Nova text parser. The CLI now passes confirmed structured policies to the same staged path as Streamlit and uses the selected Profile model for the genuinely ambiguous fixture. The interactive CLI still parses and confirms user text separately.
 
 The `a731671` candidate then passed **6/6 live AWS CLI scenarios**, **92/92** official-data tests in CloudShell and **92/92** locally. The local CLI also passed 6/6 offline. Completion, latency, and challenge behavior are verified on these scoped fixtures. Free-text extraction and performance on other market data or portfolios remain open quality questions. The original stable release stays available on `main`; all this iteration's changes and measurements are on the private `agent-optimization` branch.
+
+## Iteration 2 · Input fidelity, risk drivers and financial boundaries
+
+- Start from `0975ae5`. Test the previously missed Sonnet purchase-size cases on the same cohort. Preserve reviewable drafts and direct confirmation.
+- Independently attribute maximum drawdown to holdings at the portfolio's own peak and trough. Show one independently checked eligible funding example even when no funding preference is given.
+- Support an explicit hypothetical ZST.TO floor or disclosure age in a one-field challenge. Continue checking that the original policy, price replay and raw disclosure records do not change.
+- Add a second financial challenge cohort from the official starter with numerical boundaries, stale or unpublished evidence, no-change requests and a separate missing-FX resilience check.

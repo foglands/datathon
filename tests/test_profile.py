@@ -34,10 +34,70 @@ class ProfileHandoffTests(unittest.TestCase):
         self.assertTrue(StrandsAgents._valid_data(draft, "profile"))
         self.assertEqual(profile_policy(draft)["target"], .05)
         self.assertEqual(draft["source_excerpts"], {
+            "target_bps": "Shift 5 percentage points to NVDA",
             "metric": "Limit start-to-end loss to 14%.", "limit_bps": "Limit start-to-end loss to 14%.",
             "initial_source": "from QQQ",
         })
         self.assertIsNone(draft["issuer_cap_bps"])
+
+    def test_recovers_only_explicit_purchase_size_and_grounded_excerpt(self):
+        fields = {**FIELDS, "target_bps": -1}
+        cases = (
+            ("Add 6.25 percentage points to NVDA from QQQ.", 625),
+            ("For a simulated NVDA increase of six percentage points, sell ZST.TO initially.", 600),
+            ("Use a four-percentage-point increase in NVDA.", 400),
+            ("In this fictional example, fund five percentage points of NVDA from QQQ alone.", 500),
+            ("Simulate adding nine percentage points of NVDA. Later correction: change only the loss metric.", 900),
+        )
+        for request, expected in cases:
+            with self.subTest(request=request):
+                draft = _profile_handoff(request, **fields)
+                self.assertTrue(draft["target_grounded"])
+                self.assertEqual(draft["target_bps"], expected)
+                self.assertIn(draft["source_excerpts"]["target_bps"], request)
+                self.assertEqual(draft["limit_bps"], FIELDS["limit_bps"])
+
+    def test_no_size_recovery_from_negation_quotes_or_competing_amounts(self):
+        clause = "Add five percentage points to NVDA"
+        cases = (
+            f"Do not {clause.lower()}.",
+            f"An adviser suggested: {clause.lower()}.",
+            f"If the stock rallies, {clause.lower()}.",
+            f"The rejected example said: “{clause}.“",
+            f"The adviser said:\n> {clause}.",
+            f"Do this exercise with the quote \"{clause}.\"",
+            f"{clause}. Alternatively use six percentage points.",
+            f"{clause} or six percentage points.",
+            f"{clause}. Actually, increase NVDA to 9%.",
+            f"{clause}. Use seven percentage points instead.",
+            f"{clause}. Add five percentage points to NVDA.",
+            "Increase NVDA to five percent of the portfolio.",
+            "Add 6.257 percentage points to NVDA.",
+            "Do a -6.25-percentage-point increase in NVDA.",
+            "Increase NVDA to between 5 and 6 percentage points.",
+        )
+        for request in cases:
+            with self.subTest(request=request):
+                draft = _profile_handoff(request, **{**FIELDS, "target_bps": -1})
+                self.assertIsNone(draft["target_bps"])
+                self.assertEqual(draft["clarification_field"], "target")
+                self.assertFalse(draft["target_grounded"])
+
+    def test_excerpt_cannot_override_quote_negation_or_numeric_mismatch(self):
+        excerpt = "add five percentage points to NVDA"
+        for request, target in ((f"An adviser suggested: \"{excerpt}.\"", 500),
+                                (f"Do not {excerpt}.", 500),
+                                (f"Please {excerpt}.", 700),
+                                (REQUEST, 500)):
+            with self.subTest(request=request):
+                draft = _profile_handoff(request, **{**FIELDS, "target_bps": target}, target_excerpt=excerpt)
+                self.assertEqual(draft["clarification_field"], "target")
+                self.assertIsNone(draft["target_bps"])
+                self.assertNotIn("target_bps", draft["source_excerpts"])
+        blocked = _profile_handoff(f"Please {excerpt}.", **{**FIELDS, "target_bps": -1},
+                                   clarification_field="unsupported_constraint")
+        self.assertEqual(blocked["clarification_field"], "unsupported_constraint")
+        self.assertIsNone(blocked["target_bps"])
 
     def test_original_source_defaults_only_when_separate_permission_is_omitted(self):
         fields = {**FIELDS, "allowed_sources": ""}
@@ -160,3 +220,6 @@ class ProfileSDKTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((failed_tool["status"], failed_tool["input"], failed_tool["output"]), ("error", {}, None))
         self.assertEqual(checked_tool["input"]["initial_source"], "QQQ")
         self.assertEqual(checked_tool["input"]["allowed_sources"], ["QQQ"])
+        self.assertEqual(checked_tool["input"]["target_bps"], 500)
+        self.assertTrue(checked_tool["output"]["target_grounded"])
+        self.assertNotIn("Shift 5 percentage points to NVDA", json.dumps(handoff.trace))
