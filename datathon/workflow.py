@@ -160,6 +160,7 @@ async def interpret_request(request, runtime, run_id):
 async def run_case(
     data, case, runtime=None, *, confirmed_profile: AgentRun | None = None,
     evidence_date: str = "2026-11-14", holdings_max_age_days: int = DEFAULT_HOLDINGS_MAX_AGE_DAYS,
+    single_runtime=None,
 ):
     """Audit the frozen market replay and qualify issuer data as of the evidence date."""
     started = perf_counter()
@@ -226,7 +227,9 @@ async def run_case(
                       "status": "accepted", "arguments": submitted})
         return answer
 
-    result = {"case": case.id, "mode": "offline" if runtime is None else "aws"}
+    if single_runtime is not None and (runtime is not None or confirmed_profile is None):
+        raise ValueError("The single-agent benchmark requires a confirmed profile and its own runtime.")
+    result = {"case": case.id, "mode": "aws" if runtime is not None or single_runtime is not None else "offline"}
     try:
         if confirmed_profile is None:
             fixture = preset_profile(case)
@@ -290,7 +293,7 @@ async def run_case(
             return route("evidence", "lookup_evidence", {"scope": scope, "evidence_ids": evidence_ids,
                          "holdings_as_of": holdings_as_of}, evidence_args, get_evidence)
 
-        await routed_role("evidence", {
+        evidence_payload = {
             "policy": {"issuer_cap": policy_view["issuer_cap"]},
             "catalog": {"market_evidence_ids": market_ids, "issuer_evidence_ids": dated_ids,
                         "holdings_as_of": evidence_args["holdings_as_of"]},
@@ -299,10 +302,8 @@ async def run_case(
                              "In that case include all listed market and issuer evidence IDs and the exact "
                              "holdings_as_of from the catalog, which may be empty when unverified. "
                              "Do not invent evidence for the missing funds.",
-        }, ToolSpec("lookup_evidence", lookup_evidence.__doc__, lookup_evidence, trace_fields=tuple(evidence_args)),
-           evidence_args, get_evidence, evidence)
-        if not evidence:
-            raise RoleError("evidence: no checked tool result")
+        }
+        evidence_tool = ToolSpec("lookup_evidence", lookup_evidence.__doc__, lookup_evidence, trace_fields=tuple(evidence_args))
 
         calculation_policy = {k: v for k, v in policy_view.items() if k not in {"initial_source", "prefer_reserve"}}
         confirmed = {**calculation_policy, "issuer_exposure": issuer_weights, "windows": STRESS_WINDOWS}
@@ -314,21 +315,34 @@ async def run_case(
                 label = "qqq_only" if source == "QQQ" else "zst_only"
                 portfolios[label] = proposed_weights(source, amount=policy_view["target"])
 
+        exposure = {}
+
         def inspect_exposure():
-            return {"snapshot_as_of": snapshot["as_of"],
-                    **{label: exposure_range(weights, issuer_weights) for label, weights in portfolios.items()}}
+            if not evidence:
+                raise ValueError("Look up the evidence first.")
+            if not exposure:
+                exposure.update(snapshot_as_of=snapshot["as_of"],
+                                **{label: exposure_range(weights, issuer_weights) for label, weights in portfolios.items()})
+            return exposure
 
         evaluations = {}
         stress = {}
+        market_errors = []
         scenario_focus = {}
         scenario_args = {"metric": policy_view["metric"] if policy_view["loss_limit"] is not None else "comparison",
                          "window_ids": windows}
 
         def stress_test(metric, window_ids):
+            if not evidence:
+                raise ValueError("Look up the evidence first.")
             if not stress:
                 selected_windows = [window for window in STRESS_WINDOWS if window.id in window_ids]
-                for label, weights in portfolios.items():
-                    evaluations[label] = evaluate_portfolio(data, weights, windows=selected_windows)
+                try:
+                    for label, weights in portfolios.items():
+                        evaluations[label] = evaluate_portfolio(data, weights, windows=selected_windows)
+                except MarketEvidenceError as exc:
+                    market_errors[:] = [exc]
+                    raise
                 stress.update({label: financial_metrics(row) for label, row in evaluations.items()})
                 focus_fields = {
                     "terminal_loss": ("terminal_loss", "terminal_return"),
@@ -346,41 +360,31 @@ async def run_case(
             return route("scenario", "stress_replay", {"metric": metric, "window_ids": window_ids},
                          scenario_args, stress_test)
 
-        scenario_run = routed_role("scenario", {
+        scenario_payload = {
             "policy": {"metric": policy_view["metric"], "loss_limit": policy_view["loss_limit"]},
             "required_windows": windows,
             "tool_contract": "Use the confirmed metric for a loss limit. Without a loss limit, select "
                              "comparison to report both metrics. Include every required window ID.",
-        }, ToolSpec("stress_replay", stress_replay.__doc__, stress_replay, trace_fields=tuple(scenario_args)),
-           scenario_args, stress_test, stress)
-        if include_issuer:
-            exposure, _ = await asyncio.gather(
-                role("exposure", {"proposal": original, "data": snapshot},
-                     tool_name="measure_exposure", operation=inspect_exposure),
-                scenario_run,
-            )
-        else:
-            trace.append({"role": "exposure", "event": "role_skipped", "status": "not_applicable",
-                          "reason": "No issuer exposure cap was confirmed."})
-            exposure = {}
-            await scenario_run
-        if not stress:
-            raise RoleError("scenario: no checked tool result")
+        }
+        scenario_tool = ToolSpec("stress_replay", stress_replay.__doc__, stress_replay, trace_fields=tuple(scenario_args))
         solution = {}
 
         def find_alternatives():
-            solve_kwargs = {k: v for k, v in confirmed.items() if k not in {"windows"}}
-            solution.update(solve_funding(data, **solve_kwargs))
+            if not stress or (include_issuer and not exposure):
+                raise ValueError("Complete replay and applicable exposure calculations before solving.")
+            if not solution:
+                solve_kwargs = {k: v for k, v in confirmed.items() if k != "windows"}
+                solution.update(solve_funding(data, **solve_kwargs))
             option = {k: solution.get(k) for k in ("status", "frontier", "certificate")}
-            if policy_view["prefer_reserve"] is not True:
-                option["frontier"] = {k: v for k, v in option["frontier"].items() if k != "best_funding"}
             return option
 
-        alternatives = await role("alternatives", {"policy": policy_view, "exposure": exposure, "stress": scenario_focus},
-                                  tool_name="solve_funding_range", operation=find_alternatives)
         review_result = {}
 
         def review():
+            if not solution:
+                raise ValueError("Solve the funding range before running independent review.")
+            if review_result:
+                return review_result
             review_metrics = {label: evaluations[label] for label in ("baseline", "proposal")}
             review_metrics.update(frontier=solution.get("frontier"), solver_status=solution["status"], certificate=solution.get("certificate"))
             if case.tamper:
@@ -403,18 +407,60 @@ async def run_case(
                                                 issuer_context=issuer_context if include_issuer else None))
             return review_result
 
-        await role("review", {"policy": policy_view, "candidate_status": alternatives, "proposal": original},
-                   tool_name="recheck_decision", operation=review)
+        if not include_issuer:
+            trace.append({"role": "exposure", "event": "role_skipped", "status": "not_applicable",
+                          "reason": "No issuer exposure cap was confirmed."})
+        if single_runtime is not None:
+            tools = [evidence_tool, scenario_tool]
+            if include_issuer:
+                tools.append(ToolSpec("measure_exposure", "Use the qualified issuer disclosures to bound NVIDIA exposure.",
+                                      inspect_exposure))
+            tools += [ToolSpec("solve_funding_range", "Solve the authorized funding range after scenario and exposure.",
+                               find_alternatives),
+                      ToolSpec("recheck_decision", "Independently verify the replay and funding claims after the solver.", review)]
+            single_run = await single_runtime.run({
+                "policy": policy_view, "proposal": original, "evidence": evidence_payload, "scenario": scenario_payload,
+                "ordered_stages": ["lookup_evidence", "stress_replay", *(["measure_exposure"] if include_issuer else []),
+                                   "solve_funding_range", "recheck_decision"],
+            }, tools, run_id=case.id, required_tools=[tool.name for tool in tools])
+            trace.extend(single_run.trace)
+            outputs["single"] = single_run.data
+            if market_errors:
+                raise market_errors[0]
+            if not review_result or (single_run.status == "error" and review_result["status"] != "invalid"):
+                raise RoleError(f"single: {single_run.stop_reason or 'missing_checked_review'}")
+            alternatives = find_alternatives()
+            stated = single_run.data
+        else:
+            await routed_role("evidence", evidence_payload, evidence_tool, evidence_args, get_evidence, evidence)
+            if not evidence:
+                raise RoleError("evidence: no checked tool result")
+            scenario_run = routed_role("scenario", scenario_payload, scenario_tool, scenario_args, stress_test, stress)
+            if include_issuer:
+                await asyncio.gather(
+                    role("exposure", {"proposal": original, "data": snapshot},
+                         tool_name="measure_exposure", operation=inspect_exposure),
+                    scenario_run,
+                )
+            else:
+                await scenario_run
+            if not stress:
+                raise RoleError("scenario: no checked tool result")
+            alternatives = await role("alternatives", {"policy": policy_view, "exposure": exposure, "stress": scenario_focus},
+                                      tool_name="solve_funding_range", operation=find_alternatives)
+            await role("review", {"policy": policy_view, "candidate_status": alternatives, "proposal": original},
+                       tool_name="recheck_decision", operation=review)
         result.update(status=review_result["status"], decision_reason=review_result["decision_reason"],
                       policy=policy_view, evidence=evidence, exposure=exposure,
                       scenarios=stress, scenario_focus=scenario_focus, alternatives=alternatives, audit=review_result)
         if review_result["status"] == "invalid":
             result["explanation"] = "The independent calculation detected an invalid claim and withheld the recommendation."
         else:
-            stated = await role("explanation", {"policy": policy_view, "audited_result": review_result,
-                                                 "reason": alternatives, "exposure": exposure, "evidence_ids": source_ids})
+            if single_runtime is None:
+                stated = await role("explanation", {"policy": policy_view, "audited_result": review_result,
+                                                     "reason": alternatives, "exposure": exposure, "evidence_ids": source_ids})
             result["explanation"] = explain_audit(review_result, alternatives, policy_view)
-            if runtime is not None:
+            if runtime is not None or single_runtime is not None:
                 result["agent_commentary"] = stated["summary"]
         return result
     except MarketEvidenceError as exc:
