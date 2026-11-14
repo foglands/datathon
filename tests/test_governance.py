@@ -1,8 +1,9 @@
 import copy
+from math import fsum
 import unittest
 
 from datathon.data import MarketData
-from datathon.finance import StressWindow, solve_funding
+from datathon.finance import StressWindow, evaluate_portfolio, solve_funding
 from datathon.governance import audit_decision
 
 
@@ -94,6 +95,27 @@ class GovernanceTests(unittest.TestCase):
         self.assertEqual(audit["verified"]["solver_status"], "feasible_full")
         self.assertAlmostEqual(audit["verified"]["frontier"]["full_zst_max"], .044)
         self.assertAlmostEqual(audit["verified"]["frontier"]["best_funding"]["QQQ"], .10)
+
+    def test_drawdown_attribution_recomputes_signed_asset_contributions(self):
+        prices = copy.deepcopy(PRICES)
+        prices["ZST.TO"][DATES[1]] = 105.0
+        market = MarketData(prices, dict.fromkeys(DATES, 1.0))
+        window = StressWindow("stress", "Stress fixture", DATES[0], DATES[-1])
+        logs = {name: evaluate_portfolio(market, weights, windows=(window,))
+                for name, weights in (("baseline", BASELINE), ("proposal", self.proposal))}
+        # No claimed frontier is needed for this test. Review still recomputes it.
+        audit = self.audit(prices_cad=prices, maximum=None, metrics=logs)
+        result = audit["verified"]["proposal"]["windows"]["stress"]
+        impacts = result["drawdown_attribution"]
+        self.assertEqual((result["peak_date"], result["trough_date"]), DATES[:2])
+        self.assertAlmostEqual(impacts["NVDA"], .07)
+        self.assertAlmostEqual(impacts["ZST.TO"], -.005)
+        self.assertAlmostEqual(fsum(impacts.values()), result["max_drawdown"])
+
+        logs["proposal"]["windows"]["stress"]["drawdown_attribution"]["NVDA"] += .01
+        tampered = self.audit(prices_cad=prices, maximum=None, metrics=logs)
+        self.assertEqual(tampered["status"], "invalid")
+        self.assertEqual(self.findings(tampered)["proposal.stress.drawdown_attribution"]["status"], "invalid")
 
     def test_drawdown_yields_independent_no_solution_and_rejects_bad_witness(self):
         policy = {**POLICY, "metric": "max_drawdown"}

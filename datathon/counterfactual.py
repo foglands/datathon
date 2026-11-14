@@ -32,6 +32,16 @@ class ChallengeOption:
     after: float | int | str | bool | None
     trigger: str
     action: bool = False
+    value_unit: Literal["basis_points", "days"] | None = None
+    minimum_value: int | None = None
+    maximum_value: int | None = None
+    preset_value: int | None = None
+
+
+def _threshold_label(field, after):
+    if field == "reserve_floor":
+        return f"Raise the ZST.TO floor to {after:.2%}"
+    return f"Use a {after}-day holdings freshness limit"
 
 
 def _checked(report):
@@ -129,9 +139,14 @@ def counterfactual_options(report):
                                        "metric", metric, other, "confirmed_historical_loss_cap"))
     floor = policy["reserve_floor"]
     if 0 < floor < 1:
-        tightened = min(1.0, (round(floor * 10000) + 300) / 10000)
-        options.append(ChallengeOption("tighten_reserve_floor", f"Raise the ZST.TO floor to {tightened:.2%}",
-                                       "reserve_floor", floor, tightened, "confirmed_positive_reserve_floor"))
+        floor_bps = round(floor * 10000)
+        preset_bps = min(10000, floor_bps + 300)
+        tightened = preset_bps / 10000
+        options.append(ChallengeOption(
+            "tighten_reserve_floor", _threshold_label("reserve_floor", tightened),
+            "reserve_floor", floor, tightened, "confirmed_positive_reserve_floor",
+            value_unit="basis_points", minimum_value=floor_bps + 1, maximum_value=10000, preset_value=preset_bps,
+        ))
     if policy["target"] > 0:
         smaller = policy["allow_smaller"]
         label = "Require the exact purchase size" if smaller else "Allow a smaller purchase"
@@ -140,12 +155,15 @@ def counterfactual_options(report):
     if policy.get("issuer_cap") is not None:
         snapshot = _evidence_snapshot(report)
         age = snapshot.get("max_age_days")
-        if type(age) is int and age > 1 and any(
+        if type(age) is int and age > 0 and any(
             row.get("status") == "disclosed" for row in snapshot.get("holdings", {}).values()
         ):
-            tightened = max(1, min(90, age - 1))
-            options.append(ChallengeOption("tighten_holdings_age", f"Use a {tightened}-day holdings freshness limit",
-                                           "holdings_max_age_days", age, tightened, "current_dated_issuer_disclosures"))
+            tightened = min(90, age - 1)
+            options.append(ChallengeOption(
+                "tighten_holdings_age", _threshold_label("holdings_max_age_days", tightened),
+                "holdings_max_age_days", age, tightened, "current_dated_issuer_disclosures",
+                value_unit="days", minimum_value=0, maximum_value=age - 1, preset_value=tightened,
+            ))
         if _missing_issuer_evidence(report):
             options.append(ChallengeOption("request_issuer_evidence", "Identify required issuer disclosures", None,
                                            None, None, "unresolved_issuer_coverage", action=True))
@@ -279,7 +297,7 @@ def _public_trace(trace):
     fields = {
         "role", "event", "run_id", "tool_name", "status", "mode", "option_id", "field", "duration_ms",
         "operation", "model_id", "region", "request_id", "http_status", "input_tokens", "output_tokens",
-        "total_tokens", "cache_read_input_tokens", "cache_write_input_tokens",
+        "total_tokens", "cache_read_input_tokens", "cache_write_input_tokens", "threshold_value", "threshold_unit",
     }
     return [{key: value for key, value in event.items() if key in fields} for event in trace]
 
@@ -295,9 +313,9 @@ def _public_report(report):
 
 async def run_counterfactual(
     data, case, baseline_report, *, option_id=None, selector_runtime=None, replay_runtime=None,
-    single_runtime=None, replayer=run_case, challenge_hint=None,
+    single_runtime=None, replayer=run_case, challenge_hint=None, challenge_value=None,
 ):
-    """Choose one challenge, verify its replay, and return explicitly hypothetical evidence."""
+    """Choose one challenge and verify it, optionally with a user-confirmed integer threshold."""
     started = perf_counter()
     baseline = deepcopy(baseline_report)
     options = {option.id: option for option in counterfactual_options(baseline)}
@@ -305,6 +323,7 @@ async def run_counterfactual(
     before = _summary(baseline)
     replay = None
     option = None
+    accepted_value = None
     selection_mode = "user" if option_id is not None else "agent" if selector_runtime is not None else "deterministic"
     run_id = f"{case.id}-challenge-{uuid4().hex[:12]}"
 
@@ -314,6 +333,7 @@ async def run_counterfactual(
             "selection_mode": selection_mode, "baseline": _public_report(baseline),
             "replay": _public_report(replay) if verified else None,
             "option": asdict(option) if option else None, "action": action, "trace": _public_trace(trace),
+            "confirmed_threshold": accepted_value,
             "elapsed_ms": round((perf_counter() - started) * 1000),
             "changed_fields": [option.field] if option and option.field and verified else [],
             "comparison": _comparison(before, _summary(replay)) if replay and verified else
@@ -322,6 +342,14 @@ async def run_counterfactual(
 
     if not _checked(baseline):
         return result("invalid", "baseline_not_verified", "An independently reviewed starting audit is required.")
+    if challenge_value is not None:
+        selected = options.get(option_id) if isinstance(option_id, str) else None
+        if (challenge_hint is not None or selected is None or selected.value_unit is None or
+                type(challenge_value) is not int or not selected.minimum_value <= challenge_value <= selected.maximum_value):
+            return result("invalid", "invalid_challenge_value",
+                          "Select one supported threshold and confirm a whole number within its displayed limits.")
+        after = challenge_value / 10000 if selected.value_unit == "basis_points" else challenge_value
+        options[option_id] = replace(selected, after=after, label=_threshold_label(selected.field, after))
     if challenge_hint is not None and (not isinstance(challenge_hint, str) or len(challenge_hint) > 500):
         return result("invalid", "invalid_challenge_hint", "A challenge hint may contain up to 500 characters.")
     if not options:
@@ -379,6 +407,11 @@ async def run_counterfactual(
     option = options.get(option_id)
     if option is None:
         return result("invalid", "unsupported_selection", "The selected challenge is unavailable for this audit.")
+    accepted_value = {"value": challenge_value, "unit": option.value_unit} if challenge_value is not None else None
+    if accepted_value is not None:
+        trace.append({"role": "review_challenge", "event": "challenge_value_confirmed",
+                      "status": "accepted", "option_id": option.id, "field": option.field,
+                      "threshold_value": challenge_value, "threshold_unit": option.value_unit})
     if option.action:
         if before["decision_reason"] != "issuer_evidence_insufficient":
             return result("no_recommendation", "issuer_evidence_not_binding",

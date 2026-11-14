@@ -152,11 +152,16 @@ async def run_request(args):
     print(f"\nAudit of original proposal: {decision['status']}")
     print(decision.get("explanation", decision.get("error", "")))
     verified = decision.get("audit", {}).get("verified", {})
-    for label, description in (("baseline", "Starting portfolio"), ("proposal", "Original proposal"), ("maximum", "Verified alternative")):
+    example_label = "Verified alternative" if policy["prefer_reserve"] is True else "Verified funding example"
+    for label, description in (("baseline", "Starting portfolio"), ("proposal", "Original proposal"),
+                               ("maximum", example_label)):
         outcome = verified.get(label)
+        if label == "maximum" and (decision["status"] in ("execution_error", "invalid", "insufficient_evidence")
+                                   or not outcome or not outcome["passes"] or (outcome.get("total") or 0) <= 1e-9):
+            continue
         if outcome:
             print(f"  {description}: {outcome['status']}")
-            if label == "maximum" and outcome["passes"] and policy["prefer_reserve"] is True:
+            if label == "maximum":
                 mix = outcome["funding"]
                 print(f"    Funding: QQQ {mix['QQQ'] * 100:.2f} pp, ZST.TO {mix['ZST.TO'] * 100:.2f} pp")
     if decision["status"] not in ("execution_error", "invalid") and policy["prefer_reserve"] is not True:

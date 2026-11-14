@@ -62,6 +62,89 @@ class ChallengeTests(unittest.IsolatedAsyncioTestCase):
         self.assertAlmostEqual(result["comparison"]["replay"]["full_zst_max"], .02)
         self.assertEqual(result["comparison"]["replay"]["full_zst_max_binding"], "reserve_floor")
 
+    async def test_explicit_reserve_value_replays_exactly_one_auditable_change(self):
+        robert, _ = examples("robert")
+        report = await self.baseline(robert)
+        option = next(row for row in counterfactual_options(report) if row.id == "tighten_reserve_floor")
+        self.assertEqual((option.value_unit, option.minimum_value, option.maximum_value, option.preset_value),
+                         ("basis_points", 1501, 10000, 1800))
+        replayer = AsyncMock(wraps=run_case)
+        selector = AsyncMock()
+        result = await run_counterfactual(
+            self.market, robert, report, option_id=option.id, challenge_value=1950,
+            selector_runtime=selector, replayer=replayer,
+        )
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["changed_fields"], ["reserve_floor"])
+        self.assertEqual(result["confirmed_threshold"], {"value": 1950, "unit": "basis_points"})
+        self.assertEqual(result["option"]["label"], "Raise the ZST.TO floor to 19.50%")
+        self.assertEqual(result["replay"]["policy"], {**report["policy"], "reserve_floor": .195})
+        self.assertAlmostEqual(result["comparison"]["replay"]["full_zst_max"], .005)
+        self.assertEqual(result["comparison"]["replay"]["full_zst_max_binding"], "reserve_floor")
+        acknowledgement = next(event for event in result["trace"] if event["event"] == "challenge_value_confirmed")
+        self.assertEqual((acknowledgement["threshold_value"], acknowledgement["threshold_unit"]), (1950, "basis_points"))
+        self.assertEqual(report["policy"]["reserve_floor"], .15)
+        replayer.assert_awaited_once()
+        selector.run.assert_not_called()
+
+    async def test_holdings_age_value_tests_inclusive_effective_boundary(self):
+        amira, = examples("amira")
+        report = await self.baseline(amira)
+        option = next(row for row in counterfactual_options(report) if row.id == "tighten_holdings_age")
+        self.assertEqual((option.value_unit, option.minimum_value, option.maximum_value, option.preset_value),
+                         ("days", 0, 179, 90))
+        eligible, stale = [
+            await run_counterfactual(self.market, amira, report, option_id=option.id, challenge_value=days)
+            for days in (137, 136)
+        ]
+        self.assertTrue(eligible["verified"])
+        self.assertEqual(eligible["reason"], "no_material_change")
+        self.assertEqual(stale["status"], "verified")
+        self.assertEqual(stale["confirmed_threshold"], {"value": 136, "unit": "days"})
+        self.assertEqual(stale["changed_fields"], ["holdings_max_age_days"])
+        self.assertEqual(stale["replay"]["policy"], report["policy"])
+        self.assertEqual(stale["replay"]["scenarios"], report["scenarios"])
+        self.assertEqual(stale["comparison"]["replay"]["status"], "insufficient_evidence")
+
+    async def test_bad_numeric_override_reaches_neither_selector_nor_replayer(self):
+        robert, _ = examples("robert")
+        report = await self.baseline(robert)
+        replayer = AsyncMock()
+        selector = AsyncMock()
+        invalid_requests = [
+            ("tighten_reserve_floor", value, None)
+            for value in (True, 1700.0, "1700", 1499, 1500, 10001, {"reserve_floor": 1700})
+        ]
+        invalid_requests += [
+            ("toggle_loss_metric", 1700, None),
+            ("request_issuer_evidence", 1700, None),
+            (None, 1700, None),
+            ("tighten_reserve_floor", 1700, "Also switch to maximum drawdown."),
+        ]
+        for option, value, hint in invalid_requests:
+            with self.subTest(option=option, value=value, hint=hint):
+                result = await run_counterfactual(
+                    self.market, robert, report, option_id=option, challenge_value=value, challenge_hint=hint,
+                    selector_runtime=selector, replayer=replayer,
+                )
+                self.assertEqual(result["reason"], "invalid_challenge_value")
+                self.assertFalse(result["verified"])
+                self.assertIsNone(result["confirmed_threshold"])
+                self.assertIsNone(result["replay"])
+        replayer.assert_not_awaited()
+        selector.run.assert_not_called()
+
+    async def test_holdings_age_rejects_out_of_range_or_mistyped_values(self):
+        amira, = examples("amira")
+        report = await self.baseline(amira)
+        replayer = AsyncMock()
+        for value in (-1, 180, True, 90.0, "90"):
+            with self.subTest(value=value):
+                result = await run_counterfactual(self.market, amira, report, option_id="tighten_holdings_age",
+                                                    challenge_value=value, replayer=replayer)
+                self.assertEqual(result["reason"], "invalid_challenge_value")
+        replayer.assert_not_awaited()
+
     async def test_purchase_size_can_map_a_diagnostic_to_an_eligible_alternative(self):
         robert, _ = examples("robert")
         report = await self.baseline(robert, allow_smaller=False, allowed_sources=["ZST.TO"])

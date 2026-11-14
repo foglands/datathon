@@ -47,7 +47,8 @@ def select_tool_arguments(role, payload):
 
 class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
     async def run_fixture(self, case, *, changes=None, omit_roles=(), false_tool_success=(),
-                          fail_after_tool=(), delay_scenario=False, include_agent_commentary=False):
+                          fail_after_tool=(), delay_scenario=False, include_agent_commentary=False,
+                          profile_overrides=None):
         """Inject model choices, then execute the production handlers with those choices."""
         called_roles = []
         changes = changes or {}
@@ -75,7 +76,7 @@ class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
             return {"status": "ok", "summary": "Invented claim: this proposal always passes.",
                     "evidence_ids": ["model:made-up-source"]}, "end_turn"
 
-        profile = AgentRun("ok", preset_profile(case))
+        profile = AgentRun("ok", {**preset_profile(case), **(profile_overrides or {})})
         report = await run_case(MARKET, case, StrandsAgents(invoker=invoke), confirmed_profile=profile,
                                 include_agent_commentary=include_agent_commentary)
         return report, called_roles
@@ -192,7 +193,7 @@ class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_independent_review_still_rejects_tampered_result(self):
         tampered = examples("robert", stress=True)[2]
-        report, calls = await self.run_fixture(tampered)
+        report, calls = await self.run_fixture(tampered, profile_overrides={"prefer_reserve": None})
         self.routing(report, "evidence", "accepted")
         self.routing(report, "scenario", "accepted")
         self.assertEqual(report["status"], "invalid")
@@ -200,6 +201,44 @@ class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("explanation", calls)
         findings = {item["metric_id"]: item for item in report["audit"]["findings"]}
         self.assertEqual(findings["proposal.2022.terminal_loss"]["status"], "invalid")
+
+    async def test_verified_example_without_a_stated_funding_preference(self):
+        robert, _ = examples("robert")
+        # In this fixture the ZST-only loss increases by 26 points per unit of
+        # funding, with 1.2 percentage points of space below the 14% cap.
+        partial_size = .012 / .26
+        cases = (
+            ({"prefer_reserve": None}, "feasible_full", .10, {"QQQ": .10, "ZST.TO": 0.0}),
+            ({"prefer_reserve": False, "allowed_sources": ["ZST.TO"]}, "feasible_partial", partial_size,
+             {"QQQ": 0.0, "ZST.TO": partial_size}),
+        )
+        for overrides, status, total, funding in cases:
+            with self.subTest(status=status):
+                report, _ = await self.run_fixture(robert, profile_overrides=overrides)
+                self.assertIs(report["policy"]["prefer_reserve"], overrides["prefer_reserve"])
+                self.assertEqual(report["decision_reason"], status)
+                verified = report["audit"]["verified"]
+                example = verified["maximum"]
+                self.assertTrue(example["passes"])
+                self.assertAlmostEqual(example["total"], total)
+                for ticker, amount in funding.items():
+                    self.assertAlmostEqual(example["funding"][ticker], amount)
+                self.assertEqual(set(example["windows"]), {"2022", "2025"})
+                self.assertAlmostEqual(verified["frontier"]["max_total"], total)
+
+    async def test_no_example_for_exact_size_hold_or_zero_eligible_purchase(self):
+        robert, _ = examples("robert")
+        cases = (
+            ({"allow_smaller": False}, "requested_size_infeasible"),
+            ({"reserve_floor_bps": 2000}, "feasible_partial"),
+        )
+        for overrides, status in cases:
+            with self.subTest(status=status):
+                report, _ = await self.run_fixture(robert, profile_overrides={
+                    "prefer_reserve": None, "allowed_sources": ["ZST.TO"], **overrides,
+                })
+                self.assertEqual(report["decision_reason"], status)
+                self.assertNotIn("maximum", report["audit"]["verified"])
 
     async def test_checked_results_survive_the_models_post_tool_failure(self):
         robert, _ = examples("robert")

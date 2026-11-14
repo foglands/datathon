@@ -90,26 +90,29 @@ def _evaluate(windows, weights):
             fsum(weights[asset] * growth[asset][i] for asset in growth)
             for i in range(len(dates))
         ]
-        peak = 0
+        peak = worst_peak = worst_trough = 0
         drawdown = 0.0
-        peak_date = trough_date = dates[0]
         for i, value in enumerate(values):
             if value > values[peak]:
                 peak = i
             decline = 1 - value / values[peak]
             if decline > drawdown:
                 drawdown = decline
-                peak_date, trough_date = dates[peak], dates[i]
+                worst_peak, worst_trough = peak, i
         terminal_return = values[-1] - 1
         computed[window_id] = {
             "terminal_loss": max(0.0, -terminal_return),
             "terminal_return": terminal_return,
             "max_drawdown": drawdown,
-            "peak_date": peak_date,
-            "trough_date": trough_date,
+            "peak_date": dates[worst_peak],
+            "trough_date": dates[worst_trough],
             "observations": len(dates),
             "attribution": {ticker: weights[ticker] * (series[-1] - 1.0)
                             for ticker, series in growth.items()},
+            "drawdown_attribution": {
+                ticker: (weights[ticker] * series[worst_peak] - weights[ticker] * series[worst_trough])
+                / values[worst_peak] for ticker, series in growth.items()
+            },
         }
     return {**{key: max(window[key] for window in computed.values()) for key in METRICS},
             "windows": computed}
@@ -144,13 +147,16 @@ def _compare_evaluation(role, expected, claimed, weights, add):
             add(f"{role}.{window_id}.{metric}", status,
                 "Recomputed from frozen CAD prices." if matches else "Reported metric differs from frozen CAD prices.",
                 actual=values[metric], claimed=reported.get(metric))
-        if "attribution" in reported:
-            expected_attribution = values["attribution"]
-            reported_attribution = reported["attribution"]
-            if (set(reported_attribution) != set(expected_attribution) or
-                    any(not _matches(amount, reported_attribution.get(ticker))
-                        for ticker, amount in expected_attribution.items())):
-                add(f"{role}.{window_id}.attribution", "invalid", "Reported return attribution disagrees with the frozen series.")
+        for metric in ("attribution", "drawdown_attribution"):
+            if metric not in reported:
+                continue
+            expected_attribution = values[metric]
+            reported_attribution = reported[metric]
+            if (not isinstance(reported_attribution, Mapping)
+                    or set(reported_attribution) != set(expected_attribution)
+                    or any(not _matches(amount, reported_attribution[ticker])
+                           for ticker, amount in expected_attribution.items())):
+                add(f"{role}.{window_id}.{metric}", "invalid", "Reported attribution disagrees with the frozen series.")
     if "metrics" in claimed:
         for metric in METRICS:
             if metric in claimed["metrics"] and not _matches(expected[metric], claimed["metrics"][metric]):

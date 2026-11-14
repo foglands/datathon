@@ -410,12 +410,13 @@ async def run_case(
                 p = review_metrics["proposal"]
                 wrong_window = {**p["windows"][first_window], "terminal_loss": .01}
                 review_metrics["proposal"] = {**p, "windows": {**p["windows"], first_window: wrong_window}}
-            # The independent verifier can check an illustrative point without turning
-            # its internal reserve-preserving tie-break into a user preference.
-            best = solution.get("best") if policy_view["prefer_reserve"] is True else None
-            if best:
+            # Review a concrete maximum-size example even without a stated funding preference.
+            best = solution.get("best")
+            if best and best["total"] > 1e-9:
                 best_weights = best.get("weights", best)
                 review_metrics["maximum"] = evaluate_portfolio(data, best_weights)
+            else:
+                best = None
             review_evidence = {**evidence, "fx_dates": tuple(data.fx)}
             if include_issuer:
                 review_evidence["issuer_snapshot"] = raw_snapshot

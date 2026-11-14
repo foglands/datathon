@@ -257,10 +257,44 @@ def render_comparison(report: dict) -> None:
             status != "insufficient_evidence" and maximum.get("passes") is True and (maximum.get("total") or 0) > 1e-9
         )
         if has_alternative:
-            _render_portfolio(st, report, "maximum", "Verified alternative", maximum)
+            prefers_reserve = report.get("policy", {}).get("prefer_reserve") is True
+            heading = "Verified alternative" if prefers_reserve else "Verified funding example"
+            _render_portfolio(st, report, "maximum", heading, maximum)
+            if not prefers_reserve:
+                st.caption("This example uses the largest eligible purchase. If several mixes reach that size, "
+                           "the calculation shows the one that sells the least ZST.TO.")
         else:
             _render_frontier(st, report, verified)
     _render_constraints(st, report, verified, has_alternative)
+
+
+def _render_risk_drivers(st: Any, report: dict, verified: dict) -> None:
+    windows = verified.get("proposal", {}).get("windows", {})
+    if not windows:
+        return
+    metric = report.get("policy", {}).get("metric")
+    metric = "max_drawdown" if metric == "max_drawdown" else "terminal_loss"
+    window_id, row = max(windows.items(), key=lambda item: item[1][metric])
+    drawdown = metric == "max_drawdown"
+    attribution = row.get("drawdown_attribution" if drawdown else "attribution")
+    if not attribution:
+        return
+    impacts = sorted(attribution.items(), key=lambda item: (-abs(item[1]), item[0]))
+    largest = [
+        f"{ticker} {'added' if amount > 0 else 'offset'} {_points(abs(amount))}"
+        for ticker, value in impacts[:2]
+        if abs(amount := value if drawdown else -value) > 1e-9
+    ]
+    if not largest:
+        return
+    st.markdown("**Historical risk drivers · original proposal**")
+    details = f"{window_id} replay · {_RULE[metric]} {_percent(row[metric])}"
+    if drawdown:
+        details += f" · Peak {row['peak_date']} · Trough {row['trough_date']}"
+    elif row["terminal_loss"] == 0 and row.get("terminal_return", 0) > 0:
+        details += f" · Net gain {_percent(row['terminal_return'])}"
+    st.caption(details)
+    st.write(" · ".join(largest))
 
 
 def render_evidence(report: dict) -> None:
@@ -279,17 +313,20 @@ def render_evidence(report: dict) -> None:
             ])
             if report.get("status") not in {"invalid", "execution_error"}:
                 verified = _verified(report)
+                example = ("Verified alternative" if report.get("policy", {}).get("prefer_reserve") is True
+                           else "Verified funding example")
                 figures = [
                     {"Portfolio": heading, "Window": window, "Terminal loss": _percent(row["terminal_loss"]),
                      "Maximum drawdown": _percent(row["max_drawdown"])}
                     for key, heading in (("baseline", "Starting portfolio"), ("proposal", "Original proposal"),
-                                         ("maximum", "Verified alternative"))
+                                         ("maximum", example))
                     for window, row in verified.get(key, {}).get("windows", {}).items()
                 ]
                 if figures:
                     st.caption(f"Original proposal replay: {len(verified.get('proposal', {}).get('windows', {}))} of "
                                f"{len(evidence.get('windows', windows))} required historical windows recomputed.")
                     st.table(figures)
+                    _render_risk_drivers(st, report, verified)
         elif report.get("decision_reason") == "market_evidence_insufficient":
             st.warning("Historical replay evidence is unavailable for a required window.")
         for row in evidence.get("market_sources", {}).values():

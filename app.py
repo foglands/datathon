@@ -85,20 +85,37 @@ def show_counterfactual(case, report, runtime):
     key = f"challenge-{report['case']}"
     selected = st.selectbox("Check to run", list(choices), format_func=choices.__getitem__, key=f"{key}-choice")
     hint = ""
+    threshold = None
+    option = next((item for item in options if item.id == selected), None)
     if runtime is not None and selected is None:
         hint = st.text_input("What would you like to check?", max_chars=500, key=f"{key}-hint")
+    if option and option.value_unit == "basis_points":
+        value = st.number_input(
+            "Hypothetical minimum ZST.TO weight (%)",
+            min_value=option.minimum_value / 100,
+            max_value=option.maximum_value / 100,
+            value=option.preset_value / 100,
+            step=.01, format="%.2f", key=f"{key}-reserve",
+        )
+        threshold = round(value * 100)
+    elif option and option.value_unit == "days":
+        threshold = st.number_input(
+            "Hypothetical maximum holdings age (days)",
+            min_value=option.minimum_value, max_value=option.maximum_value, value=option.preset_value,
+            step=1, key=f"{key}-age",
+        )
     if st.button("Check once", key=f"{key}-run"):
         with st.spinner("Checking the assumption against the independent audit"):
             check = asyncio.run(run_counterfactual(
                 market_data(), case, report, option_id=selected, selector_runtime=runtime, replay_runtime=runtime,
-                challenge_hint=hint.strip() or None,
+                challenge_hint=hint.strip() or None, challenge_value=threshold,
             ))
-        st.session_state.active_challenge = (key, selected, hint, check)
+        st.session_state.active_challenge = (key, selected, hint, threshold, check)
 
     saved = st.session_state.get("active_challenge")
-    if not saved or saved[:3] != (key, selected, hint):
+    if not saved or saved[:4] != (key, selected, hint, threshold):
         return
-    _, _, _, check = saved
+    check = saved[-1]
     if check["status"] == "invalid":
         st.warning(check["statement"])
         return

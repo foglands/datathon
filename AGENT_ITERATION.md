@@ -93,3 +93,11 @@ The `a731671` candidate then passed **6/6 live AWS CLI scenarios**, **92/92** of
 - Independently attribute maximum drawdown to holdings at the portfolio's own peak and trough. Show one independently checked eligible funding example even when no funding preference is given.
 - Support an explicit hypothetical ZST.TO floor or disclosure age in a one-field challenge. Continue checking that the original policy, price replay and raw disclosure records do not change.
 - Add a second financial challenge cohort from the official starter with numerical boundaries, stale or unpublished evidence, no-change requests and a separate missing-FX resilience check.
+
+### Iteration 2: audit and challenge inputs
+
+The verified analysis includes signed asset contributions to the historical drawdown measured over the portfolio's own peak-to-trough dates. The independent review recomputes these figures, and a regression rejects a modified contribution. For a feasible case without a preferred funding source, the audit shows a verified example alongside the applicable range. If multiple mixes reach the same eligible maximum, the example uses the least ZST.TO sale and labels this display convention. A hard-limited, unresolved or invalid audit still withholds an ineligible example.
+
+The user can explicitly test a tighter reserve or disclosure age. The challenge checks exact basis points or days and re-audits one field only. In the official Robert data, raising the reserve to 19.50% leaves only 0.50 percentage points of ZST.TO funding available for the full purchase. For the observed issuer disclosures, 137 days retains them and 136 days excludes them as stale.
+
+The expanded challenge benchmark preregisters 10 decision requests and a separate endpoint-loss resilience case. The new cases exercise independent CAD boundary derivation, date cutoffs, calculations with unchanged decisions, and an out-of-scope security substitution. Forced expected choices passed all cases offline. In two fixed-rule repeats, selection matched 10/20 and the missing-FX resilience check passed 2/2, with no unsafe release or policy mutation.

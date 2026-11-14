@@ -113,19 +113,34 @@ class PortfolioAppTests(unittest.TestCase):
         self.select("selectbox", "Check to run", "toggle_loss_metric")
         self.click("Check once")
 
-        _, _, _, challenge = self.app.session_state["active_challenge"]
+        challenge = self.app.session_state["active_challenge"][-1]
         self.assertEqual(challenge["changed_fields"], ["metric"])
         self.assertEqual(challenge["comparison"]["baseline"]["solver_status"], "feasible_full")
         self.assertEqual(challenge["comparison"]["replay"]["solver_status"], "no_feasible")
         self.assertEqual(self.app.session_state["preset_result"], original)
         self.assertTrue(any("One hypothetical change" in item.value for item in self.app.markdown))
 
+    def test_reserve_challenge_accepts_one_explicit_precision_threshold(self):
+        self.click(CONFIRM)
+        original = self.app.session_state["preset_result"]
+        self.select("selectbox", "Check to run", "tighten_reserve_floor")
+        self.select("number_input", "Hypothetical minimum ZST.TO weight (%)", 19.5)
+        self.click("Check once")
+        challenge = self.app.session_state["active_challenge"][-1]
+        self.assertTrue(challenge["verified"])
+        self.assertEqual(challenge["changed_fields"], ["reserve_floor"])
+        self.assertEqual(challenge["confirmed_threshold"], {"value": 1950, "unit": "basis_points"})
+        self.assertAlmostEqual(challenge["comparison"]["replay"]["full_zst_max"], .005)
+        self.assertEqual(self.app.session_state["preset_result"], original)
+        self.select("number_input", "Hypothetical minimum ZST.TO weight (%)", 18.5)
+        self.assertFalse(any("One hypothetical change" in element.value for element in self.app.markdown))
+
     def test_amira_challenge_names_the_remaining_evidence_and_headroom(self):
         self.select("selectbox", "Scenario", "Amira · issuer exposure")
         self.click(CONFIRM)
         self.click("Check once")
 
-        _, _, _, challenge = self.app.session_state["active_challenge"]
+        challenge = self.app.session_state["active_challenge"][-1]
         self.assertEqual(challenge["reason"], "issuer_evidence_required")
         self.assertEqual(set(challenge["action"]["holdings"]), {"XIU.TO", "ZST.TO"})
         self.assertIsNone(challenge["replay"])

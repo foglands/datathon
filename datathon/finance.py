@@ -111,6 +111,10 @@ def _evaluate(prepared, weights: Mapping[str, float]) -> dict:
             "terminal_return": end_return, "terminal_loss": max(0.0, -end_return),
             "max_drawdown": mdd, "peak_date": dates[worst_peak], "trough_date": dates[worst_trough],
             "observations": len(dates), "dates": list(dates), "values": values, "attribution": attribution,
+            "drawdown_attribution": {
+                ticker: weight * (prices[ticker][worst_peak] - prices[ticker][worst_trough]) / values[worst_peak]
+                for ticker, weight in weights.items()
+            },
         }
     return {"weights": dict(weights), "windows": results}
 
