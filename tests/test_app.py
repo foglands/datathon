@@ -73,6 +73,9 @@ class PortfolioAppTests(unittest.TestCase):
         self.assertEqual(changed["alternatives"]["status"], "no_feasible")
         self.assertTrue(changed["audit"]["verified"]["no_feasible_confirmed"])
         self.assertTrue(any("2.63" in item.value for item in self.app.markdown))
+        self.assertTrue(any("Historical risk drivers" in item.value for item in self.app.markdown))
+        self.assertTrue(any("Peak 2022-01-04" in item.value and "Trough 2022-10-12" in item.value
+                            for item in self.app.caption))
 
     def test_reserve_floor_switches_the_binding_rule(self):
         original, changed = self.compare("Robert · reserve floor")

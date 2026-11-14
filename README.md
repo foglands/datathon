@@ -53,6 +53,14 @@ The profile establishes the simulation rules before Evidence runs. Exposure, whe
 - **Issuer exposure.** The SPY and QQQ SEC filings are dated 2026-06-30 and were filed on 2026-08-28. The reproducible competition reference and publication cutoff are 2026-11-14. The prototype accepts holdings observations at most 180 days old. The dated issuer check is separate from the two historical price replays. Stale, unavailable, invalid and assumption-only weights remain unknown. They widen the exposure range. The displayed coverage is the share of portfolio weight with direct or verified look-through evidence. [Evidence rules](datathon/evidence.py)
 - **Current scope.** The CLI runs preset Robert and Amira scenarios and accepts new simulated NVDA requests against the demo portfolio. The initial purchase is funded by a single sale of QQQ or ZST.TO. The replays use closing prices and omit execution costs, taxes and intraday movements. The results describe the tested scenarios and support educational investment simulations.
 
+The full starter inventory inventories the asset universe, adjusted prices, exchange rates, corporate actions, macro series and source metadata. It checks common replay dates, lists omitted FX dates and records the organizer's build notes.
+
+```bash
+python -m datathon.starter_quality --data "$DATA" --report outputs/starter-quality.json
+```
+
+Macro observations are inventoried for provenance and may have been revised. The investment audit uses adjusted closes with same-date FX, and keeps holdings disclosures and their dates separate. Corporate-action rows document the vendor's recorded splits and distributions. Adjusted replay prices already account for the vendor's treatment of those events.
+
 ## Run it
 
 Use **Python 3.10+** and the organizer's `Datathon2026.zip` or extracted `alphaforge_starter/` folder. Set `DATA` to its local path. The organizer data stays outside version control.
