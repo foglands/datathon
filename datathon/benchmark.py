@@ -90,16 +90,16 @@ def score_decision(case, report, reference):
     }
 
 
-async def evaluate_decision(data, case, arm, model, region, reference=None):
+async def evaluate_decision(data, case, arm, model, region, reference=None, *, optimized_single=False):
     multiple = StrandsAgents(model_id=model, region=region) if arm == "multi" else None
-    single = SingleAgentRuntime(model_id=model, region=region) if arm == "single" else None
+    single = SingleAgentRuntime(model_id=model, region=region, stop_after_review=optimized_single) if arm == "single" else None
     started = perf_counter()
     report = await run_case(data, case.workflow_case(), multiple, single_runtime=single,
                             confirmed_profile=case.confirmed_profile(), evidence_date=case.evidence_date,
                             holdings_max_age_days=case.holdings_max_age_days)
     elapsed = round((perf_counter() - started) * 1000, 2)
     return score_decision(case, report, report.get("audit") if arm == "deterministic" else reference) | {
-        "elapsed_ms": elapsed,
+        "elapsed_ms": elapsed, "confirmed_to_reviewed_ms": report.get("confirmed_to_reviewed_ms"),
     }, report.get("audit")
 
 
@@ -133,6 +133,10 @@ def summarize(rows, arms):
             continue
         summary = {"runs": len(observations), "median_ms": statistics.median(x["elapsed_ms"] for x in observations),
                    "min_ms": min(x["elapsed_ms"] for x in observations), "max_ms": max(x["elapsed_ms"] for x in observations)}
+        reviewed = [row["confirmed_to_reviewed_ms"] for row in observations if row.get("confirmed_to_reviewed_ms") is not None]
+        if "confirmed_to_reviewed_ms" in observations[0]:
+            summary["reviewed_runs"] = len(reviewed)
+            summary["median_confirmed_to_reviewed_ms"] = statistics.median(reviewed) if reviewed else None
         for key in ("status_match", "reason_match", "solver_match", "baseline_match", "false_releases",
                     "unnecessary_holds", "possible_false_releases", "possible_unnecessary_holds",
                     "independent_audit_match", "gold_boundaries_match", "trace_complete", "correct",
@@ -148,6 +152,7 @@ def summarize(rows, arms):
 async def run_benchmark(args):
     data = load_market_data(args.data)
     live = args.mode == "aws"
+    optimized_single = getattr(args, "optimized_single", False)
     rows = []
     references = {}
     for case in STRUCTURED_CASES:
@@ -162,7 +167,8 @@ async def run_benchmark(args):
     async def paired(case, trial, first):
         observed = []
         for position, arm in enumerate(("single", "multi") if first else ("multi", "single"), start=1):
-            row, _ = await evaluate_decision(data, case, arm, args.model, args.region, references[case.id])
+            row, _ = await evaluate_decision(data, case, arm, args.model, args.region, references[case.id],
+                                             optimized_single=optimized_single)
             observed.append({"arm": arm, "case": case.id, "trial": trial + 1, "pair_position": position, **row})
         return observed
 
@@ -190,7 +196,8 @@ async def run_benchmark(args):
         "code_ref": args.code_ref, "repeats": args.repeats, "live_parallel_pairs": args.jobs if live else 0,
         "configuration": {
             "multi": {"per_role_timeout_seconds": 35, "per_role_turns": 5, "per_role_token_budget": 9000},
-            "single": {"timeout_seconds": 95, "turns": 16, "token_budget": 54000},
+            "single": {"timeout_seconds": 95, "turns": 16, "token_budget": 54000,
+                       "stop_after_checked_review": optimized_single},
             "both": {"max_output_tokens_per_response": 700, "session_state": "fresh per run"},
             "intake": "Shared production Profile parser; no financial result is released in this cohort.",
         },
@@ -212,6 +219,7 @@ def main():
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--region", default=DEFAULT_REGION)
     parser.add_argument("--code-ref", default=None, help="Commit whose code is being measured.")
+    parser.add_argument("--optimized-single", action="store_true", help="Stop the bundled arm after checked review.")
     args = parser.parse_args()
     if args.repeats < 1 or args.jobs < 1:
         parser.error("--repeats and --jobs must be positive.")

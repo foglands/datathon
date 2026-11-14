@@ -270,6 +270,7 @@ async def run_case(
             policy_view = profile_policy(parsed)
         except ValueError as exc:
             raise RoleError(str(exc)) from exc
+        confirmed_at = perf_counter()
         include_issuer = policy_view["issuer_cap"] is not None
         market_files = ("prices_daily.csv", "fx_usdcad_daily.csv")
         market_ids = [f"starter:{filename}" for filename in market_files]
@@ -422,6 +423,7 @@ async def run_case(
                                                 maximum=best, policy=confirmed, metrics=review_metrics,
                                                 evidence=review_evidence,
                                                 issuer_context=issuer_context if include_issuer else None))
+            result["confirmed_to_reviewed_ms"] = round((perf_counter() - confirmed_at) * 1000, 2)
             return review_result
 
         if not include_issuer:

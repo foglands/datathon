@@ -47,12 +47,14 @@ class SingleAgentRuntime:
         max_turns: int = 16,
         max_total_tokens: int = 54000,
         invoker: InvokeAgent | None = None,
+        stop_after_review: bool = False,
     ) -> None:
         self._decision = _BundledStrandsAgent(
             model_id=model_id, region=region, timeout_seconds=timeout_seconds,
             max_turns=max_turns, max_total_tokens=max_total_tokens, invoker=invoker,
         )
         self._intake = StrandsAgents(model_id=model_id, region=region, invoker=invoker)
+        self._stop_after_review = stop_after_review
 
     async def run(
         self,
@@ -62,7 +64,10 @@ class SingleAgentRuntime:
         run_id: str,
         required_tools: Sequence[str],
     ) -> AgentRun:
-        return await self._decision.run("single", payload, tools, run_id=run_id, required_tools=required_tools)
+        return await self._decision.run(
+            "single", payload, tools, run_id=run_id, required_tools=required_tools,
+            stop_after_tool="recheck_decision" if self._stop_after_review else None,
+        )
 
     async def interpret(self, request: str, *, run_id: str) -> AgentRun:
         return await self._intake.run("profile", {"user_request": request}, run_id=run_id)

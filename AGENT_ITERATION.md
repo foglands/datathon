@@ -24,3 +24,15 @@ The initial live benchmark returned 20/20 on each structured arm. Single-agent m
 - Review can choose one typed, audited follow-up, abstain, or ask for the issuer disclosure that limits the decision. The report distinguishes an independently replayed hypothetical from the confirmed decision.
 - The tool rejects unavailable and competing selections. The recheck verifies the changed field, frozen sources, market metrics, original portfolio and independent review. Amira's QQQ-funded illustration exposes a 0.60937-point disclosure gap without treating the alternative as eligible.
 - The challenge works through the reference and user-confirmed Streamlit screens. Thirteen focused tests cover material and no-change replays, exposure evidence, bundled parity, audit mismatch and safe export.
+
+### Step 1 live result
+
+AWS competition CloudShell, Nova 2 Lite, official starter data, `50dab34`, 10 cases × 2, up to three concurrent pairs.
+
+| Audit arm | Correct status and reason | Independent parity and complete trace | Median elapsed | Converse calls |
+| --- | ---: | ---: | ---: | ---: |
+| Deterministic | 20/20 | 20/20 | 7.04 ms | 0 |
+| Bundled with original completion behavior | 20/20 | 20/20 | 4.35 s | 112 |
+| Staged with checked tool completion | 20/20 | 20/20 | 2.74 s | 86 |
+
+All arms had zero false releases and zero avoidable holds. The staged median met the 6.5-second goal on this measured cohort. Historical staged median was 9.44 seconds in a separate run. The shared pre-optimization Profile parser obtained 6/12 on this run with six unnecessary clarifications and zero premature policies. Intake accuracy is a separate improvement target. A bundled mode that also stops after checked review is included for the fair follow-up comparison.
