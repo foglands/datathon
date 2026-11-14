@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, patch
 
 from datathon.__main__ import run_request, run_suite
 from datathon.agents import DEFAULT_REGION, PROFILE_MODEL, AgentRun, StrandsAgents, _profile_handoff
-from datathon.workflow import interpret_request
+from datathon.workflow import examples, interpret_request
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,7 @@ class IntakeCase:
     allowed_sources: tuple[str, ...] = ()
     allow_smaller: bool | None = None
     reserve_floor_bps: int | None = None
+    issuer_cap_bps: int | None = None
 
     def accepts(self, draft, policy, question):
         """Score a live or recorded profile handoff without looking at a verdict."""
@@ -41,7 +42,8 @@ class IntakeCase:
         expected_policy = {
             "initial_source": self.initial_source, "target": self.target_bps / 10000,
             "reserve_floor": (self.reserve_floor_bps or 0) / 10000, "allowed_sources": self.allowed_sources,
-            "allow_smaller": self.allow_smaller, "prefer_reserve": None, "issuer_cap": None,
+            "allow_smaller": self.allow_smaller, "prefer_reserve": None,
+            "issuer_cap": self.issuer_cap_bps / 10000 if self.issuer_cap_bps is not None else None,
             "metric": self.metric or "terminal_loss",
             "loss_limit": self.limit_bps / 10000 if self.limit_bps is not None else None,
         }
@@ -169,6 +171,30 @@ BILINGUAL_CASES = (
 )
 
 
+ISSUER_CASES = (
+    IntakeCase(
+        "canonical_amira", examples("amira")[0].user_request,
+        "ok", None, None, target_bps=1000, initial_source="ZST.TO",
+        allowed_sources=("QQQ", "ZST.TO"), allow_smaller=True, issuer_cap_bps=1400,
+    ),
+    IntakeCase(
+        "issuer_total_and_no_loss_cap",
+        "In this simulation, buy five percentage points of NVDA, financed exclusively through QQQ. "
+        "Keep that size. The limit is 13.5% of portfolio value for direct NVIDIA shares and the NVIDIA shares "
+        "held indirectly in funds, added together. Apply no historical loss cap.",
+        "ok", None, None, target_bps=500, initial_source="QQQ", allowed_sources=("QQQ",),
+        allow_smaller=False, issuer_cap_bps=1350,
+    ),
+    IntakeCase(
+        "additional_direct_only_constraint",
+        "In this simulation, add six percentage points to NVDA using only QQQ. Keep the full size. "
+        "Cap total NVIDIA exposure, including through funds, at 15%. Also cap my directly held NVDA position "
+        "at 5% of the portfolio, excluding fund holdings for that second cap.",
+        "needs_input", None, None, "unsupported_constraint",
+    ),
+)
+
+
 class IntakeReleaseTests(unittest.IsolatedAsyncioTestCase):
     def test_reported_purchase_sizes_survive_partial_model_excerpts(self):
         cases = {case.id: case for case in HELD_OUT_CASES}
@@ -185,8 +211,25 @@ class IntakeReleaseTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(draft["target_bps"], case.target_bps)
                 self.assertIn(quantity, draft["source_excerpts"]["target_bps"])
 
+    async def test_combined_issuer_cap_survives_handoff_without_a_loss_cap(self):
+        case = ISSUER_CASES[0]
+
+        class Runtime:
+            async def run(self, role, payload, *, run_id):
+                if role != "profile" or payload != {"user_request": case.request}:
+                    raise AssertionError("Only user text belongs in the Profile payload.")
+                fields = _profile_handoff(
+                    case.request, status="ok", summary="Review the extracted terms.", target_bps=1000,
+                    initial_source="ZST.TO", allowed_sources="QQQ,ZST.TO", allow_smaller=1, issuer_cap_bps=1400,
+                )
+                return AgentRun(fields["status"], fields)
+
+        draft, policy, question = await interpret_request(case.request, Runtime(), case.id)
+        self.assertTrue(case.accepts(draft, policy, question))
+        self.assertIsNone(draft.data["limit_bps"])
+
     async def test_ambiguous_or_conflicting_agent_handoff_does_not_release_policy(self):
-        for case in (case for case in HELD_OUT_CASES if case.expected_status == "needs_input"):
+        for case in (case for case in (*HELD_OUT_CASES, *ISSUER_CASES) if case.expected_status == "needs_input"):
             with self.subTest(case=case.id):
                 class Runtime:
                     async def run(self, role, payload, *, run_id):
@@ -273,7 +316,7 @@ async def evaluate_holdout(case, trial, model, region):
 
 
 async def evaluate_holdouts(args):
-    cases = BILINGUAL_CASES if args.cohort == "bilingual" else HELD_OUT_CASES
+    cases = {"mixed": HELD_OUT_CASES, "bilingual": BILINGUAL_CASES, "issuer": ISSUER_CASES}[args.cohort]
     trials = [(case, trial) for trial in range(1, args.repeats + 1) for case in cases]
     rows = []
     for start in range(0, len(trials), args.jobs):
@@ -291,7 +334,7 @@ async def evaluate_holdouts(args):
 def main():
     parser = argparse.ArgumentParser(description="Evaluate the held-out fictional requests in competition AWS.")
     parser.add_argument("--report", type=Path, required=True)
-    parser.add_argument("--cohort", choices=("mixed", "bilingual"), default="mixed")
+    parser.add_argument("--cohort", choices=("mixed", "bilingual", "issuer"), default="mixed")
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--jobs", type=int, default=2)
     parser.add_argument("--model", default=PROFILE_MODEL)
