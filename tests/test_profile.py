@@ -47,6 +47,9 @@ class ProfileHandoffTests(unittest.TestCase):
             ("For a simulated NVDA increase of six percentage points, sell ZST.TO initially.", 600),
             ("Use a four-percentage-point increase in NVDA.", 400),
             ("In this fictional example, fund five percentage points of NVDA from QQQ alone.", 500),
+            ("For this simulation, move ten percentage points into NVDA by selling ZST.", 1000),
+            ("I'd add 10 points of portfolio weight to Nvidia.", 1000),
+            ("Retirement practice run: I'd buy ten percentage points of NVDA paid from ZST.TO.", 1000),
             ("Simulate adding nine percentage points of NVDA. Later correction: change only the loss metric.", 900),
         )
         for request, expected in cases:
@@ -75,6 +78,10 @@ class ProfileHandoffTests(unittest.TestCase):
             "Add 6.257 percentage points to NVDA.",
             "Do a -6.25-percentage-point increase in NVDA.",
             "Increase NVDA to between 5 and 6 percentage points.",
+            "Do not move ten percentage points into NVDA.",
+            "Add 10 points to Nvidia.",
+            "An adviser said to buy ten percentage points of NVDA.",
+            "Move ten percentage points into NVDA or add twelve points of portfolio weight to Nvidia.",
         )
         for request in cases:
             with self.subTest(request=request):
