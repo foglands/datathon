@@ -99,6 +99,68 @@ class ProfileHandoffTests(unittest.TestCase):
         self.assertEqual(blocked["clarification_field"], "unsupported_constraint")
         self.assertIsNone(blocked["target_bps"])
 
+    def test_initial_funding_recovers_a_unique_explicit_source(self):
+        cases = (
+            ("Fund five percentage points of NVDA from QQQ alone. No smaller purchases.", "QQQ"),
+            ("Fund a five-percentage-point increase in NVDA exclusively from ZST.TO and keep the purchase at that exact size.", "ZST.TO"),
+            ("Add five percentage points to NVDA from ZST", "ZST.TO"),
+        )
+        fields = {**FIELDS, "initial_source": "", "allowed_sources": ""}
+        for request, expected in cases:
+            with self.subTest(request=request):
+                draft = _profile_handoff(request, **fields)
+                self.assertEqual(profile_policy(draft)["allowed_sources"], (expected,))
+                self.assertEqual(draft["initial_source"], expected)
+                self.assertTrue(draft["funding_grounded"])
+                self.assertIn(draft["source_excerpts"]["initial_source"], request)
+                self.assertEqual(draft["allow_smaller"], False)
+
+    def test_initial_source_recovery_does_not_erase_binding_or_loss_questions(self):
+        request = "Fund five percentage points of NVDA from QQQ alone. No smaller purchases. The loss cap is 14%."
+        fields = {**FIELDS, "initial_source": "", "allowed_sources": "", "metric": ""}
+        draft = _profile_handoff(request, **fields)
+        self.assertEqual(draft["initial_source"], "QQQ")
+        self.assertEqual(draft["clarification_field"], "loss_metric")
+        exhaustive = _profile_handoff(request, **{**fields, "allowed_sources": "ZST"}, funding_rule="only")
+        self.assertEqual(exhaustive["allowed_sources"], ["ZST.TO"])
+        self.assertEqual(exhaustive["clarification_field"], "conflict")
+        for blocker in ("conflict", "unsupported_constraint", "multiple_loss_limits"):
+            blocked = _profile_handoff(request, **fields, clarification_field=blocker)
+            self.assertEqual(blocked["clarification_field"], blocker)
+            self.assertFalse(blocked["funding_grounded"])
+
+    def test_never_recovers_quoted_conditional_or_competing_funding(self):
+        clause = "Fund five percentage points of NVDA from QQQ"
+        cases = (
+            f"Do not {clause.lower()}.",
+            f"An adviser said \"{clause}.\"",
+            f"An adviser suggested I {clause.lower()}.",
+            f"If this happens, {clause.lower()}.",
+            f"{clause} if rates fall.",
+            f"{clause}?",
+            f"{clause} and ZST.TO.",
+            f"{clause} or cash.",
+            f"{clause} or XIU.TO.",
+            f"{clause}. Never sell that fund.",
+            f"{clause}. Cash instead.",
+            f"{clause}. Use ZST.TO to fund the trade.",
+            f"{clause}. Allow ZST.TO as an alternate.",
+            f"{clause}. Correction: use cash.",
+            f"{clause}. Change the order to 8 percentage points.",
+            f"{clause}. I retract the funding instruction.",
+            f"{clause} fund units.",
+            f"{clause} from two accounts.",
+            f"{clause}.TO.",
+            "Add five percentage points to NVDA. QQQ is present in the portfolio.",
+        )
+        fields = {**FIELDS, "initial_source": "", "allowed_sources": ""}
+        for request in cases:
+            with self.subTest(request=request):
+                draft = _profile_handoff(request, **fields)
+                self.assertIsNone(draft["initial_source"])
+                self.assertFalse(draft["funding_grounded"])
+                self.assertEqual(draft["clarification_field"], "initial_source")
+
     def test_original_source_defaults_only_when_separate_permission_is_omitted(self):
         fields = {**FIELDS, "allowed_sources": ""}
         draft = _profile_handoff(REQUEST, **fields)

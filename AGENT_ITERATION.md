@@ -101,3 +101,7 @@ The verified analysis includes signed asset contributions to the historical draw
 The user can explicitly test a tighter reserve or disclosure age. The challenge checks exact basis points or days and re-audits one field only. In the official Robert data, raising the reserve to 19.50% leaves only 0.50 percentage points of ZST.TO funding available for the full purchase. For the observed issuer disclosures, 137 days retains them and 136 days excludes them as stale.
 
 The expanded challenge benchmark preregisters 10 decision requests and a separate endpoint-loss resilience case. The new cases exercise independent CAD boundary derivation, date cutoffs, calculations with unchanged decisions, and an out-of-scope security substitution. Forced expected choices passed all cases offline. In two fixed-rule repeats, selection matched 10/20 and the missing-FX resilience check passed 2/2, with no unsafe release or policy mutation.
+
+### Iteration 2: Profile paired retest
+
+On the same 10 requests and two repeats, Sonnet at `123a5c0` matched 16/20 versus the earlier 14/20 run. Median latency was 4.03 s. All 20 tool handoffs completed. The four remaining misses all asked for an already stated funding source. The next revision checks only an unambiguous source directly attached to a grounded buy clause. It keeps broader funding authorization and conflicted or quoted terms separate. A live retest checks the effect.

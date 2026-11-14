@@ -72,7 +72,8 @@ ROLES = {
         "and 'fund five percentage points of NVDA' the target is explicit. Copy the whole operative NVDA size "
         "clause into target_excerpt, including the action and unit. Exclude reserve floors, exposure caps, "
         "end weights and numbers stated only in rejected or unrelated examples. "
-        "Also parse the initial sale, permitted sales, and permission to go smaller. Exactly/full/only this size "
+        "A purchase funded 'from QQQ alone' or 'exclusively from ZST.TO' has that ticker as its initial sale. "
+        "Also parse the permitted sales and permission to go smaller. Exactly/full/only this size "
         "means allow_smaller=0. If there is no separate funding permission, leave funding_rule empty. "
         "Use funding_rule=add for a stated additional/alternative source and funding_rule=only for a stated "
         "exhaustive list. Put the named tickers in allowed_sources; do not guess permissions. "
@@ -198,6 +199,21 @@ _OTHER_NVDA_SIZE = re.compile(
     re.IGNORECASE,
 )
 
+_FUNDING_AFTER_TARGET = re.compile(
+    r"[ \t]+(?:(?:exclusively|solely|only)[ \t]+)?from[ \t]+(?P<source>QQQ|ZST\.TO|ZST)"
+    r"(?![\w-]|\.\w)(?:[ \t]+(?:alone|only|exclusively|solely))?"
+    r"(?:[ \t]+and[ \t]+(?:keep|use)[ \t]+(?:the[ \t]+)?(?:purchase|buy)[ \t]+at[ \t]+that[ \t]+exact[ \t]+size)?"
+    r"(?=[ \t]*(?:[.!]|\n|\Z))",
+    re.IGNORECASE,
+)
+_FUNDING_MENTION = re.compile(r"\b(?:QQQ|ZST\.TO|ZST)\b", re.IGNORECASE)
+_FUNDING_CORRECTION = re.compile(
+    r"\b(?:instead|correction|replace|substitute|switch|change|actually|alternativ(?:e|ely)|"
+    r"prohibit|forbid|cancel|retract|disregard|ignore)\b|\buse\s+cash\b|"
+    r"\b(?:do not|never|no)\s+(?:sell|use|fund)\b",
+    re.IGNORECASE,
+)
+
 
 def _grounded_purchase_size(request, excerpt):
     """Normalize one explicit, unquoted NVDA increase without choosing competing terms."""
@@ -238,7 +254,20 @@ def _grounded_purchase_size(request, excerpt):
     else:
         tens, _, ones = token.replace("-", " ").partition(" ")
         basis_points = (_TARGET_TENS[tens] + _TARGET_WORDS.get(ones, 0)) * 100
-    return (basis_points, request[start:end]) if 0 < basis_points <= 10000 else None
+    if not 0 < basis_points <= 10000:
+        return None
+    return basis_points, request[start:end], _grounded_initial_funding(request, unquoted, end)
+
+
+def _grounded_initial_funding(request, unquoted, purchase_end):
+    """Check for a single explicitly named source immediately after the purchase."""
+    suffix = _FUNDING_AFTER_TARGET.match(unquoted, purchase_end)
+    if suffix is None or len(_FUNDING_MENTION.findall(unquoted)) != 1:
+        return None
+    if _FUNDING_CORRECTION.search(unquoted[suffix.end():]):
+        return None
+    ticker = suffix["source"].upper()
+    return "ZST.TO" if ticker == "ZST" else ticker, request[suffix.start():suffix.end("source")].strip()
 
 
 def _profile_handoff(request, *, status, summary, metric="", limit_bps=-1, target_bps=-1,
@@ -261,6 +290,15 @@ def _profile_handoff(request, *, status, summary, metric="", limit_bps=-1, targe
 
     source = initial_source.strip().upper()
     source = "ZST.TO" if source == "ZST" else source
+    grounded_target = _grounded_purchase_size(request, target_excerpt)
+    funding_grounded = False
+    if (not source and status == "ok" and clarification_field in {"", "target", "initial_source"}
+            and additional_loss_limit_bps == -1 and grounded_target and grounded_target[2]
+            and (target_bps <= 0 or grounded_target[0] == target_bps)):
+        source, initial_source_excerpt = grounded_target[2]
+        funding_grounded = True
+        if clarification_field == "initial_source":
+            clarification_field = ""
     sources = [symbol.strip().upper() for symbol in allowed_sources.split(",") if symbol.strip()]
     sources = list(dict.fromkeys("ZST.TO" if symbol == "ZST" else symbol for symbol in sources))
     if (funding_rule == "add" or (not funding_rule and not sources)) and source in _PROFILE_FUNDING_ASSETS:
@@ -290,9 +328,8 @@ def _profile_handoff(request, *, status, summary, metric="", limit_bps=-1, targe
     elif field == "unsupported_constraint":
         field = "unsupported_constraint"
     elif field != "unsupported_scope":
-        grounded_target = _grounded_purchase_size(request, target_excerpt)
         if grounded_target:
-            stated_target, matched_excerpt = grounded_target
+            stated_target, matched_excerpt, _ = grounded_target
             if target_bps <= 0 and field in {"", "target"} and status == "ok":
                 target_bps, target_excerpt = stated_target, matched_excerpt
                 fields["target_bps"] = target_bps
@@ -335,7 +372,8 @@ def _profile_handoff(request, *, status, summary, metric="", limit_bps=-1, targe
         summary = _PROFILE_QUESTIONS[field]
     return {
         **fields, "status": "needs_input" if field else "ok", "summary": summary, "evidence_ids": [],
-        "clarification_field": field or None, "source_excerpts": grounded, "target_grounded": target_grounded,
+        "clarification_field": field or None, "source_excerpts": grounded,
+        "target_grounded": target_grounded, "funding_grounded": funding_grounded,
         "unsupported_excerpt": unsupported_excerpt if unsupported_excerpt.strip() and unsupported_excerpt in request else "",
     }
 
@@ -728,7 +766,8 @@ class StrandsAgents:
                     raise ValueError("Profile output violates the metric, value, flag, or funding source contract.")
                 profile_handoff.update(handoff)
                 return {"status": handoff["status"], "clarification_field": handoff["clarification_field"],
-                        "target_grounded": handoff["target_grounded"]}
+                        "target_grounded": handoff["target_grounded"],
+                        "funding_grounded": handoff["funding_grounded"]}
 
             registered.append(submit_profile)
             tool_names.add("submit_profile")
@@ -755,7 +794,8 @@ class StrandsAgents:
                     arguments = {key: profile_handoff[key] for key in PROFILE_FIELDS}
                     output = {"status": profile_handoff["status"],
                               "clarification_field": profile_handoff["clarification_field"],
-                              "target_grounded": profile_handoff["target_grounded"]}
+                              "target_grounded": profile_handoff["target_grounded"],
+                              "funding_grounded": profile_handoff["funding_grounded"]}
             record(
                 "tool",
                 tool_name=name,
