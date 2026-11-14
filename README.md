@@ -88,6 +88,7 @@ With the terminal-loss clarification, the full request is infeasible. The audit 
 | [`app.py`](app.py) | Streamlit decision audit, confirmed policy comparison and JSON export |
 | [`datathon/`](datathon/) | CLI, orchestration, Strands roles, data loader, financial solver and independent governance audit |
 | [`tests/`](tests/) | Regression tests for data coverage, rule checks, bad metrics, funding and infeasibility evidence |
+| [`BENCHMARK.md`](BENCHMARK.md) | Paired comparison of deterministic, bundled single-agent and multi-agent audits |
 | [`PROTOTYPE.md`](PROTOTYPE.md) | Detailed reproduction steps, stress test behavior and AWS handoff fix |
 | [`Introduction-Datathon.executed.ipynb`](Introduction-Datathon.executed.ipynb) | Executed official AWS workshop notebook |
 | [`Datathon_Research_Brief.md`](Datathon_Research_Brief.md), [`AGENTS.md`](AGENTS.md), [`plan.md`](plan.md) | Earlier research, competition context and prep notes |

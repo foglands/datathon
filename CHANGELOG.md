@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-14 · Architecture benchmark
+
+- Added a reproducible benchmark with confirmed-policy cases and a separate free-text intake cohort. The deterministic, bundled single-agent and multi-agent arms share the frozen sources, portfolio tools and independent release checks.
+- Record audit agreement, false releases, avoidable holds, intake accuracy, latency, actual Bedrock usage and role/tool completion. [Benchmark report](BENCHMARK.md) · [Implementation record](https://github.com/WindsTrace/datathon-prep/issues/4)
+
 ## 2026-11-14 · Evidence coverage and decision reasons
 
 - Validate dated issuer disclosures against their observation date, publication cutoff and a configurable prototype freshness limit. The independent review repeats the check against the raw snapshot. Record and explain excluded holdings, covered portfolio weight and possible exposure ranges.
