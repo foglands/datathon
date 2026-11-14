@@ -1,0 +1,13 @@
+# AlphaForge agent iteration
+
+Baseline: `30fcdc2`. This iteration focuses on the Robert and Amira simulations and the agent work that differentiates them: identify a decision-changing rule or evidence gap, test it, and have an independent calculation verify the comparison. Benchmarks distinguish workflows on repeated development fixtures from decisions on new cases. GitHub Issues [#6](https://github.com/WindsTrace/datathon-prep/issues/6) and [#7](https://github.com/WindsTrace/datathon-prep/issues/7) record the earlier roadmap and intake experiment.
+
+| Step | Goal | Acceptance evidence |
+| --- | --- | --- |
+| 1. Agent collaboration | Finish parallel work before returning, preserve checked results through optional model failures, and keep mandatory independent review. | Reproduce original failures, replay with injected faults, inspect immutable output and handoff trace, rerun the base audit cohort. |
+| 2. User intent | Make the extracted rules inspectable and editable. Ask a targeted question or block rules that the current solver cannot honor. | Check negated and authorized quotes, corrections, conflicts, unsupported constraints and reconfirmation. Report real parser accuracy separately from UI confirmation. |
+| 3. Decision-changing tests | Let Review select at most one bounded counterfactual or point to the missing evidence that prevents a decision. Keep the original policy fixed. | Show the changed field, before and after outcomes and proof, or explain why no material change is available. Reject a changed second field and invalid audit. |
+| 4. Comparison and speed | Compare fixed rules, a bundled model session and separate agents using the same tools, data and replay budget. | Report correct choices, no-change cases, unsafe release, completion, phase latency and model calls. The first target for confirmed-input review is a median of 6.5 seconds, subject to unchanged decision quality. |
+| 5. Integration | Verify the Streamlit and CLI paths, document limitations and commit results to GitHub. | Record real AWS evidence separately from local or injected tests. Keep raw starter data and credentials out of commits. |
+
+The initial live benchmark returned 20/20 on each structured arm. Single-agent median latency was 4.78 seconds with 112 calls and multi-agent median latency was 9.44 seconds with 190 calls. The follow-up free-text experiment matched 7/14 requests in both branches. These are baseline observations.
