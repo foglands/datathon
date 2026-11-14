@@ -142,7 +142,7 @@ def _clip(points: list[Point], constraint: _Constraint) -> list[Point]:
     return list(dict.fromkeys(result))
 
 
-def _risk_constraints(prepared, baseline: Mapping[str, float], metric: str, limit: float):
+def _risk_constraints(prepared, baseline: Mapping[str, float], metric: str, limit: float, target: float):
     for window_id, (_, dates, prices) in prepared.items():
         affine = []
         for i in range(len(dates)):
@@ -158,12 +158,32 @@ def _risk_constraints(prepared, baseline: Mapping[str, float], metric: str, limi
         # V_t / max_{s<=t}(V_s) >= 1 - L is equivalent to V_t >= (1 - L) * V_s
         # for every earlier s. Each portfolio value is affine in the two funding amounts.
         fraction_remaining = 1.0 - limit
-        for low_index, (value, a, b) in enumerate(affine):
-            for high_index in range(low_index):
-                old, old_a, old_b = affine[high_index]
-                yield _Constraint(metric, value - fraction_remaining * old,
-                                  a - fraction_remaining * old_a, b - fraction_remaining * old_b,
-                                  window_id, dates[low_index], dates[high_index], limit)
+        # A constraint strictly satisfied at every corner holds throughout the
+        # purchase triangle. Running peaks let us screen all earlier dates at
+        # once for a given trough. Keep a margin for rounding and binding checks.
+        corners = [(value, value + a * target, value + b * target) for value, a, b in affine]
+        scale = max(1.0, max(abs(component) for level in affine for component in level))
+        margin = max(1e-8, 64 * math.ulp(scale))
+        peak_zero, peak_qqq, peak_zst = corners[0]
+        for low_index in range(1, len(affine)):
+            zero, qqq, zst = corners[low_index]
+            if (zero - fraction_remaining * peak_zero <= margin
+                    or qqq - fraction_remaining * peak_qqq <= margin
+                    or zst - fraction_remaining * peak_zst <= margin):
+                value, a, b = affine[low_index]
+                for high_index in range(low_index):
+                    old_zero, old_qqq, old_zst = corners[high_index]
+                    if (zero - fraction_remaining * old_zero > margin
+                            and qqq - fraction_remaining * old_qqq > margin
+                            and zst - fraction_remaining * old_zst > margin):
+                        continue
+                    old, old_a, old_b = affine[high_index]
+                    yield _Constraint(metric, value - fraction_remaining * old,
+                                      a - fraction_remaining * old_a, b - fraction_remaining * old_b,
+                                      window_id, dates[low_index], dates[high_index], limit)
+            peak_zero = max(peak_zero, zero)
+            peak_qqq = max(peak_qqq, qqq)
+            peak_zst = max(peak_zst, zst)
 
 
 def _frontier_on_target(target: float, constraints: Iterable[_Constraint]):
@@ -304,7 +324,7 @@ def solve_funding(
     if direct_cap is not None:
         rules.append(_Constraint("direct_cap", direct_cap - base[TARGET_TICKER], -1.0, -1.0, bound=direct_cap))
     if loss_limit is not None:
-        rules.extend(_risk_constraints(prepared, base, metric, loss_limit))
+        rules.extend(_risk_constraints(prepared, base, metric, loss_limit, target))
     missing, pessimistic_issuer = [], None
     if issuer_cap is not None:
         missing = [ticker for ticker, weight in base.items() if weight > EPS and exposure.get(ticker) is None]

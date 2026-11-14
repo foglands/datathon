@@ -258,7 +258,8 @@ def _linear_paths(windows, baseline, metric, retention):
             yield (window_id, dates[0], dates[-1]), (first - retention, x, y)
             continue
         for later, (end, end_x, end_y) in enumerate(levels[1:], start=1):
-            for earlier, (peak, peak_x, peak_y) in enumerate(levels[:later]):
+            for earlier in range(later):
+                peak, peak_x, peak_y = levels[earlier]
                 yield (window_id, dates[earlier], dates[later]), (
                     end - retention * peak, end_x - retention * peak_x, end_y - retention * peak_y,
                 )
