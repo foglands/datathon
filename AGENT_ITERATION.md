@@ -105,3 +105,10 @@ The expanded challenge benchmark preregisters 10 decision requests and a separat
 ### Iteration 2: Profile paired retest
 
 On the same 10 requests and two repeats, Sonnet at `123a5c0` matched 16/20 versus the earlier 14/20 run. Median latency was 4.03 s. All 20 tool handoffs completed. The four remaining misses all asked for an already stated funding source. The next revision checks only an unambiguous source directly attached to a grounded buy clause. It keeps broader funding authorization and conflicted or quoted terms separate. A live retest checks the effect.
+
+### Iteration 2: official-data Bedrock results
+
+- With `20a71c4`, the new, unused challenge cohort produced **20/20** correct staged comparisons and **20/20** correct bundled comparisons. The fixed rule arm matched **10/20**. Each arm had **zero** unsafe releases or policy changes and passed **2/2** separate missing-FX checks. The two Bedrock arms share the same hint-aware selector. No relative decision-quality gain between the two live architectures was measured.
+- On the same run, staged base-audit p50/p95 were **3.06/4.06 s**, and staged follow-up p50/p95 were **3.41/4.44 s**. Bundled base-audit p50/p95 were **3.05/4.39 s**, and its follow-up p50/p95 were **3.22/4.91 s**. These p95 values describe a 20-attempt sample with at most three concurrent pairs.
+- The separate structural regression matched **20/20** decisions, independent audit parity and complete traces in each of the three arms, with zero false releases or avoidable holds. Confirmed-to-review medians were **2.55 s** staged with 86 calls and **2.54 s** bundled with 92 calls. The staged path remains below the 6.5-second target.
+- At `fa28957` Sonnet matched **18/20** on the original paired intake requests, compared with 14/20 at the start and 16/20 after size recovery. All handoffs succeeded, zero expected-hold requests produced a draft policy, and p50 was **3.88 s**. The remaining two errors are repetitions of the same explicitly adopted quotation, which was held as a conflict. The supported direct input route remains available.

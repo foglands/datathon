@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-14 · Verified funding examples and decision boundaries
+
+- Recover fully explicit NVDA purchase size and single-source funding in supported wording and keep the user's confirmation step.
+- Recompute signed per-asset drawdown contributions independently and show a concrete verified funding example for eligible requests without a stated funding preference.
+- Accept a user-confirmed, tighter ZST.TO reserve floor or disclosure freshness age in a one-field replay. Test the underlying thresholds with an expanded official-data cohort and an independent missing-FX case.
+
 ## 2026-11-14 · Agent collaboration and one-rule decision checks
 
 - Settle parallel work before returning the audit. Keep accepted tool results when model commentary fails. Release still requires independent review.

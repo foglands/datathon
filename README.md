@@ -23,7 +23,15 @@ After the original audit, open **What could change this decision?**. Select a sp
 - **Amira:** ask what evidence could settle the issuer cap. For the QQQ-funded illustration, documented NVIDIA exposure is about 13.39%. The combined undisclosed contribution from XIU.TO and ZST.TO must be at most 0.60937 percentage points to meet the cap. The illustration remains unresolved.
 - A hypothetical result stays separate from the original audited policy. Its export shows the selected change, accepted checks and before/after accounting. Review still controls publication of verified results.
 
-The [iteration log](AGENT_ITERATION.md) connects the design, real AWS observations and limits. The new benchmark compares a fixed rule, a bundled audit and staged audits with the same paths, review gate and one-replay budget.
+For reserve and disclosure-age checks, you can set a tighter threshold explicitly. The replay verifies that only this field changed. **Historical risk drivers** shows the largest verified contributions for the proposal under the displayed risk metric. The audit independently checks one concrete eligible funding example, with the allowable range where meaningful. If you did not specify a funding preference, the example uses the least ZST.TO sale among tied largest eligible purchases and is labeled as an example.
+
+The [iteration log](AGENT_ITERATION.md) connects the design, real AWS observations and limits. Run the expanded official-data challenge benchmark to compare fixed rules, bundled execution and staged checks with one re-audit per case. The missing-FX resilience case is reported separately.
+
+```bash
+python -m datathon.challenge_benchmark --cohort expanded --data "$DATA" --mode offline \
+  --repeats 2 --report outputs/challenge-expanded.json
+```
+
 
 ## Seven agents and their handoffs
 
