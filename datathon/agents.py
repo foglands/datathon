@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from threading import Event
@@ -16,6 +17,21 @@ DEFAULT_REGION = "us-east-1"
 DomainStatus = Literal["ok", "needs_input", "insufficient_evidence"]
 _PROFILE_AMOUNT_FIELDS = ("target_bps", "reserve_floor_bps", "issuer_cap_bps")
 _PROFILE_FLAG_FIELDS = ("allow_smaller", "prefer_reserve")
+_EXPLICIT_LOSS_RULE = re.compile(
+    r"(?:^|(?<=[.!?])\s+)The (?:maximum )?(terminal loss|drawdown|maximum drawdown)"
+    r"(?: limit)? (?:in (?:either|each) historical window )?is (\d{1,3}(?:\.\d{1,2})?)%[.!]?\s*$",
+    re.IGNORECASE,
+)
+_PROFILE_FUNDING_ASSETS = {"QQQ", "ZST.TO"}
+_PROFILE_QUESTIONS = {
+    "loss_metric": "Does the stated loss cap apply to terminal loss or maximum drawdown?",
+    "target": "How many percentage points of the portfolio should be added to NVDA?",
+    "initial_source": "Which asset funds the original NVDA purchase, QQQ or ZST.TO?",
+    "allowed_sources": "Which funding assets are allowed for alternatives?",
+    "allow_smaller": "If the full NVDA purchase is infeasible, is a smaller purchase allowed?",
+    "unsupported_scope": "This prototype accepts QQQ or ZST.TO as funding assets. Which should it use?",
+    "conflict": "Which trade instruction or constraint should take precedence?",
+}
 
 
 @dataclass(frozen=True)
@@ -39,19 +55,35 @@ ROLES = {
         "points (14% is 1400). Both fields must be null when no historical portfolio loss rule was given. "
         "An issuer exposure cap or a reserve floor is a different constraint and must not populate "
         "these fields. When a stated loss limit does not specify the measurement, such as 'I cannot "
-        "lose more than 14%', use needs_input and leave both fields null. "
+        "lose more than 14%', use needs_input, leave metric null, and retain the explicitly stated cap "
+        "as limit_bps while asking which metric applies. "
         "Extract target_bps from an explicitly requested increase in portfolio weight "
         "(10 percentage points is 1000 basis points). Extract reserve_floor_bps from an explicitly "
         "stated minimum reserve weight after the trade, and issuer_cap_bps from an explicitly stated "
         "maximum total issuer exposure. Keep these amounts separate. Use null for each unstated amount. "
-        "List in allowed_sources only the assets explicitly authorized as funding sources, in the order "
-        "mentioned, with unique ticker symbols exactly as stated. An initial source does not imply "
-        "permission to use any other asset. Use an empty list if no funding source is stated. "
-        "Set allow_smaller to true if the investor explicitly permits a smaller purchase and false if they "
-        "explicitly require the full amount. Set prefer_reserve to true if they explicitly want to "
+        "Extract initial_source as the single asset the investor proposes to sell to fund the original "
+        "NVDA purchase. A statement like 'buy NVDA funded by selling QQQ' establishes QQQ as "
+        "initial_source. A list of possible assets or a proposed split does not establish one initial "
+        "source. Separately list in allowed_sources the assets explicitly authorized for funding the "
+        "alternatives. If there is no separate list of allowed sources, an explicitly proposed sale "
+        "authorizes that asset alone. Do not add the initial source to a separate list that excludes it. "
+        "Use unique ticker symbols and report ZST as ZST.TO. "
+        "Set allow_smaller to true if the investor explicitly permits a smaller purchase. Set it to false "
+        "if they explicitly require the full amount, refuse a smaller purchase, or say no partial "
+        "purchase. Set prefer_reserve to true if they explicitly want to "
         "preserve the reserve and false if they explicitly reject that preference. Leave each flag null "
-        "when unstated. Never infer values from age, risk labels, holdings, or your opinion. When the "
-        "request contradicts itself or omits a necessary clarification, use needs_input without guessing.",
+        "when unstated. Never infer values from age, risk labels, holdings, or your opinion. Use "
+        "needs_input and ask a concise clarification if the original funding source, purchase "
+        "amount, or permission for a smaller purchase is missing or ambiguous, the request contradicts "
+        "itself, or the asset or funding scope cannot be handled by a single-source NVDA request funded "
+        "by QQQ or ZST.TO. A later 'New user clarification or correction (takes precedence)' line "
+        "supersedes earlier conflicting wording for the field it addresses. If it explicitly selects "
+        "terminal loss or maximum drawdown for a previously ambiguous cap, preserve the numerical cap "
+        "and set status to ok with an empty clarification_field unless a different unresolved field remains. "
+        "For needs_input, set "
+        "clarification_field to loss_metric, target, initial_source, allowed_sources, allow_smaller, "
+        "unsupported_scope, or conflict. Set summary to a single question about the unresolved field. "
+        "Use an empty clarification_field when status is ok.",
         requires_tool=False,
     ),
     "exposure": Role(
@@ -104,8 +136,10 @@ _COMMON_PROMPT = (
 _PROFILE_TOOL_PROMPT = (
     " Submit the extracted result by calling submit_profile. "
     "For the tool arguments only, use -1 instead of null for any unstated basis-point value "
-    "or flag, and use 1 or 0 for an explicitly true or false flag. "
-    "Pass an empty string for an unstated metric or funding sources. Pass the authorized "
+    "or flag, and use 1 or 0 for an explicitly true or false flag. A loss cap with an unspecified "
+    "metric still has a stated amount: submit that amount as limit_bps and set clarification_field "
+    "to loss_metric. "
+    "Pass an empty string for an unstated metric, initial source, or funding sources. Pass the authorized "
     "funding tickers as a comma-separated string such as QQQ,ZST.TO. "
     "Use only the tool to submit the result."
 )
@@ -285,6 +319,12 @@ class StrandsAgents:
             limit = data.get("limit_bps")
             valid_loss_rule = (metric is None and limit is None) or (
                 metric in ("terminal_loss", "max_drawdown") and type(limit) is int
+            ) or (
+                data["status"] == "needs_input"
+                and data.get("clarification_field") == "loss_metric"
+                and metric is None
+                and type(limit) is int
+                and 0 <= limit <= 10000
             )
             valid_amounts = all(
                 (value := data.get(name)) is None or (type(value) is int and 0 <= value <= 10000)
@@ -299,7 +339,9 @@ class StrandsAgents:
                 and all(isinstance(source, str) and bool(source) and source == source.strip() for source in sources)
                 and len(sources) == len(set(sources))
             )
-            return valid_loss_rule and valid_amounts and valid_flags and valid_sources
+            initial_source = data.get("initial_source")
+            valid_initial_source = initial_source is None or initial_source in ("QQQ", "ZST.TO")
+            return valid_loss_rule and valid_amounts and valid_flags and valid_sources and valid_initial_source
         return True
 
     async def _invoke_bedrock(
@@ -378,12 +420,19 @@ class StrandsAgents:
                 allowed_sources: str = "",
                 allow_smaller: int = -1,
                 prefer_reserve: int = -1,
+                initial_source: str = "",
+                clarification_field: str = "",
             ) -> dict:
                 """Submit the explicit profile as flat fields. An unstated number is -1."""
                 nonlocal profile_tool_reached
                 profile_tool_reached = True
                 if allow_smaller not in {-1, 0, 1} or prefer_reserve not in {-1, 0, 1}:
                     raise ValueError("Profile flags must be -1 (unstated), 0 (false), or 1 (true).")
+                # Normalize the only unqualified ticker alias used by the prototype.
+                source = initial_source.strip().upper()
+                source = "ZST.TO" if source == "ZST" else source
+                sources = [symbol.strip().upper() for symbol in allowed_sources.split(",")] if allowed_sources else []
+                sources = ["ZST.TO" if symbol == "ZST" else symbol for symbol in sources]
                 handoff = {
                     "status": status,
                     "summary": summary,
@@ -393,14 +442,48 @@ class StrandsAgents:
                     "target_bps": None if target_bps == -1 else target_bps,
                     "reserve_floor_bps": None if reserve_floor_bps == -1 else reserve_floor_bps,
                     "issuer_cap_bps": None if issuer_cap_bps == -1 else issuer_cap_bps,
-                    "allowed_sources": [symbol.strip() for symbol in allowed_sources.split(",")] if allowed_sources else [],
+                    "initial_source": source if source in _PROFILE_FUNDING_ASSETS else None,
+                    "allowed_sources": sources,
                     "allow_smaller": None if allow_smaller == -1 else bool(allow_smaller),
                     "prefer_reserve": None if prefer_reserve == -1 else bool(prefer_reserve),
                 }
-                if not self._valid_data(handoff, role):
-                    raise ValueError("Profile output violates the metric, value, flag, or funding source contract.")
                 if limit_bps != -1 and not 0 <= limit_bps <= 10000:
                     raise ValueError("Historical loss limit must be between 0 and 10000 bps.")
+                field = clarification_field
+                if field and field not in _PROFILE_QUESTIONS:
+                    raise ValueError("Unknown profile clarification field.")
+                if (source and source not in _PROFILE_FUNDING_ASSETS) or set(sources) - _PROFILE_FUNDING_ASSETS:
+                    field = "unsupported_scope"
+                elif target_bps <= 0:
+                    field = field or "target"
+                elif not source:
+                    field = field or "initial_source"
+                elif not sources:
+                    field = field or "allowed_sources"
+                elif allow_smaller == -1:
+                    field = field or "allow_smaller"
+                elif not metric and limit_bps != -1:
+                    field = field or "loss_metric"
+                elif status == "needs_input" and not field:
+                    field = "conflict"
+                if field == "loss_metric" and status in ("ok", "needs_input"):
+                    # An explicit final rule can resolve a spurious request to choose the metric.
+                    request = json.loads(prompt.partition("\n")[2]).get("user_request", "")
+                    match = _EXPLICIT_LOSS_RULE.search(request)
+                    if match and source in _PROFILE_FUNDING_ASSETS and sources and target_bps > 0 and allow_smaller != -1:
+                        specified_metric = "terminal_loss" if match[1].lower() == "terminal loss" else "max_drawdown"
+                        specified_limit = round(float(match[2]) * 100)
+                        if (0 <= specified_limit <= 10000 and metric in ("", specified_metric)
+                                and limit_bps in (-1, specified_limit)):
+                            handoff.update(status="ok", metric=specified_metric, limit_bps=specified_limit,
+                                           summary="The request explicitly states the loss metric and limit.")
+                            field = ""
+                if field:
+                    question = summary if field == "conflict" and summary.strip().endswith("?") else _PROFILE_QUESTIONS[field]
+                    handoff.update(status="needs_input", summary=question)
+                    handoff["clarification_field"] = field
+                if not self._valid_data(handoff, role):
+                    raise ValueError("Profile output violates the metric, value, flag, or funding source contract.")
                 profile_handoff.update(handoff)
                 return handoff
 

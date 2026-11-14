@@ -201,7 +201,7 @@ def _issuer_bounds(weights, exposures):
     )
 
 
-def _portfolio_verdict(weights, evaluation, policy, exposures):
+def _portfolio_verdict(weights, evaluation, policy, exposures, total):
     metric = policy["metric"]
     rules = {
         "reserve_weight": (weights[RESERVE], policy["reserve_floor"],
@@ -209,6 +209,9 @@ def _portfolio_verdict(weights, evaluation, policy, exposures):
     }
     if policy["loss_limit"] is not None:
         rules[metric] = (evaluation[metric], policy["loss_limit"], evaluation[metric] <= policy["loss_limit"] + EPSILON)
+    if not policy["allow_smaller"] and total is not None:
+        target = policy["target"]
+        rules["requested_size"] = (total, target, abs(total - target) <= BOUNDARY_EPSILON)
     if policy.get("direct_cap") is not None:
         cap = policy["direct_cap"]
         rules["direct_weight"] = (weights[ISSUER], cap, weights[ISSUER] <= cap + EPSILON)
@@ -312,11 +315,15 @@ def _frontier(windows, baseline, policy, exposures, *, conservative=True):
     full = [point for point in polygon if abs(sum(point) - target) <= BOUNDARY_EPSILON]
     best = min((point for point in polygon if abs(sum(point) - max_total) <= BOUNDARY_EPSILON),
                key=lambda point: point[1]) if polygon else None
+    status = ("feasible_full" if full else "no_feasible" if max_total is None else
+              "feasible_partial" if policy["allow_smaller"] else "requested_size_infeasible")
+    eligible = best is not None and (bool(full) or policy["allow_smaller"])
     return {
-        "requested_total": target, "max_total": max_total, "full_possible": bool(full),
+        "requested_total": target, "max_total": max_total if eligible else None,
+        "diagnostic_max_total": max_total, "full_possible": bool(full), "status": status,
         "full_zst_min": min((point[1] for point in full), default=None),
         "full_zst_max": max((point[1] for point in full), default=None),
-        "best_funding": dict(zip(SOURCES, best)) if best is not None else None,
+        "best_funding": dict(zip(SOURCES, best)) if eligible else None,
     }
 
 
@@ -380,6 +387,9 @@ def audit_decision(*, prices_cad, baseline, proposal, policy, metrics, evidence,
         proposal_weights = _weights(proposal, assets)
         maximum_weights = _weights(maximum, assets) if maximum is not None else None
         policy = dict(policy)
+        policy["allow_smaller"] = policy.get("allow_smaller", True)
+        if not isinstance(policy["allow_smaller"], bool):
+            raise ValueError("The purchase size policy must use a boolean allow_smaller.")
         if policy["metric"] not in METRICS:
             raise ValueError("Unknown loss metric.")
         for key in ("target", "loss_limit", "reserve_floor", "direct_cap", "issuer_cap"):
@@ -407,7 +417,7 @@ def audit_decision(*, prices_cad, baseline, proposal, policy, metrics, evidence,
             evaluation = _evaluate(windows, weights)
             claimed = metrics.get(role, candidate)
             _compare_evaluation(role, evaluation, claimed, weights, add)
-            status, rules = _portfolio_verdict(weights, evaluation, policy, exposures)
+            status, rules = _portfolio_verdict(weights, evaluation, policy, exposures, total)
             verified[role] = {
                 **evaluation, "weights": weights, "status": status, "passes": status == "pass",
                 "funding": funding, "total": total,
@@ -434,10 +444,16 @@ def audit_decision(*, prices_cad, baseline, proposal, policy, metrics, evidence,
         if issuer_unknown:
             optimistic = _frontier(windows, baseline, policy, exposures, conservative=False)
             agrees = all(_matches(frontier[key], optimistic[key]) for key in (
-                "max_total", "full_possible", "full_zst_min", "full_zst_max"))
+                "status", "max_total", "full_possible", "full_zst_min", "full_zst_max"))
             if agrees and frontier["best_funding"] is not None:
                 agrees = all(_matches(amount, optimistic["best_funding"][ticker])
                              for ticker, amount in frontier["best_funding"].items())
+            if optimistic["status"] == "requested_size_infeasible":
+                diagnostic = frontier["diagnostic_max_total"]
+                if not _matches(diagnostic, optimistic["diagnostic_max_total"]):
+                    diagnostic = None
+                frontier = {**optimistic, "diagnostic_max_total": diagnostic}
+                agrees = True
             if not agrees:
                 verified["frontier"] = {"status": "insufficient_evidence",
                                         "known_safe": frontier, "optimistic": optimistic}
@@ -451,7 +467,10 @@ def audit_decision(*, prices_cad, baseline, proposal, policy, metrics, evidence,
         verified["frontier"] = frontier
         claimed_frontier = metrics.get("frontier")
         if claimed_frontier is not None:
-            for key in ("requested_total", "max_total", "full_possible", "full_zst_min", "full_zst_max"):
+            keys = ["requested_total", "max_total", "full_possible", "full_zst_min", "full_zst_max"]
+            if not policy["allow_smaller"] or "diagnostic_max_total" in claimed_frontier:
+                keys.append("diagnostic_max_total")
+            for key in keys:
                 if not _matches(frontier[key], claimed_frontier.get(key)):
                     add(f"frontier.{key}", "invalid", "Reported feasible region disagrees with the independent calculation.",
                         actual=frontier[key], claimed=claimed_frontier.get(key))
@@ -464,8 +483,7 @@ def audit_decision(*, prices_cad, baseline, proposal, policy, metrics, evidence,
                 if amount is None or not _binding_matches(binding, (policy["target"] - amount, amount), rules):
                     add(f"frontier.{endpoint}_binding", "invalid",
                         "Reported binding constraint is not active at the verified endpoint.")
-        expected_status = ("feasible_full" if frontier["full_possible"] else
-                           "no_feasible" if frontier["max_total"] is None else "feasible_partial")
+        expected_status = frontier["status"]
         verified["solver_status"] = expected_status
         if metrics.get("solver_status", expected_status) != expected_status:
             add("frontier.solver_status", "invalid", "Reported solver status disagrees with the independent calculation.",
@@ -484,6 +502,9 @@ def audit_decision(*, prices_cad, baseline, proposal, policy, metrics, evidence,
                 add("frontier.certificate", "pass", "The independently computed inequality excludes every authorized mix.")
             else:
                 add("frontier.no_feasible", "pass", "The independent constraints exclude every authorized mix.")
+        elif expected_status == "requested_size_infeasible":
+            verified["requested_size_infeasible_confirmed"] = True
+            add("frontier.requested_size", "pass", "The independent constraints exclude the required purchase size.")
         return output(verified["proposal"]["status"])
     except MissingEvidence as exc:
         add("input.evidence", "insufficient_evidence", str(exc))

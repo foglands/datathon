@@ -1,27 +1,38 @@
-"""Command-line entry point for the first prototype."""
+"""Run or reproduce an AlphaForge simulated trade audit."""
 
 import argparse
 import asyncio
 import json
+from dataclasses import replace
 from pathlib import Path
 
 from .agents import StrandsAgents
 from .data import load_market_data
-from .workflow import examples, run_case
+from .workflow import Case, examples, interpret_request, profile_policy, run_case
 
 
 def validate_case(result):
-    case = result["case"]
     expected = {
-        "robert_terminal": ("feasible_full", {"pass", "fail"}),
-        "robert_drawdown": ("no_feasible", {"fail"}),
-        "robert_tampered": ("feasible_full", {"invalid"}),
-        "robert_ambiguous": (None, {"needs_input"}),
-        "amira_missing_qqq": (None, {"insufficient_evidence"}),
-        "amira_concentration": (None, {"pass", "fail", "insufficient_evidence"}),
+        "robert_terminal": ("fail", "feasible_full"),
+        "robert_drawdown": ("fail", "no_feasible"),
+        "robert_tampered": ("invalid", "feasible_full"),
+        "robert_ambiguous": ("needs_input", None),
+        "amira_missing_qqq": ("insufficient_evidence", "insufficient_issuer_evidence"),
+        "amira_concentration": ("fail", "insufficient_issuer_evidence"),
     }
-    solver, statuses = expected[case]
-    return result["status"] in statuses and (solver is None or result.get("alternatives", {}).get("status") == solver)
+    observed = (result["status"], result.get("alternatives", {}).get("status"))
+    if observed != expected[result["case"]]:
+        return False
+    verified = result.get("audit", {}).get("verified", {})
+    if result["case"] == "robert_terminal":
+        upper = verified.get("frontier", {}).get("full_zst_max")
+        return (upper is not None and abs(upper - .02631671476152258) < 1e-8
+                and verified.get("maximum", {}).get("passes") is True)
+    if result["case"] == "robert_drawdown":
+        return verified.get("no_feasible_confirmed") is True
+    if result["case"] in ("amira_concentration", "amira_missing_qqq"):
+        return len(result.get("scenarios", {}).get("proposal", {}).get("windows", {})) == 2
+    return True
 
 
 async def run_suite(args):
@@ -43,18 +54,133 @@ async def run_suite(args):
     return results
 
 
+def write_report(path, result):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+
+
+def read_input(prompt):
+    try:
+        return input(prompt).strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return ""
+
+
+def print_policy(policy):
+    print("\nReview these simulation inputs")
+    print(f"  Proposed trade: +{policy['target']:.2%} NVDA, funded from {policy['initial_source']}")
+    print(f"  Permitted funding: {', '.join(policy['allowed_sources'])}")
+    print(f"  Smaller purchase allowed: {'yes' if policy['allow_smaller'] else 'no'}")
+    print(f"  Minimum ZST.TO weight: {policy['reserve_floor']:.2%}")
+    if policy['loss_limit'] is not None:
+        metric = policy['metric'].replace('_', ' ')
+        print(f"  {metric.capitalize()} limit in both historical windows: {policy['loss_limit']:.2%}")
+    else:
+        print("  Historical loss limit: none specified")
+    if policy['issuer_cap'] is not None:
+        print(f"  NVIDIA issuer exposure cap: {policy['issuer_cap']:.2%}")
+    else:
+        print("  NVIDIA issuer exposure cap: none specified")
+    if policy['prefer_reserve'] is True:
+        print("  Preference: preserve ZST.TO")
+
+
+async def run_request(args):
+    runtime = StrandsAgents()
+    request = args.request.strip()
+    print("Simulation only. Use fictional portfolio information.")
+    parsing_trace = []
+    manual_draft = None
+    if not request:
+        print("Provide a simulated trade request.")
+        return 2
+    while True:
+        if manual_draft is not None:
+            draft, policy = manual_draft
+            manual_draft = None
+            question = None
+        else:
+            draft, policy, question = await interpret_request(request, runtime, "interactive")
+            parsing_trace.extend(draft.trace)
+        if draft.status == "error":
+            print(question)
+            if args.report:
+                write_report(args.report, {"status": "execution_error", "trace": parsing_trace})
+            return 1
+        if question:
+            print(question)
+            if draft.data.get("clarification_field") == "loss_metric" and draft.data.get("limit_bps") is not None:
+                print("  1. Terminal loss (start to finish)")
+                print("  2. Maximum drawdown (peak to trough)")
+            change = read_input("Clarify the request, or press Enter to end: ")
+            while change.casefold() == "yes":
+                print(question)
+                change = read_input("Provide the missing detail, or press Enter to end: ")
+            if (draft.data.get("clarification_field") == "loss_metric" and draft.data.get("limit_bps") is not None
+                    and change in ("1", "2")):
+                metric = "terminal_loss" if change == "1" else "max_drawdown"
+                resolved = {**draft.data, "status": "ok", "metric": metric, "clarification_field": None}
+                try:
+                    manual_draft = (replace(draft, status="ok", data=resolved), profile_policy(resolved))
+                except ValueError:
+                    request += f"\nThe historical loss limit applies to {metric.replace('_', ' ')}."
+                    continue
+                parsing_trace.append({"role": "profile", "event": "loss_metric_selected", "metric": metric})
+                continue
+        else:
+            print_policy(policy)
+            change = read_input("Type YES to run the audit, enter a correction, or press Enter to end: ")
+            if change.casefold() == "yes":
+                break
+        if not change:
+            return 0
+        request += "\nNew user clarification or correction (takes precedence): " + change
+
+    data = load_market_data(args.data)
+    case = Case("interactive", request, "terminal_loss", None, 0)
+    decision = await run_case(data, case, runtime, confirmed_profile=replace(draft, trace=tuple(parsing_trace)))
+    print(f"\nAudit of original proposal: {decision['status']}")
+    print(decision.get("explanation", decision.get("error", "")))
+    verified = decision.get("audit", {}).get("verified", {})
+    for label, description in (("baseline", "Starting portfolio"), ("proposal", "Original proposal"), ("maximum", "Verified alternative")):
+        outcome = verified.get(label)
+        if outcome:
+            print(f"  {description}: {outcome['status']}")
+            if label == "maximum" and outcome["passes"] and policy["prefer_reserve"] is True:
+                mix = outcome["funding"]
+                print(f"    Funding: QQQ {mix['QQQ'] * 100:.2f} pp, ZST.TO {mix['ZST.TO'] * 100:.2f} pp")
+    if decision["status"] not in ("execution_error", "invalid") and policy["prefer_reserve"] is not True:
+        frontier = verified.get("frontier", {})
+        if frontier.get("full_possible"):
+            bottom, top = frontier["full_zst_min"], frontier["full_zst_max"]
+            print(f"  ZST.TO funding range: {bottom * 100:.2f} to {top * 100:.2f} percentage points.")
+    for finding in decision.get("audit", {}).get("findings", []):
+        if finding["metric_id"].startswith("proposal.") and finding["status"] in ("fail", "insufficient_evidence"):
+            actual, limit = finding.get("actual"), finding.get("limit")
+            fields = f" [{actual:.2%} vs {limit:.2%}]" if isinstance(actual, (int, float)) and isinstance(limit, (int, float)) else ""
+            print(f"  {finding['metric_id']}: {finding['status']}{fields}")
+    if args.report:
+        write_report(args.report, decision)
+    return 1 if decision["status"] in ("execution_error", "invalid") else 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", required=True, type=Path, help="Official ZIP or extracted starter directory")
     parser.add_argument("--case", default="all", choices=("all", "robert", "amira"))
     parser.add_argument("--mode", default="offline", choices=("offline", "aws"))
+    parser.add_argument("--request", help="Audit a new simulated request interactively (AWS mode)")
     parser.add_argument("--stress", action="store_true", help="Add ambiguity, missing evidence and tampered-result cases")
     parser.add_argument("--report", type=Path, help="Write the test results and trace as JSON")
     args = parser.parse_args()
+    if args.request is not None:
+        if args.mode != "aws" or args.stress or args.case != "all":
+            parser.error("--request requires --mode aws and runs independently of the preset stress suite")
+        return asyncio.run(run_request(args))
     results = asyncio.run(run_suite(args))
     if args.report:
-        args.report.parent.mkdir(parents=True, exist_ok=True)
-        args.report.write_text(json.dumps(results, ensure_ascii=False, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+        write_report(args.report, results)
     print(f"{sum(row['passed'] for row in results)}/{len(results)} scenarios passed ({args.mode})")
     return 0 if all(row["passed"] for row in results) else 1
 

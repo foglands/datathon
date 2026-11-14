@@ -221,6 +221,10 @@ def _candidate(prepared, baseline, point, candidate_id, policy) -> dict:
     metric = policy["metric"]
     reserve = policy["reserve_floor"]
     checks = []
+    if not policy["allow_smaller"] and candidate_id != "baseline":
+        target = policy["target"]
+        checks.append({"rule": "requested_size", "passed": abs(x + y - target) <= EPS,
+                       "actual": x + y, "limit": target})
     if cap is not None:
         checks.extend(
             {"rule": metric, "passed": results[metric] <= cap + EPS, "actual": results[metric], "limit": cap,
@@ -252,10 +256,12 @@ def solve_funding(
     metric: str = "terminal_loss", reserve_floor: float = 0.15,
     allowed_sources=FUNDING_SOURCES, direct_cap: float | None = None,
     issuer_cap: float | None = None, issuer_exposure: Mapping[str, float | None] | None = None,
-    windows=STRESS_WINDOWS, baseline: Mapping[str, float] = BASE_WEIGHTS,
+    windows=STRESS_WINDOWS, baseline: Mapping[str, float] = BASE_WEIGHTS, allow_smaller: bool = True,
 ) -> dict:
-    """Find the exact feasible funding polygon and maximize NVDA purchase, preserving ZST on ties."""
+    """Find eligible funding mixes while preserving ZST among equal purchase sizes."""
     target = _fraction(target, "target")
+    if not isinstance(allow_smaller, bool):
+        raise ValueError("allow_smaller must be a boolean")
     if loss_limit is not None:
         loss_limit = _fraction(loss_limit, "loss_limit")
     reserve_floor = _fraction(reserve_floor, "reserve_floor")
@@ -275,6 +281,7 @@ def solve_funding(
     prepared = _prepare(data, windows, base)
     policy = {
         "target": target, "loss_limit": loss_limit, "metric": metric, "reserve_floor": reserve_floor,
+        "allow_smaller": allow_smaller,
         "allowed_sources": list(sources), "direct_cap": direct_cap, "issuer_cap": issuer_cap,
         "issuer_exposure": exposure, "windows": list(prepared),
     }
@@ -319,14 +326,22 @@ def solve_funding(
 
     full = _frontier_on_target(target, rules) if polygon else None
     optimal = _best_point(polygon, target, full)
+    diagnostic_max = sum(optimal) if optimal is not None else None
+    smaller_possible = optimal is not None and full is None
     incomplete = False
     if pessimistic_issuer is not None and polygon:
         safe = _clip(polygon, pessimistic_issuer)
         safe_full = _frontier_on_target(target, (*rules, pessimistic_issuer)) if safe else None
         safe_optimal = _best_point(safe, target, safe_full)
-        incomplete = not (_same_point(optimal, safe_optimal) and
-                          _same_point(full[:2] if full else None, safe_full[:2] if safe_full else None))
+        if not allow_smaller and smaller_possible:
+            if safe_optimal is None or abs(diagnostic_max - sum(safe_optimal)) > EPS:
+                diagnostic_max = None
+        else:
+            incomplete = not (_same_point(optimal, safe_optimal) and
+                              _same_point(full[:2] if full else None, safe_full[:2] if safe_full else None))
         full, optimal = (None, None) if incomplete else (safe_full, safe_optimal)
+    if not allow_smaller and full is None:
+        optimal = None
     picks = {"baseline": (0.0, 0.0)}
     if x_cap >= target - EPS and "QQQ" in sources:
         picks["qqq_only"] = (target, 0.0)
@@ -345,10 +360,13 @@ def solve_funding(
         status = "insufficient_issuer_evidence"
     elif full is not None:
         status = "feasible_full"
+    elif not allow_smaller and smaller_possible:
+        status = "requested_size_infeasible"
     else:
         status = "feasible_partial" if best is not None else "no_feasible"
     frontier = {
         "requested_total": target, "max_total": best["total"] if best is not None else None,
+        "diagnostic_max_total": diagnostic_max if not incomplete else None,
         "full_possible": full is not None,
         "full_zst_min": full[0] if full is not None else None,
         "full_zst_max": full[1] if full is not None else None,
