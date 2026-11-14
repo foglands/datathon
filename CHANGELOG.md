@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-14 · Evidence coverage and decision reasons
+
+- Validate dated issuer disclosures against their observation date, publication cutoff and a configurable prototype freshness limit. The independent review repeats the check against the raw snapshot. Record and explain excluded holdings, covered portfolio weight and possible exposure ranges.
+- Distinguish a breached starting portfolio with no feasible change from an infeasible required purchase size and unresolved evidence. Keep verified historical metrics available when only ETF holdings are incomplete. Withhold funding results for missing or unusable price or FX inputs.
+- Show source and retrieval details for the historic market inputs. Display recorded rule status and the size of a breach, including breaches that round to less than 0.01 percentage points. [Implementation record](https://github.com/WindsTrace/datathon-prep/issues/3)
+
 ## 2026-11-14 · Policy-driven tool calls
 
 - Evidence now chooses the market sources and, when an issuer cap applies, the available holdings disclosures and their as-of date. Only that branch runs the Exposure role. Unavailable holdings stay unknown.

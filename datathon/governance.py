@@ -3,6 +3,8 @@
 from collections.abc import Mapping
 from math import fsum, isfinite
 
+from .evidence import validate_issuer_snapshot
+
 
 SOURCES = ("QQQ", "ZST.TO")
 RESERVE = "ZST.TO"
@@ -169,13 +171,19 @@ def _funding(baseline, weights, allowed, target):
     return funding, increase
 
 
-def _issuer_coefficients(policy, assets, evidence):
+def _issuer_coefficients(policy, assets, evidence, issuer_context=None):
     coefficients = {ticker: 1.0 if ticker == ISSUER else None for ticker in assets}
     snapshot = evidence.get("issuer_snapshot")
+    amounts = policy.get("issuer_exposure") or {}
+    if issuer_context is not None:
+        verified = validate_issuer_snapshot(snapshot, assets=sorted(assets), **issuer_context)
+        coefficients = verified["issuer_weights"]
+        if any(not _matches(coefficients[ticker], amounts[ticker]) for ticker in assets if ticker in amounts):
+            raise ValueError("Claimed issuer exposure disagrees with independently validated disclosures.")
+        return coefficients
     if not isinstance(snapshot, Mapping) or not snapshot.get("as_of"):
         return coefficients
     permitted = set(evidence.get("permitted_scope_assumptions", ()))
-    amounts = policy.get("issuer_exposure") or {}
     for ticker in assets - {ISSUER}:
         row = snapshot.get("holdings", {}).get(ticker, {})
         if not row.get("url") or row.get("weight") is None:
@@ -364,7 +372,8 @@ def _verify_certificate(certificate, windows, baseline, policy, exposures):
     return False
 
 
-def audit_decision(*, prices_cad, baseline, proposal, policy, metrics, evidence, maximum=None, dates=None):
+def audit_decision(*, prices_cad, baseline, proposal, policy, metrics, evidence, maximum=None, dates=None,
+                   issuer_context=None):
     """Audit reported metrics, funding and the best feasible counterfactual from raw inputs."""
     findings = []
     verified = {}
@@ -377,7 +386,27 @@ def audit_decision(*, prices_cad, baseline, proposal, policy, metrics, evidence,
             status = "invalid"
         elif status == "pass" and any(item["status"] == "insufficient_evidence" for item in findings):
             status = "insufficient_evidence"
-        return {"status": status, "findings": findings, "verified": verified}
+        solver_status = verified.get("solver_status")
+        frontier = verified.get("frontier", {})
+        if status == "invalid":
+            reason = "review_blocked"
+        elif any(item["metric_id"] == "input.evidence" for item in findings):
+            reason = "market_evidence_insufficient"
+        elif solver_status == "no_feasible" and verified["baseline"]["status"] == "fail":
+            reason = "baseline_breaches_policy"
+        elif solver_status == "requested_size_infeasible":
+            reason = "requested_size_infeasible"
+        elif frontier.get("status") == "insufficient_evidence" or (
+            status == "insufficient_evidence" and
+            any(item["metric_id"] == "proposal.issuer_weight.policy" and item["status"] == "insufficient_evidence"
+                for item in findings)
+        ):
+            reason = "issuer_evidence_insufficient"
+        elif status == "insufficient_evidence":
+            reason = "review_evidence_insufficient"
+        else:
+            reason = solver_status or status
+        return {"status": status, "decision_reason": reason, "findings": findings, "verified": verified}
 
     try:
         assets = set(baseline.get("weights", baseline))
@@ -408,7 +437,7 @@ def audit_decision(*, prices_cad, baseline, proposal, policy, metrics, evidence,
             raise MissingEvidence("Source identifiers and CAD conversion provenance are required.")
         spec = _window_specs(policy, dates)
         windows = _growth_windows(prices_cad, assets, spec, evidence.get("fx_dates"))
-        exposures = _issuer_coefficients(policy, assets, evidence) if policy.get("issuer_cap") is not None else {}
+        exposures = _issuer_coefficients(policy, assets, evidence, issuer_context) if policy.get("issuer_cap") is not None else {}
         portfolio_roles = {"baseline": (baseline, None, None, None),
                            "proposal": (proposal_weights, proposal, proposal_funding, proposal_total)}
         if maximum_weights is not None:
@@ -426,6 +455,10 @@ def audit_decision(*, prices_cad, baseline, proposal, policy, metrics, evidence,
                 rule_status = {None: "insufficient_evidence", True: "pass", False: "fail"}[passes]
                 add(f"{role}.{metric}.policy", rule_status, "Checked against the investor policy.",
                     actual=actual, limit=limit)
+                if metric == "issuer_weight":
+                    findings[-1]["covered_portfolio_weight"] = fsum(
+                        weights[ticker] for ticker, exposure in exposures.items() if exposure is not None
+                    )
             for report in (claimed,) if candidate is claimed else (claimed, candidate):
                 if not isinstance(report, Mapping):
                     continue

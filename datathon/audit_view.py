@@ -41,6 +41,17 @@ _ROLES = {
     "review": "Review",
     "explanation": "Explanation",
 }
+_HOLDING_REASONS = {
+    "missing_holding_disclosure": "No eligible holding disclosure is available.",
+    "scope_assumption_is_unverified": "The fund strategy alone does not verify its NVIDIA weight.",
+    "invalid_publication_date": "The publication date is malformed or predates the snapshot.",
+    "missing_publication_date": "The publication date is unavailable.",
+    "publication_after_knowledge_cutoff": "The disclosure was published after the selected cutoff.",
+    "holdings_after_reference_date": "The holdings date is after the selected reference date.",
+    "holdings_older_than_max_age": "The holdings observation is older than the selected maximum age.",
+    "invalid_or_inconsistent_holdings_date": "The holding date cannot be matched to the snapshot.",
+    "incompatible_issuer_scope": "The disclosure does not match this audit's NVIDIA common-equity scope.",
+}
 
 
 def _percent(value: Any) -> str:
@@ -48,6 +59,8 @@ def _percent(value: Any) -> str:
 
 
 def _points(value: float) -> str:
+    if 0 < value < .0001:
+        return "less than 0.01 pp"
     return f"{value * 100:.2f} pp"
 
 
@@ -111,7 +124,10 @@ def _render_portfolio(st: Any, report: dict, label: str, heading: str, data: dic
     metric = policy.get("metric")
     if policy.get("issuer_cap") is not None and (bounds := _exposure_for(report, label)):
         st.metric("NVIDIA exposure range", _interval(bounds))
-        st.caption(f"Issuer cap {_percent(policy['issuer_cap'])}.")
+        issuer_finding = next(item for item in _policy_findings(report, label)
+                              if item["metric_id"].endswith(".issuer_weight.policy"))
+        coverage = issuer_finding.get("covered_portfolio_weight")
+        st.caption(f"Issuer cap {_percent(policy['issuer_cap'])} · exposure evidence covers {_percent(coverage)} of portfolio weight.")
     else:
         key = "max_drawdown" if metric == "max_drawdown" else "terminal_loss"
         st.metric(_RULE[key], _percent(data.get(key)))
@@ -170,7 +186,12 @@ def _render_constraints(st: Any, report: dict, verified: dict, has_alternative: 
             actual = finding.get("actual")
             actual_text = _interval(actual) if isinstance(actual, dict) else _percent(actual)
             verdict = "breach" if finding["status"] == "fail" else "unresolved"
-            st.write(f"{label} · **{_RULE.get(rule, rule)}**: {actual_text} vs. {_percent(finding.get('limit'))} ({verdict}).")
+            limit = finding.get("limit")
+            delta = actual["lower"] - limit if isinstance(actual, dict) else (
+                limit - actual if rule == "reserve_weight" else abs(actual - limit)
+            )
+            margin = f" Breach size: {_points(delta)}." if verdict == "breach" and delta > 0 else ""
+            st.write(f"{label} · **{_RULE.get(rule, rule)}**: {actual_text} vs. {_percent(limit)} ({verdict}).{margin}")
         if not flagged:
             st.caption("The independent review found no breach in the displayed proposal rules.")
     with right:
@@ -258,26 +279,47 @@ def render_evidence(report: dict) -> None:
             ])
             if report.get("status") not in {"invalid", "execution_error"}:
                 verified = _verified(report)
-                st.table([
+                figures = [
                     {"Portfolio": heading, "Window": window, "Terminal loss": _percent(row["terminal_loss"]),
                      "Maximum drawdown": _percent(row["max_drawdown"])}
                     for key, heading in (("baseline", "Starting portfolio"), ("proposal", "Original proposal"),
                                          ("maximum", "Verified alternative"))
                     for window, row in verified.get(key, {}).get("windows", {}).items()
-                ])
+                ]
+                if figures:
+                    st.caption(f"Original proposal replay: {len(verified.get('proposal', {}).get('windows', {}))} of "
+                               f"{len(evidence.get('windows', windows))} required historical windows recomputed.")
+                    st.table(figures)
+        elif report.get("decision_reason") == "market_evidence_insufficient":
+            st.warning("Historical replay evidence is unavailable for a required window.")
+        for row in evidence.get("market_sources", {}).values():
+            provider = f"[{row['source']}]({row['source_url']})"
+            st.write(f"**{row['file']}** · {provider} · retrieved {row['retrieved_on']}")
+            if row.get("limitations"):
+                st.caption(row["limitations"])
         if snapshot := evidence.get("issuer_snapshot"):
             st.write("**Issuer holdings**")
             st.caption(
-                f"Holdings observed on {snapshot['as_of']}. This snapshot is separate from the historical "
-                "price replays. The proportions refer to NVIDIA common equity in each fund."
+                f"Snapshot observation date: {snapshot['as_of'] or 'Unknown'}. "
+                f"Reference date: {snapshot['reference_date']}. Publication cutoff: {snapshot['publication_cutoff']}. "
+                f"Prototype maximum age: {snapshot['max_age_days']} days. These dates apply to issuer "
+                "disclosures separately from the historical price replays."
             )
             for ticker, row in snapshot.get("holdings", {}).items():
                 status = row.get("status")
-                value = _percent(row.get("weight")) if status in ("disclosed", "direct") else "Unresolved"
+                if status == "direct":
+                    st.markdown(f"**{ticker}** · Direct position, counted in full")
+                    continue
+                value = _percent(row.get("weight")) if status == "disclosed" else status.replace("_", " ").capitalize()
                 published = row.get("published_on")
-                date = f" · published {published}" if published else ""
-                source = f" · [Source]({row['url']})" if row.get("url") else ""
-                st.markdown(f"**{ticker}** · {value}{date}{source}")
+                dates = f" · published {published}" if published else ""
+                if row.get("age_days") is not None:
+                    dates += f" · {row['age_days']} days since observation"
+                url = row.get("url") or ""
+                source = f" · [Source]({url})" if url.startswith(("https://", "http://")) else ""
+                st.markdown(f"**{ticker}** · {value}{dates}{source}")
+                if status != "disclosed":
+                    st.caption(_HOLDING_REASONS.get(row["reason"], "The disclosure cannot be used to verify this holding."))
         if evidence.get("evidence_ids"):
             st.caption("Source identifiers")
             st.code("\n".join(evidence["evidence_ids"]), language=None)

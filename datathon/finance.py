@@ -15,6 +15,10 @@ TARGET_TICKER = "NVDA"
 EPS = 1e-10
 
 
+class MarketEvidenceError(ValueError):
+    """The market inputs cannot support a complete historical replay."""
+
+
 @dataclass(frozen=True)
 class StressWindow:
     id: str
@@ -65,7 +69,7 @@ def _prepare(data: MarketData, windows: Iterable[StressWindow], tickers: Iterabl
     common = set(data.fx)
     for ticker in tickers:
         if ticker not in data.prices:
-            raise ValueError(f"Starter prices do not include {ticker}")
+            raise MarketEvidenceError(f"Starter prices do not include {ticker}.")
         common.intersection_update(data.prices[ticker])
 
     prepared = {}
@@ -74,11 +78,14 @@ def _prepare(data: MarketData, windows: Iterable[StressWindow], tickers: Iterabl
             raise ValueError(f"Invalid or duplicate stress window: {window.id}")
         dates = sorted(day for day in common if window.start <= day <= window.end)
         if len(dates) < 2 or dates[0] != window.start or dates[-1] != window.end:
-            raise ValueError(f"Missing aligned endpoint data for {window.label}: {window.start} to {window.end}")
-        prices = {
-            ticker: tuple(data.prices[ticker][day] / data.prices[ticker][dates[0]] for day in dates)
-            for ticker in tickers
-        }
+            raise MarketEvidenceError(f"Missing aligned price or FX endpoint for {window.label} "
+                                      f"({window.start} to {window.end}).")
+        for ticker, series in (("USD/CAD", data.fx), *((ticker, data.prices[ticker]) for ticker in tickers)):
+            if any(isinstance(series[day], bool) or not isinstance(series[day], (int, float))
+                   or not math.isfinite(series[day]) or series[day] <= 0 for day in dates):
+                raise MarketEvidenceError(f"{ticker} contains an invalid observation in {window.label}.")
+        prices = {ticker: tuple(data.prices[ticker][day] / data.prices[ticker][dates[0]] for day in dates)
+                  for ticker in tickers}
         prepared[window.id] = (window, dates, prices)
     if not prepared:
         raise ValueError("At least one stress window is required")

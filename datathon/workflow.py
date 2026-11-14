@@ -8,8 +8,9 @@ from time import perf_counter
 from typing import Optional
 
 from .agents import AgentRun, ToolSpec
-from .data import issuer_evidence, issuer_exposure_weights
-from .finance import BASE_WEIGHTS, STRESS_WINDOWS, evaluate_portfolio, solve_funding
+from .data import issuer_evidence
+from .evidence import DEFAULT_HOLDINGS_MAX_AGE_DAYS, validate_issuer_snapshot
+from .finance import BASE_WEIGHTS, STRESS_WINDOWS, MarketEvidenceError, evaluate_portfolio, solve_funding
 from .governance import audit_decision
 
 
@@ -156,8 +157,11 @@ async def interpret_request(request, runtime, run_id):
         return parsed, None, str(exc)
 
 
-async def run_case(data, case, runtime=None, *, confirmed_profile: AgentRun | None = None):
-    """Run fresh role sessions with source and calculation data owned by Python."""
+async def run_case(
+    data, case, runtime=None, *, confirmed_profile: AgentRun | None = None,
+    evidence_date: str = "2026-11-14", holdings_max_age_days: int = DEFAULT_HOLDINGS_MAX_AGE_DAYS,
+):
+    """Audit the frozen market replay and qualify issuer data as of the evidence date."""
     started = perf_counter()
     trace = []
     outputs = {}
@@ -250,25 +254,34 @@ async def run_case(data, case, runtime=None, *, confirmed_profile: AgentRun | No
         except ValueError as exc:
             raise RoleError(str(exc)) from exc
         include_issuer = policy_view["issuer_cap"] is not None
-        market_ids = ["starter:prices_daily.csv", "starter:fx_usdcad_daily.csv"]
-        snapshot = issuer_evidence() if include_issuer else None
-        issuer_weights = issuer_exposure_weights(allow_scope_assumptions=False) if include_issuer else {}
-        if snapshot and case.missing_qqq:
-            issuer_weights["QQQ"] = None
-            snapshot["holdings"]["QQQ"].update(weight=None, status="unknown", url=None, published_on=None)
+        market_files = ("prices_daily.csv", "fx_usdcad_daily.csv")
+        market_ids = [f"starter:{filename}" for filename in market_files]
+        market_sources = {row["file"]: row for row in data.metadata if row.get("file") in market_files}
+        raw_snapshot = issuer_evidence() if include_issuer else None
+        issuer_context = {"reference_date": evidence_date, "publication_cutoff": evidence_date,
+                          "max_age_days": holdings_max_age_days}
+        if raw_snapshot and case.missing_qqq:
+            raw_snapshot["holdings"].pop("QQQ", None)
+        snapshot = None
+        if include_issuer:
+            try:
+                snapshot = validate_issuer_snapshot(raw_snapshot, assets=BASE_WEIGHTS, **issuer_context)
+            except ValueError as exc:
+                raise RoleError(f"Invalid evidence policy: {exc}") from exc
+        issuer_weights = snapshot["issuer_weights"] if snapshot else {}
         dated_ids = [f"issuer:{ticker}:{snapshot['as_of']}" for ticker, row in snapshot["holdings"].items()
                      if row["status"] == "disclosed"] if snapshot else []
         source_ids = market_ids + dated_ids
         windows = [window.id for window in STRESS_WINDOWS]
         evidence_args = {"scope": "market_and_issuer" if include_issuer else "market_replay",
-                         "evidence_ids": source_ids, "holdings_as_of": snapshot["as_of"] if snapshot else ""}
+                         "evidence_ids": source_ids, "holdings_as_of": (snapshot["as_of"] or "") if snapshot else ""}
         evidence = {}
 
         def get_evidence(scope, evidence_ids, holdings_as_of):
             if not evidence:
                 evidence.update(basis="CAD", price_source=market_ids[0], fx_source=market_ids[1],
-                                windows=windows, evidence_ids=evidence_ids)
-                if scope == "market_and_issuer" and holdings_as_of == snapshot["as_of"]:
+                                windows=windows, evidence_ids=evidence_ids, market_sources=market_sources)
+                if scope == "market_and_issuer":
                     evidence.update(issuer_snapshot=snapshot, issuer_weights=issuer_weights)
             return evidence
 
@@ -280,11 +293,12 @@ async def run_case(data, case, runtime=None, *, confirmed_profile: AgentRun | No
         await routed_role("evidence", {
             "policy": {"issuer_cap": policy_view["issuer_cap"]},
             "catalog": {"market_evidence_ids": market_ids, "issuer_evidence_ids": dated_ids,
-                        "holdings_as_of": snapshot["as_of"] if snapshot else ""},
+                        "holdings_as_of": evidence_args["holdings_as_of"]},
             "tool_contract": "Select market_replay for a policy without an issuer cap, using all market IDs "
                              "and an empty holdings_as_of. Select market_and_issuer when an issuer cap applies. "
                              "In that case include all listed market and issuer evidence IDs and the exact "
-                             "holdings_as_of. Do not invent evidence for the missing funds.",
+                             "holdings_as_of from the catalog, which may be empty when unverified. "
+                             "Do not invent evidence for the missing funds.",
         }, ToolSpec("lookup_evidence", lookup_evidence.__doc__, lookup_evidence, trace_fields=tuple(evidence_args)),
            evidence_args, get_evidence, evidence)
         if not evidence:
@@ -380,14 +394,19 @@ async def run_case(data, case, runtime=None, *, confirmed_profile: AgentRun | No
             if best:
                 best_weights = best.get("weights", best)
                 review_metrics["maximum"] = evaluate_portfolio(data, best_weights)
+            review_evidence = {**evidence, "fx_dates": tuple(data.fx)}
+            if include_issuer:
+                review_evidence["issuer_snapshot"] = raw_snapshot
             review_result.update(audit_decision(prices_cad=data.prices, baseline=BASE_WEIGHTS, proposal=original,
                                                 maximum=best, policy=confirmed, metrics=review_metrics,
-                                                evidence={**evidence, "fx_dates": tuple(data.fx)}))
+                                                evidence=review_evidence,
+                                                issuer_context=issuer_context if include_issuer else None))
             return review_result
 
         await role("review", {"policy": policy_view, "candidate_status": alternatives, "proposal": original},
                    tool_name="recheck_decision", operation=review)
-        result.update(status=review_result["status"], policy=policy_view, evidence=evidence, exposure=exposure,
+        result.update(status=review_result["status"], decision_reason=review_result["decision_reason"],
+                      policy=policy_view, evidence=evidence, exposure=exposure,
                       scenarios=stress, scenario_focus=scenario_focus, alternatives=alternatives, audit=review_result)
         if review_result["status"] == "invalid":
             result["explanation"] = "The independent calculation detected an invalid claim and withheld the recommendation."
@@ -398,6 +417,16 @@ async def run_case(data, case, runtime=None, *, confirmed_profile: AgentRun | No
             if runtime is not None:
                 result["agent_commentary"] = stated["summary"]
         return result
+    except MarketEvidenceError as exc:
+        message = f"Historical replay is unavailable. {exc}"
+        reason = "market_evidence_insufficient"
+        trace.append({"role": "scenario", "event": "evidence_unavailable", "status": "insufficient_evidence"})
+        result.update(status="insufficient_evidence", decision_reason=reason, policy=policy_view,
+                      evidence=evidence, explanation=message,
+                      audit={"status": "insufficient_evidence", "decision_reason": reason, "verified": {},
+                             "findings": [{"metric_id": "input.market_evidence", "status": "insufficient_evidence",
+                                           "message": str(exc)}]})
+        return result
     except RoleError as exc:
         result.update(status="execution_error", error=str(exc))
         return result
@@ -406,8 +435,16 @@ async def run_case(data, case, runtime=None, *, confirmed_profile: AgentRun | No
 
 
 def explain_audit(review, alternatives, policy):
+    if review["decision_reason"] == "baseline_breaches_policy":
+        return "The starting portfolio already breaches a tested rule. The reviewed funding search found no eligible change."
+    if review["decision_reason"] == "market_evidence_insufficient":
+        return "The required historical price or FX evidence could not be verified. No funding result is available."
+    if review["decision_reason"] == "issuer_evidence_insufficient":
+        if review["status"] == "fail":
+            return "A tested rule is breached by the proposal. Incomplete issuer evidence limits which alternatives can be verified."
+        return "The available disclosures cannot settle the issuer cap. The historical risk metrics are available separately."
     if review["status"] == "insufficient_evidence":
-        return "An applicable constraint needs more evidence. The historical replay is available separately."
+        return "The independent review needs more evidence before releasing a decision."
     if alternatives["status"] == "no_feasible":
         return "The tested funding choices have no solution under the stated policy. Review the baseline and binding constraints."
     if alternatives["status"] == "requested_size_infeasible":
