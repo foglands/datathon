@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-14 · Agent collaboration and one-rule decision checks
+
+- Settle parallel work before returning the audit. Keep accepted tool results when model commentary fails. Release still requires independent review.
+- Shorten live tool-driven stages and record the time from confirmed policy to independent review.
+- Make draft policy fields editable before confirmation. Show the source wording when available and guard unresolved or unsupported binding terms.
+- Add a bounded Review check with a separately verified result or a specific disclosure request. Match fixed, bundled and staged workflows in a held-out challenge benchmark.
+- Record each implementation and validation milestone in the [agent iteration log](AGENT_ITERATION.md).
+
 ## 2026-11-14 · Architecture benchmark
 
 - Added a reproducible benchmark with confirmed-policy cases and a separate free-text intake cohort. The deterministic, bundled single-agent and multi-agent arms share the frozen sources, portfolio tools and independent release checks.

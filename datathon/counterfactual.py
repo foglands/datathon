@@ -348,6 +348,11 @@ async def run_counterfactual(
             "policy": deepcopy(baseline["policy"]), "verified_outcome": deepcopy(before),
             "options": [asdict(value) for value in options.values()] +
                        [{"id": "no_material_challenge", "label": "No materially relevant challenge"}],
+            "definitions": {
+                "ZST.TO": "Short-term bond fund used as the simulated reserve.",
+                "reserve_floor": "Minimum portfolio weight that must remain in ZST.TO.",
+                "allow_smaller": "Permission to consider a purchase below the requested amount.",
+            },
             "required_tool": tool.name,
         }
         if challenge_hint:

@@ -48,3 +48,23 @@ All arms had zero false releases and zero avoidable holds. The staged median met
 - Nine new typed-policy cases test choosing the loss metric, reserve floor, exact purchase size, disclosure freshness, an evidence request and abstention. Each request can produce at most one re-audit.
 - A fixed structured-signal policy is the control. Both live arms use the same bounded text-aware selector. They differ in whether the before/after audits are bundled or staged. This comparison measures the useful text selection against a structured control and the execution trade-offs, without attributing a shared selection result to agent count.
 - The fixed control completed nine base audits with six correct follow-ups and zero unsafe releases or amendments. Choosing the expected option directly produced nine independently verified comparison outcomes. Live results follow below.
+
+### Candidate observations and scope checks
+
+The integrated candidate `33d6a86` passed 82/82 tests on official data in competition CloudShell. The production CLI passed 6/6 offline scenarios and the browser-style tests cover confirmation and comparison. The audit benchmark kept 20/20 valid decisions, independent parity and complete traces in all arms, with zero false releases and zero avoidable holds. The optimized bundled and staged arms reached median confirmed-to-review times of 2.58 s and 2.69 s, respectively. End-to-end staged audit took 2.70 s median, 3.10 s maximum and 86 model calls. Bundled took 2.59 s median, 5.11 s maximum and 92 calls. This meets the 6.5 s reviewed-latency goal on the cohort. It supports the shorter audited path and shows no accuracy advantage from agent count on these fixtures.
+
+The new challenge cohort completed 18/18 baseline audits in all arms:
+
+| Arm | Correct follow-up | Unsafe release | Unsafe policy change | Base audit p50 | Follow-up p50 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Fixed structured rules | 12/18 | 0 | 0 | 16.07 ms | 7.96 ms |
+| Bundled audit plus text-aware selector | 16/18 | 0 | 0 | 2.93 s | 3.09 s |
+| Staged audit plus text-aware selector | 16/18 | 0 | 0 | 2.85 s | 3.29 s |
+
+Both live arms confused the same reserve versus purchase-size wording on both trials. The resulting no-change replay remained hypothetical. The follow-up maps the short-term bond sleeve explicitly to the reserve fund and differentiates a funding split from the permission to purchase less.
+
+Profile v1: Nova 2 Lite matched 8/20 expanded raw prompts, median 1.40 s, all 20 checked typed handoffs and zero premature policies on expected-hold requests. The same prompts with Claude Haiku 4.5 matched 5/20, median 3.66 s, 12 checked handoffs and zero premature policies. The model-only change did not improve this cohort. Most failures were avoidable holds or wrong clarification fields. The next Profile revision simplifies tool fields and separates complete from additive funding permissions. Retests follow below.
+
+The revised Review selector chose the correct check in 18/18 repeated cases with staged replay and 18/18 with bundled replay. The fixed policy was 12/18. Each arm had zero unsafe releases or changes to the original policy. Staged base audit p50/p95 were 2.62/3.33 s. Its follow-up p50/p95 were 3.25/4.18 s. Bundled base p50/p95 were 2.84/4.52 s, and follow-up p50/p95 3.05/4.91 s. This was a targeted retest after addressing the reserve wording in the same cohort. The result shows text-aware selection and replay quality on those cases, with no claim of general accuracy or a quality advantage from agent count.
+
+An early revision of the smaller Profile contract matched 7/20 on the expanded raw cohort with zero premature policies. Since it did not meet the intended accuracy threshold, the app will offer direct structured entry that can run the identical review chain. Free text remains a reviewable draft.

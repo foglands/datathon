@@ -15,6 +15,16 @@ The command-line demo uses a fictional CAD portfolio holding 35% SPY, 25% XIU.TO
 | **Amira · 14% NVIDIA issuer cap** | Funding the full trade from ZST.TO gave **at least 14.15%** NVIDIA exposure when direct and disclosed indirect holdings were combined. Funding from QQQ reduced the known lower bound to **13.39%**. Unresolved look-through coverage prevents confirming that alternative against the cap. |
 | **Stress fixtures** | An ambiguous loss limit triggered clarification. Removing the QQQ disclosure left the concentration decision unresolved while historical replay still ran. An intentionally altered loss figure was caught by independent recalculation and blocked from publication. |
 
+## Check what could change the decision
+
+After the original audit, open **What could change this decision?**. Select a specific assumption or let Review use Bedrock to pick one supported check. You can describe what matters for that follow-up. The system can verify one alternate loss definition, reserve floor, size rule or disclosure freshness limit. It can also explain which holdings disclosures are needed or abstain.
+
+- **Robert:** compare terminal loss and maximum drawdown while keeping the trade, prices, exchange rates and other policy fields fixed. The checked result shows which funding range disappears.
+- **Amira:** ask what evidence could settle the issuer cap. For the QQQ-funded illustration, documented NVIDIA exposure is about 13.39%. The combined undisclosed contribution from XIU.TO and ZST.TO must be at most 0.60937 percentage points to meet the cap. The illustration remains unresolved.
+- A hypothetical result stays separate from the original audited policy. Its export shows the selected change, accepted checks and before/after accounting. Review still controls publication of verified results.
+
+The [iteration log](AGENT_ITERATION.md) connects the design, real AWS observations and limits. The new benchmark compares a fixed rule, a bundled audit and staged audits with the same paths, review gate and one-replay budget.
+
 ## Seven agents and their handoffs
 
 | Agent | Its role in the decision |
@@ -51,7 +61,7 @@ python -m streamlit run app.py
 
 Open **Robert · loss definition**, confirm the inputs, then compare the change to maximum drawdown. The app replays both policies and shows the starting portfolio, proposed trade and verified outcome. The other Robert cases isolate the reserve floor and permission for a smaller purchase. **Amira · issuer exposure** shows a proven breach for the proposal and an alternative that remains unresolved. Expand the evidence and review section or download the JSON audit record to inspect the calculations and role events.
 
-Reference cases can run offline with deterministic calculations and simulated agent events. With competition AWS credentials, choose **Write a request** to have Bedrock interpret a fictional request, ask for a missing risk definition, and audit the confirmed inputs. Running a reference case in **Bedrock** mode uses its displayed structured inputs and calls the downstream agents live. Both routes use the same Python solver and independent review as the CLI.
+Free-text inputs are editable before confirmation. Source excerpts, when available, point to the wording the model used. Unsupported binding conditions or contradictions must be resolved before the audit runs. Reference cases can run offline with deterministic calculations and simulated agent events. With competition AWS credentials, choose **Write a request** to have Bedrock interpret a fictional request, ask for a missing risk definition, and audit the confirmed inputs. Running a reference case in **Bedrock** mode uses its displayed structured inputs and calls the downstream agents live. Both routes use the same Python solver and independent review as the CLI.
 
 ### Command-line verification
 
