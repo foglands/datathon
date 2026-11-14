@@ -72,3 +72,9 @@ An early revision of the smaller Profile contract matched 7/20 on the expanded r
 ### Structured entry and recovery
 
 The primary request form now accepts supported rules directly. It requires the user to confirm the complete policy, supports staged Bedrock audit or offline verification, and invalidates the previous displayed report when a rule or execution mode changes. It remains usable when Profile times out. Bedrock free-text extraction is still available as an optional draft and uses a smaller, typed tool with separate additive and exhaustive funding permissions. The local suite on the official starter passed 91/91, including both Streamlit challenge paths and the direct-entry recovery path. On ten early typed-contract probes, Sonnet 4.5 matched 7/10 and Nova Pro matched 2/10. These samples were exploratory.
+
+### Exact candidate model and trace checks
+
+The `b4bd2ef` candidate passed 91/91 with the official starter in CloudShell. On the same 20 raw attempts, Nova 2 Lite matched 3/20 at p50 1.14 s. Sonnet 4.5 matched 14/20 at p50 3.60 s. Both produced 20 checked handoffs and zero premature policies on the expected-hold cases. The optional draft uses Sonnet for higher observed fidelity, while the audit and challenge still use Nova 2 Lite. The default structured form bypasses text parsing and still offers the staged Bedrock audit. Raw intent recognition remains below the completeness target. Its remaining failures included missing the stated purchase size and misdirected clarification.
+
+Independent code review also reproduced a trace-redaction issue when the SDK echoed malformed tool arguments. The final revision records failed Profile tool attempts without their input or output and records normalized values on success. A regression exercises the real SDK tool schema with malformed data followed by a successful retry.

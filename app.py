@@ -8,7 +8,7 @@ from zipfile import BadZipFile
 
 import streamlit as st
 
-from datathon.agents import PROFILE_FIELDS, AgentRun, StrandsAgents
+from datathon.agents import PROFILE_FIELDS, PROFILE_MODEL, AgentRun, StrandsAgents
 from datathon.audit_view import render_comparison, render_evidence, result_label
 from datathon.counterfactual import counterfactual_options, run_counterfactual
 from datathon.data import load_market_data
@@ -288,7 +288,9 @@ def live_request():
         if st.button("Interpret request with Bedrock", type="primary", disabled=not request.strip()):
             with st.spinner("Identifying the trade and rules that need confirmation"):
                 run_id = f"request-{uuid4().hex[:12]}"
-                draft, _, question = asyncio.run(interpret_request(request.strip(), runtime, run_id))
+                draft, _, question = asyncio.run(
+                    interpret_request(request.strip(), StrandsAgents(model_id=PROFILE_MODEL), run_id)
+                )
             st.session_state.request_draft = (request, run_id, draft, question)
             st.session_state.request_results = {}
             st.session_state.pop("request_confirmed", None)

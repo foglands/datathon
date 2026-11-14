@@ -14,6 +14,7 @@ from typing import Any, Literal, Union, get_type_hints
 from uuid import uuid4
 
 DEFAULT_MODEL = "us.amazon.nova-2-lite-v1:0"
+PROFILE_MODEL = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
 DEFAULT_REGION = "us-east-1"
 _MAX_OUTPUT_TOKENS = 700
 _BEDROCK_USAGE_FIELDS = {
@@ -642,8 +643,12 @@ class StrandsAgents:
                 completed_handoffs.add(name)
             arguments = use.get("input", {})
             if name == "submit_profile":
-                arguments = {key: value for key, value in arguments.items()
-                             if key in (*PROFILE_FIELDS, "binding_issue", "funding_rule", "additional_loss_limit_bps")}
+                # Model arguments and SDK errors can contain verbatim request text.
+                arguments, output = {}, None
+                if success and profile_handoff:
+                    arguments = {key: profile_handoff[key] for key in PROFILE_FIELDS}
+                    output = {"status": profile_handoff["status"],
+                              "clarification_field": profile_handoff["clarification_field"]}
             record(
                 "tool",
                 tool_name=name,

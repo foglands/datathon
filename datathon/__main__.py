@@ -6,7 +6,7 @@ import json
 from dataclasses import replace
 from pathlib import Path
 
-from .agents import PROFILE_FIELDS, StrandsAgents
+from .agents import PROFILE_FIELDS, PROFILE_MODEL, StrandsAgents
 from .data import load_market_data
 from .workflow import Case, examples, interpret_request, profile_policy, run_case
 
@@ -87,6 +87,7 @@ def print_policy(policy):
 
 
 async def run_request(args):
+    intake_runtime = StrandsAgents(model_id=PROFILE_MODEL)
     runtime = StrandsAgents()
     request = args.request.strip()
     print("Simulation only. Use fictional portfolio information.")
@@ -101,7 +102,7 @@ async def run_request(args):
             manual_draft = None
             question = None
         else:
-            draft, policy, question = await interpret_request(request, runtime, "interactive")
+            draft, policy, question = await interpret_request(request, intake_runtime, "interactive")
             parsing_trace.extend(draft.trace)
         if draft.status == "error":
             print(question)

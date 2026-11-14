@@ -106,11 +106,13 @@ class ProfileHandoffTests(unittest.TestCase):
 
 @unittest.skipIf(Agent is None, "Install the pinned Strands SDK to verify its Profile tool schema.")
 class ProfileSDKTests(unittest.IsolatedAsyncioTestCase):
-    async def test_sdk_handoff_checks_types_and_excludes_verbatim_excerpts_from_trace(self):
+    async def test_sdk_handoff_excludes_verbatim_excerpts_and_failed_tool_values_from_trace(self):
         test = self
         excerpt = "Limit start-to-end loss to 14%."
+        canary = "Fictional private request text"
+        request = f"{REQUEST} {canary}"
         arguments = {
-            "target_bps": 500, "initial_source": "QQQ", "allow_smaller": 0,
+            "target_bps": 500, "initial_source": " qqq ", "allow_smaller": 0,
             "metric": "terminal_loss", "limit_bps": 1400, "reserve_floor_bps": 1500,
             "loss_excerpt": excerpt,
         }
@@ -128,9 +130,18 @@ class ProfileSDKTests(unittest.IsolatedAsyncioTestCase):
 
             async def invoke_async(self, prompt, *, structured_output_model, **_):
                 test.assertIsNone(structured_output_model)
-                test.assertEqual(json.loads(prompt.split("\n", 1)[1]), {"user_request": REQUEST})
+                test.assertEqual(json.loads(prompt.split("\n", 1)[1]), {"user_request": request})
+                failed = {"name": "submit_profile", "toolUseId": "failed-profile-test",
+                          "input": {**arguments, "metric": canary}}
+                invalid = [part async for part in self.tool.stream(failed, {})][-1].tool_result
+                test.assertIn(canary, str(invalid))
+                self.callbacks[AfterToolCallEvent](SimpleNamespace(tool_use=failed, result=invalid, duration=.001))
+                unfinished = SimpleNamespace(end_turn=False)
+                self.callbacks[AfterToolsEvent](unfinished)
+                test.assertFalse(unfinished.end_turn)
+
                 use = {"name": "submit_profile", "toolUseId": "profile-test", "input": arguments}
-                result = [part async for part in self.tool.stream(use, {})][-1]
+                result = [part async for part in self.tool.stream(use, {})][-1].tool_result
                 self.callbacks[AfterToolCallEvent](SimpleNamespace(tool_use=use, result=result, duration=.001))
                 finished = SimpleNamespace(end_turn=False)
                 self.callbacks[AfterToolsEvent](finished)
@@ -139,8 +150,13 @@ class ProfileSDKTests(unittest.IsolatedAsyncioTestCase):
 
         client = SimpleNamespace(meta=SimpleNamespace(events=SimpleNamespace(register=lambda *_: None)))
         with patch("strands.Agent", RecordedAgent), patch("strands.models.BedrockModel", return_value=SimpleNamespace(client=client)):
-            handoff = await StrandsAgents().run("profile", {"user_request": REQUEST})
+            handoff = await StrandsAgents().run("profile", {"user_request": request})
         self.assertEqual(handoff.status, "ok")
         self.assertEqual(profile_policy(handoff.data)["allowed_sources"], ("QQQ",))
         self.assertEqual(handoff.data["source_excerpts"]["limit_bps"], excerpt)
         self.assertNotIn(excerpt, json.dumps(handoff.trace))
+        self.assertNotIn(canary, json.dumps(handoff.trace))
+        failed_tool, checked_tool = [event for event in handoff.trace if event["event"] == "tool"]
+        self.assertEqual((failed_tool["status"], failed_tool["input"], failed_tool["output"]), ("error", {}, None))
+        self.assertEqual(checked_tool["input"]["initial_source"], "QQQ")
+        self.assertEqual(checked_tool["input"]["allowed_sources"], ["QQQ"])
