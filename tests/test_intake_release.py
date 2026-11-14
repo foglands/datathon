@@ -9,7 +9,7 @@ from time import perf_counter
 import unittest
 from unittest.mock import AsyncMock, patch
 
-from datathon.__main__ import run_request
+from datathon.__main__ import run_request, run_suite
 from datathon.agents import DEFAULT_MODEL, DEFAULT_REGION, AgentRun, StrandsAgents
 from datathon.workflow import interpret_request
 
@@ -143,6 +143,23 @@ class IntakeReleaseTests(unittest.IsolatedAsyncioTestCase):
                 self.assertIsNone(policy)
                 self.assertTrue(question)
                 self.assertTrue(case.accepts(draft, policy, question))
+
+    async def test_cli_audits_confirmed_reference_cases_and_checks_ambiguous_intake(self):
+        response = {"status": "pass", "elapsed_ms": 1}
+        args = argparse.Namespace(data="unused", mode="aws", case="all", stress=True)
+        with (patch("datathon.__main__.load_market_data"),
+              patch("datathon.__main__.validate_case", return_value=True),
+              patch("datathon.__main__.run_case", new_callable=AsyncMock, side_effect=lambda *_a, **_kw: dict(response)) as audit,
+              patch("builtins.print")):
+            self.assertEqual(len(await run_suite(args)), 6)
+        for entry in audit.await_args_list:
+            _, case, runtime = entry.args
+            if case.ambiguous:
+                self.assertNotIn("confirmed_profile", entry.kwargs)
+                self.assertIn("claude-sonnet", runtime.model_id)
+            else:
+                self.assertEqual(entry.kwargs["confirmed_profile"].status, "ok")
+                self.assertIn("nova-2-lite", runtime.model_id)
 
     async def test_confirmed_cli_audit_excludes_excerpts_and_request(self):
         case = HELD_OUT_CASES[0]

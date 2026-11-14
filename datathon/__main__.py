@@ -6,9 +6,9 @@ import json
 from dataclasses import replace
 from pathlib import Path
 
-from .agents import PROFILE_FIELDS, PROFILE_MODEL, StrandsAgents
+from .agents import PROFILE_FIELDS, PROFILE_MODEL, AgentRun, StrandsAgents
 from .data import load_market_data
-from .workflow import Case, examples, interpret_request, profile_policy, run_case
+from .workflow import Case, examples, interpret_request, preset_profile, profile_policy, run_case
 
 
 def validate_case(result):
@@ -40,7 +40,12 @@ async def run_suite(args):
     runtime = StrandsAgents() if args.mode == "aws" else None
     results = []
     for case in examples(args.case, args.stress):
-        result = await run_case(data, case, runtime)
+        if case.ambiguous:
+            intake = StrandsAgents(model_id=PROFILE_MODEL) if runtime is not None else None
+            result = await run_case(data, case, intake)
+        else:
+            preset = AgentRun("ok", preset_profile(case), ({"role": "profile", "event": "preset_inputs_selected"},))
+            result = await run_case(data, case, runtime, confirmed_profile=preset)
         result["passed"] = validate_case(result)
         results.append(result)
         alternative = result.get("alternatives", {}).get("status", "-")
