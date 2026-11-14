@@ -295,6 +295,18 @@ def render_evidence(report: dict) -> None:
             st.caption("Offline replay. Roles are simulated locally for this run.")
         else:
             st.caption("No successful Amazon Bedrock response was recorded in this run.")
+        routing = [row for row in trace if row.get("event") in ("tool_routing", "role_skipped")]
+        if routing:
+            st.table([
+                {"Role": _ROLES[row["role"]], "Action": row.get("tool_name") or "Skip",
+                 "Result": row["status"].replace("_", " "),
+                 "Policy inputs": ", ".join(f"{key}={value}" for key, value in row.get("arguments", {}).items()
+                                            if value not in ("", [])),
+                 "Reason": row.get("reason") or ", ".join(row.get("invalid_fields", ()))}
+                for row in routing
+            ])
+            if any(row["status"] == "deterministic_fallback" for row in routing):
+                st.caption("Python applied the confirmed policy when a routed agent did not supply a usable tool result.")
         rows = [
             {"Role": _ROLES.get(row.get("role"), row.get("role", "")),
              "Action": row.get("tool_name") or row.get("operation") or row.get("event", ""),

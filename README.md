@@ -20,14 +20,14 @@ The command-line demo uses a fictional CAD portfolio holding 35% SPY, 25% XIU.TO
 | Agent | Its role in the decision |
 | --- | --- |
 | Profile | Extracts the proposed trade, funding sources, preferences and explicit constraints. Requests clarification when the loss metric is ambiguous. |
-| Evidence | Uses a tool to identify the relevant frozen market and holdings inputs, sources and coverage gaps. |
-| Exposure | Uses the dated fund disclosures to measure direct and indirect NVIDIA exposure and bound missing coverage. |
-| Scenario | Calls the replay tool for terminal loss and maximum drawdown across the same historical windows. |
+| Evidence | Selects the frozen CAD market inputs and adds a dated issuer disclosure snapshot when the confirmed request has an issuer cap. |
+| Exposure | Measures direct and indirect NVIDIA exposure and bounds disclosure gaps for policies with an issuer cap. |
+| Scenario | Selects how to report historical loss from the confirmed policy. It uses both required windows, and Python retains terminal loss and drawdown for independent review. |
 | Alternatives | Calls the funding solver to check feasible purchase sizes, funding mixes and binding limits. |
 | Review | Calls an independent recomputation to verify candidate metrics, rules, feasible ranges and infeasibility evidence. |
 | Explanation | Summarizes the audited results, funding trade-offs and remaining uncertainty with source references. |
 
-In preset runs, Python runs profile and evidence in parallel. Interactive requests confirm the profile before launching the evidence stage. Exposure and scenario replay then run in parallel, followed by alternatives, review and explanation. Each model role uses Strands Agents with Amazon Bedrock Converse. Python owns the portfolio calculations, checks the handoffs and sets the verdict. The JSON report records agent commentary alongside verified inputs, tool results and review findings.
+The profile establishes the simulation rules before Evidence runs. Exposure, when required, runs alongside Scenario, followed by Alternatives, Review and Explanation. In AWS mode Strands on Amazon Bedrock selects typed tool arguments from the confirmed rules and the frozen catalog. Python validates the exact evidence set, snapshot date, loss metric and windows. If either routed agent fails to produce a usable result, Python applies the confirmed policy and the report identifies the fallback. An independent review is still required for a verdict. Use **Agent activity and AWS trace** to see accepted arguments, rejections, skipped roles and fallbacks. [Routing and verification](https://github.com/WindsTrace/datathon-prep/issues/2)
 
 ## Data and scope
 

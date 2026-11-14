@@ -188,36 +188,45 @@ async def run_case(data, case, runtime=None, *, confirmed_profile: AgentRun | No
         outputs[name] = supplied
         return calls[0] if calls else supplied
 
-    official = issuer_evidence()
-    issuer_weights = issuer_exposure_weights(allow_scope_assumptions=False)
-    if case.missing_qqq:
-        issuer_weights["QQQ"] = None
-        official["holdings"]["QQQ"].update(weight=None, status="unknown", url=None, published_on=None)
+    async def routed_role(name, payload, tool, expected, operation, output):
+        if runtime is None:
+            trace.append({"role": name, "event": "tool_routing", "tool_name": tool.name,
+                          "status": "offline", "arguments": expected})
+            outputs[name] = {"status": "ok", "summary": "Local policy routing", "evidence_ids": []}
+            operation(**expected)
+            return
+        result = await runtime.run(name, {**payload, "required_tool": tool.name}, tools=(tool,), run_id=case.id)
+        trace.extend({"role": name, **event} for event in result.trace)
+        if result.status in ("ok", "insufficient_evidence") and result.data and output:
+            outputs[name] = result.data
+            return
+        trace.append({"role": name, "event": "tool_routing", "tool_name": tool.name,
+                      "status": "deterministic_fallback", "arguments": expected,
+                      "reason": result.stop_reason if result.status == "error" else "missing_checked_handoff"})
+        outputs[name] = {"status": "fallback", "summary": "Python applied the confirmed policy.",
+                         "evidence_ids": []}
+        operation(**expected)
 
-    def get_evidence():
-        return {
-            "basis": "CAD",
-            "price_source": "starter:prices_daily.csv",
-            "fx_source": "starter:fx_usdcad_daily.csv",
-            "issuer_snapshot": official,
-            "issuer_weights": issuer_weights,
-            "windows": [window.id for window in STRESS_WINDOWS],
-            "evidence_ids": source_ids,
-        }
+    def route(name, tool_name, submitted, expected, operation):
+        # Only successful, policy-checked arguments enter the audit record.
+        invalid = [key for key, value in submitted.items()
+                   if (sorted(value) if isinstance(value, list) and all(isinstance(x, str) for x in value) else value)
+                   != (sorted(expected[key]) if isinstance(expected[key], list) else expected[key])]
+        if invalid:
+            trace.append({"role": name, "event": "tool_routing", "tool_name": tool_name,
+                          "status": "rejected", "invalid_fields": invalid})
+            raise ValueError("Tool arguments must match the confirmed policy and complete available source set: "
+                             + ", ".join(invalid))
+        answer = operation(**submitted)
+        trace.append({"role": name, "event": "tool_routing", "tool_name": tool_name,
+                      "status": "accepted", "arguments": submitted})
+        return answer
 
-    source_ids = ["starter:prices_daily.csv", "starter:fx_usdcad_daily.csv"]
-    source_ids.extend(f"issuer:{ticker}:2026-06-30" for ticker, entry in official["holdings"].items()
-                      if entry["status"] == "disclosed")
     result = {"case": case.id, "mode": "offline" if runtime is None else "aws"}
     try:
-        evidence_role = role("evidence", {"assets": list(BASE_WEIGHTS), "needs": ["CAD history", "issuer holdings with as-of date"]},
-                             tool_name="lookup_evidence", operation=get_evidence)
         if confirmed_profile is None:
             fixture = preset_profile(case)
-            parsed, evidence = await asyncio.gather(
-                role("profile", {"user_request": case.user_request}, offline=fixture),
-                evidence_role,
-            )
+            parsed = await role("profile", {"user_request": case.user_request}, offline=fixture)
             if parsed["status"] == "needs_input":
                 result.update(status="needs_input", explanation="Does 14% refer to terminal loss or maximum drawdown?")
                 return result
@@ -236,11 +245,51 @@ async def run_case(data, case, runtime=None, *, confirmed_profile: AgentRun | No
             trace.extend(confirmed_profile.trace)
             outputs["profile"] = parsed
             trace.append({"role": "profile", "event": "policy_confirmed", "run_id": case.id})
-            evidence = await evidence_role
         try:
             policy_view = profile_policy(parsed)
         except ValueError as exc:
             raise RoleError(str(exc)) from exc
+        include_issuer = policy_view["issuer_cap"] is not None
+        market_ids = ["starter:prices_daily.csv", "starter:fx_usdcad_daily.csv"]
+        snapshot = issuer_evidence() if include_issuer else None
+        issuer_weights = issuer_exposure_weights(allow_scope_assumptions=False) if include_issuer else {}
+        if snapshot and case.missing_qqq:
+            issuer_weights["QQQ"] = None
+            snapshot["holdings"]["QQQ"].update(weight=None, status="unknown", url=None, published_on=None)
+        dated_ids = [f"issuer:{ticker}:{snapshot['as_of']}" for ticker, row in snapshot["holdings"].items()
+                     if row["status"] == "disclosed"] if snapshot else []
+        source_ids = market_ids + dated_ids
+        windows = [window.id for window in STRESS_WINDOWS]
+        evidence_args = {"scope": "market_and_issuer" if include_issuer else "market_replay",
+                         "evidence_ids": source_ids, "holdings_as_of": snapshot["as_of"] if snapshot else ""}
+        evidence = {}
+
+        def get_evidence(scope, evidence_ids, holdings_as_of):
+            if not evidence:
+                evidence.update(basis="CAD", price_source=market_ids[0], fx_source=market_ids[1],
+                                windows=windows, evidence_ids=evidence_ids)
+                if scope == "market_and_issuer" and holdings_as_of == snapshot["as_of"]:
+                    evidence.update(issuer_snapshot=snapshot, issuer_weights=issuer_weights)
+            return evidence
+
+        def lookup_evidence(scope: str, evidence_ids: list[str], holdings_as_of: str) -> dict:
+            """Return only the frozen market evidence and applicable issuer snapshot for the confirmed rules."""
+            return route("evidence", "lookup_evidence", {"scope": scope, "evidence_ids": evidence_ids,
+                         "holdings_as_of": holdings_as_of}, evidence_args, get_evidence)
+
+        await routed_role("evidence", {
+            "policy": {"issuer_cap": policy_view["issuer_cap"]},
+            "catalog": {"market_evidence_ids": market_ids, "issuer_evidence_ids": dated_ids,
+                        "holdings_as_of": snapshot["as_of"] if snapshot else ""},
+            "tool_contract": "Select market_replay for a policy without an issuer cap, using all market IDs "
+                             "and an empty holdings_as_of. Select market_and_issuer when an issuer cap applies. "
+                             "In that case include all listed market and issuer evidence IDs and the exact "
+                             "holdings_as_of. Do not invent evidence for the missing funds.",
+        }, ToolSpec("lookup_evidence", lookup_evidence.__doc__, lookup_evidence, trace_fields=tuple(evidence_args)),
+           evidence_args, get_evidence, evidence)
+        if not evidence:
+            raise RoleError("evidence: no checked tool result")
+
         calculation_policy = {k: v for k, v in policy_view.items() if k not in {"initial_source", "prefer_reserve"}}
         confirmed = {**calculation_policy, "issuer_exposure": issuer_weights, "windows": STRESS_WINDOWS}
 
@@ -252,22 +301,57 @@ async def run_case(data, case, runtime=None, *, confirmed_profile: AgentRun | No
                 portfolios[label] = proposed_weights(source, amount=policy_view["target"])
 
         def inspect_exposure():
-            return {"snapshot_as_of": official["as_of"],
+            return {"snapshot_as_of": snapshot["as_of"],
                     **{label: exposure_range(weights, issuer_weights) for label, weights in portfolios.items()}}
 
         evaluations = {}
+        stress = {}
+        scenario_focus = {}
+        scenario_args = {"metric": policy_view["metric"] if policy_view["loss_limit"] is not None else "comparison",
+                         "window_ids": windows}
 
-        def stress_test():
-            for label, weights in portfolios.items():
-                evaluations[label] = evaluate_portfolio(data, weights)
-            return {label: financial_metrics(row) for label, row in evaluations.items()}
+        def stress_test(metric, window_ids):
+            if not stress:
+                selected_windows = [window for window in STRESS_WINDOWS if window.id in window_ids]
+                for label, weights in portfolios.items():
+                    evaluations[label] = evaluate_portfolio(data, weights, windows=selected_windows)
+                stress.update({label: financial_metrics(row) for label, row in evaluations.items()})
+                focus_fields = {
+                    "terminal_loss": ("terminal_loss", "terminal_return"),
+                    "max_drawdown": ("max_drawdown", "peak_date", "trough_date"),
+                    "comparison": ("terminal_loss", "max_drawdown"),
+                }[metric]
+                scenario_focus.update(metric=metric, window_ids=window_ids, portfolios={
+                    label: {window: {key: row[key] for key in focus_fields} for window, row in entry["windows"].items()}
+                    for label, entry in stress.items()
+                })
+            return scenario_focus
 
-        exposure, stress = await asyncio.gather(
-            role("exposure", {"proposal": original, "data": evidence["issuer_snapshot"]},
-                 tool_name="measure_exposure", operation=inspect_exposure),
-            role("scenario", {"policy": policy_view, "windows": evidence["windows"]},
-                 tool_name="stress_replay", operation=stress_test),
-        )
+        def stress_replay(metric: str, window_ids: list[str]) -> dict:
+            """Return the requested emphasis for every required window; Python retains both metrics for audit."""
+            return route("scenario", "stress_replay", {"metric": metric, "window_ids": window_ids},
+                         scenario_args, stress_test)
+
+        scenario_run = routed_role("scenario", {
+            "policy": {"metric": policy_view["metric"], "loss_limit": policy_view["loss_limit"]},
+            "required_windows": windows,
+            "tool_contract": "Use the confirmed metric for a loss limit. Without a loss limit, select "
+                             "comparison to report both metrics. Include every required window ID.",
+        }, ToolSpec("stress_replay", stress_replay.__doc__, stress_replay, trace_fields=tuple(scenario_args)),
+           scenario_args, stress_test, stress)
+        if include_issuer:
+            exposure, _ = await asyncio.gather(
+                role("exposure", {"proposal": original, "data": snapshot},
+                     tool_name="measure_exposure", operation=inspect_exposure),
+                scenario_run,
+            )
+        else:
+            trace.append({"role": "exposure", "event": "role_skipped", "status": "not_applicable",
+                          "reason": "No issuer exposure cap was confirmed."})
+            exposure = {}
+            await scenario_run
+        if not stress:
+            raise RoleError("scenario: no checked tool result")
         solution = {}
 
         def find_alternatives():
@@ -278,7 +362,7 @@ async def run_case(data, case, runtime=None, *, confirmed_profile: AgentRun | No
                 option["frontier"] = {k: v for k, v in option["frontier"].items() if k != "best_funding"}
             return option
 
-        alternatives = await role("alternatives", {"policy": policy_view, "exposure": exposure, "stress": stress},
+        alternatives = await role("alternatives", {"policy": policy_view, "exposure": exposure, "stress": scenario_focus},
                                   tool_name="solve_funding_range", operation=find_alternatives)
         review_result = {}
 
@@ -304,7 +388,7 @@ async def run_case(data, case, runtime=None, *, confirmed_profile: AgentRun | No
         await role("review", {"policy": policy_view, "candidate_status": alternatives, "proposal": original},
                    tool_name="recheck_decision", operation=review)
         result.update(status=review_result["status"], policy=policy_view, evidence=evidence, exposure=exposure,
-                      scenarios=stress, alternatives=alternatives, audit=review_result)
+                      scenarios=stress, scenario_focus=scenario_focus, alternatives=alternatives, audit=review_result)
         if review_result["status"] == "invalid":
             result["explanation"] = "The independent calculation detected an invalid claim and withheld the recommendation."
         else:

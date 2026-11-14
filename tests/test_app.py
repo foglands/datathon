@@ -14,6 +14,7 @@ except ModuleNotFoundError as exc:
 
 from datathon.agents import AgentRun, StrandsAgents
 from datathon.workflow import examples, preset_profile
+from tests.test_tool_routing import select_tool_arguments
 
 
 APP = Path(__file__).resolve().parents[1] / "app.py"
@@ -119,7 +120,7 @@ class PortfolioAppTests(unittest.TestCase):
             if role == "profile":
                 return AgentRun("needs_input", ambiguous)
             for tool in tools:
-                tool.handler()
+                tool.handler(**select_tool_arguments(role, payload))
             return AgentRun("ok", {"status": "ok", "summary": "Test reply", "evidence_ids": []})
 
         with patch.object(StrandsAgents, "run", autospec=True, side_effect=simulate_bedrock):
