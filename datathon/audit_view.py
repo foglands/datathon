@@ -256,6 +256,15 @@ def render_evidence(report: dict) -> None:
                 {"Window": label, "Start": row["start"], "End": row["end"], "Observations": row["observations"]}
                 for label, row in windows.items()
             ])
+            if report.get("status") not in {"invalid", "execution_error"}:
+                verified = _verified(report)
+                st.table([
+                    {"Portfolio": heading, "Window": window, "Terminal loss": _percent(row["terminal_loss"]),
+                     "Maximum drawdown": _percent(row["max_drawdown"])}
+                    for key, heading in (("baseline", "Starting portfolio"), ("proposal", "Original proposal"),
+                                         ("maximum", "Verified alternative"))
+                    for window, row in verified.get(key, {}).get("windows", {}).items()
+                ])
         if snapshot := evidence.get("issuer_snapshot"):
             st.write("**Issuer holdings**")
             st.caption(

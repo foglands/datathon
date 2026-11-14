@@ -103,6 +103,7 @@ class PortfolioAppTests(unittest.TestCase):
         self.assertNotIn("maximum", report["audit"]["verified"])
         self.assertTrue(any(item.value == "Alternative remains unresolved" for item in self.app.warning))
         self.assertTrue(any("13.39%" in item.value for item in self.app.markdown))
+        self.assertTrue(any("Maximum drawdown" in table.value.columns for table in self.app.table))
 
     def test_live_clarification_waits_for_confirmation(self):
         calls = []
