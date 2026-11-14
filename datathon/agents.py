@@ -72,6 +72,7 @@ ROLES = {
         "2. For target_bps, an explicit number of percentage points of added portfolio NVDA weight is a "
         "purchase size. Convert 6 percentage points to 600 basis points. 'Move ten percentage points into NVDA', "
         "'add 10 points of portfolio weight to Nvidia', and 'buy ten percentage points of NVDA' each specify 1000. "
+        "Use the same rules for French: 'ajouter 6,25 points de pourcentage à NVDA' specifies 625. "
         "'A six-percentage-point increase in NVDA' specifies 600. Copy the operative NVDA size "
         "clause into target_excerpt, including the action and unit. Exclude reserve floors, exposure caps, "
         "end weights and numbers stated only in rejected or unrelated examples. "
@@ -172,35 +173,60 @@ _TARGET_WORDS = dict(zip(
     "seventeen eighteen nineteen".split(), range(20),
 ))
 _TARGET_TENS = dict(zip("twenty thirty forty fifty sixty seventy eighty ninety".split(), range(20, 100, 10)))
+_TARGET_FR_WORDS = dict(zip(
+    "zéro un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize "
+    "dix-sept dix-huit dix-neuf vingt".split(), range(21),
+))
 _TARGET_NUMBER = (
-    r"\d{1,3}(?:\.\d{1,2})?|one hundred|"
+    r"\d{1,3}(?:[.,]\d{1,2})?|one hundred|"
     r"(?:" + "|".join(_TARGET_TENS) + r")(?:[ -](?:" + "|".join(tuple(_TARGET_WORDS)[1:10]) + r"))?|"
-    + "|".join(_TARGET_WORDS)
+    + "|".join(_TARGET_WORDS | _TARGET_FR_WORDS)
 )
-_TARGET_UNIT = r"(?:\s+(?:percentage\s+points?|points?\s+of\s+portfolio\s+weight)|[-–]percentage[-–]points?)"
-_TARGET_AMOUNT = r"(?P<amount>" + _TARGET_NUMBER + r")" + _TARGET_UNIT
+_TARGET_UNIT = (r"(?:\s+(?:percentage\s+points?|points?\s+of\s+portfolio\s+weight|"
+                r"points?\s+de\s+pourcentage)|[-–]percentage[-–]points?)")
+_TARGET_AMOUNT = r"(?P<quantity>(?P<amount>" + _TARGET_NUMBER + r")" + _TARGET_UNIT + r")"
 _TARGET_NAME = r"(?:NVDA|Nvidia)\b"
 _TARGET_ACTION = r"(?:add(?:s|ing)?|increase(?:s|d)?|increasing|raise(?:s|d)?|raising|shift(?:s|ing)?|move(?:s|d)?|moving)"
+_TARGET_FR_ACTION = r"(?:ajout(?:e|er|ez)|augment(?:e|er|ez)|achet(?:er|ez)|déplac(?:e|er|ez))"
 _TARGET_CLAUSES = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
     rf"\b(?:{_TARGET_ACTION}|fund(?:s|ing)?|buy(?:s|ing)?)\s+{_TARGET_AMOUNT}\s+(?:of|to|in|into)\s+{_TARGET_NAME}",
     rf"\b{_TARGET_ACTION}\s+{_TARGET_NAME}(?:\s+(?:position|weight|allocation))?\s+by\s+{_TARGET_AMOUNT}\b",
     rf"\b{_TARGET_NAME}\s+increase\s+of\s+{_TARGET_AMOUNT}\b",
-    rf"(?<![\w.-]){_TARGET_AMOUNT}\s+increase\s+in\s+{_TARGET_NAME}",
+    rf"(?<![\w.,-]){_TARGET_AMOUNT}\s+increase\s+in\s+{_TARGET_NAME}",
+    rf"\b{_TARGET_FR_ACTION}\s+{_TARGET_AMOUNT}\s+(?:à|de|en|dans)\s+{_TARGET_NAME}",
+    rf"\b{_TARGET_FR_ACTION}\s+(?:le\s+poids\s+de\s+)?{_TARGET_NAME}\s+de\s+{_TARGET_AMOUNT}\b",
 ))
-_QUOTED_TARGET_TEXT = re.compile(r'"[^"\n]*"|“[^”\n]*”|‘[^’\n]*’|(?<!\w)\'[^\'\n]*\'(?!\w)')
+_QUOTED_TARGET_TEXT = re.compile(r'"[^"\n]*"|“[^”\n]*”|‘[^’\n]*’|«[^»\n]*»|(?<!\w)\'[^\'\n]*\'(?!\w)')
+_ADOPTED_TARGET_QUOTE = re.compile(
+    r"(?:please\s+)?(?:apply|use|adopt)\s+my\s+(?:exact\s+)?(?:instruction|rule)\s*:\s*"
+    r"|(?:appliquez|utilisez|adoptez)\s+ma\s+consigne(?:\s+exacte)?\s*:\s*", re.IGNORECASE,
+)
+_TARGET_SENTENCE_STOPS = (". ", "!", "?", "\n", ";")
 _TARGET_CONTEXT_UNCLEAR = re.compile(
     r"\b(?:no|not|never|avoid|reject(?:ed)?|instead|rather|correction|hypothetical|example|illustrat(?:e|ion)|"
     r"could|would|might|maybe|either|between|or|if|unless|estimate|consider|say|said|says|suggest(?:ed|s)?|"
-    r"recommend(?:ed|s)?|advis(?:e|er|or)|propos(?:ed|es)|at most|at least|up to|approximately|around|roughly|about)\b",
+    r"recommend(?:ed|s)?|advis(?:e|er|or)|propos(?:ed|es)|at most|at least|up to|approximately|around|roughly|about|"
+    r"ne|pas|jamais|éviter|au lieu|plutôt|exemple|pourrait|peut-être|ou|si|selon|suggère|environ|entre|"
+    r"jusqu['’]à|au plus|au moins)\b|\bn['’]",
     re.IGNORECASE,
 )
 
 
-_TARGET_SCOPE_PREFIX = re.compile(r"^\s*(?:in|for) th(?:is|e) fictional (?:example|portfolio),\s*", re.IGNORECASE)
+_TARGET_SCOPE_PREFIX = re.compile(
+    r"^\s*(?:(?:in|for) th(?:is|e) fictional (?:example|portfolio)|"
+    r"(?:dans|pour) ce(?:t)? (?:exemple|portefeuille) fictif),\s*", re.IGNORECASE,
+)
 _OTHER_TARGET_UNIT = re.compile(r"\b(?:" + _TARGET_NUMBER + r")" + _TARGET_UNIT, re.IGNORECASE)
+_RESERVE_POINT_PREFIX = re.compile(
+    r"(?:^|[.!?;\n])\s*(?:(?:keep|leave|maintain|retain)\s+at\s+least|"
+    r"(?:gardez|conservez|maintenez)\s+au\s+moins)\s*$", re.IGNORECASE,
+)
+_RESERVE_POINT_SUFFIX = re.compile(r"\s+(?:in|dans|en)\s+ZST\.TO(?=$|[\s.!?;])", re.IGNORECASE)
 _OTHER_NVDA_SIZE = re.compile(
     rf"\b(?:{_TARGET_ACTION})\s+(?:\d+(?:\.\d+)?|(?:{_TARGET_NUMBER}))\s*(?:%|percent\b)[^.!?;\n]*\b(?:NVDA|Nvidia)\b"
-    rf"|\b(?:{_TARGET_ACTION})\s+{_TARGET_NAME}[^.!?;\n]*\bto\s+(?:\d+(?:\.\d+)?|(?:{_TARGET_NUMBER}))\s*(?:%|percent\b)",
+    rf"|\b(?:{_TARGET_ACTION})\s+{_TARGET_NAME}[^.!?;\n]*\bto\s+(?:\d+(?:\.\d+)?|(?:{_TARGET_NUMBER}))\s*(?:%|percent\b)"
+    rf"|\b(?:{_TARGET_FR_ACTION}|port(?:e|er|ez))\s+(?:le\s+poids\s+de\s+)?{_TARGET_NAME}"
+    rf"\s+(?:à|de)\s+(?:{_TARGET_NUMBER})\s*(?:%|pour\s+cent\b)",
     re.IGNORECASE,
 )
 
@@ -220,10 +246,26 @@ _FUNDING_CORRECTION = re.compile(
 )
 
 
-def _grounded_purchase_size(request, excerpt):
-    """Normalize one explicit, unquoted NVDA increase without choosing competing terms."""
-    # Whitespace keeps original offsets and prevents a quote from authorizing a purchase.
-    unquoted = _QUOTED_TARGET_TEXT.sub(lambda match: " " * len(match[0]), request)
+def _previous_target_sentence(text, *, truncated=False):
+    previous_stop = max(text.rfind(mark) for mark in _TARGET_SENTENCE_STOPS)
+    return text[previous_stop + 1:] if previous_stop >= 0 or not truncated else ""
+
+
+def _grounded_purchase_size(request, excerpt, model_size):
+    """Check one operative NVDA increase against the original request."""
+    adopted = []
+
+    def mask_quote(match):
+        context_start = max(0, match.start() - 96)
+        prefix = _previous_target_sentence(request[context_start:match.start()], truncated=bool(context_start)).strip()
+        if _ADOPTED_TARGET_QUOTE.fullmatch(prefix):
+            adopted.append(match.span())
+            return " " + match[0][1:-1] + " "
+        return " " * len(match[0])
+
+    # Keep original offsets. A quoted purchase can corroborate the model only
+    # when the surrounding user instruction explicitly adopts that quote.
+    unquoted = _QUOTED_TARGET_TEXT.sub(mask_quote, request)
     clauses = {
         match.span(): match for pattern in _TARGET_CLAUSES for match in pattern.finditer(unquoted)
     }
@@ -236,30 +278,40 @@ def _grounded_purchase_size(request, excerpt):
     before = unquoted[:start]
     after = unquoted[end:]
     other_text = before + " " * (end - start) + after
-    if _OTHER_TARGET_UNIT.search(other_text) or _OTHER_NVDA_SIZE.search(other_text):
+    if _OTHER_NVDA_SIZE.search(other_text) or any(
+        not (_RESERVE_POINT_PREFIX.search(other_text[max(0, other.start() - 45):other.start()])
+             and _RESERVE_POINT_SUFFIX.match(other_text, other.end()))
+        for other in _OTHER_TARGET_UNIT.finditer(other_text)
+    ):
         return None
-    previous_stop = max(before.rfind(mark) for mark in (". ", "!", "?", "\n", ";"))
-    next_stop = min((position for mark in (". ", "!", "?", "\n", ";")
+    next_stop = min((position for mark in _TARGET_SENTENCE_STOPS
                      if (position := after.find(mark)) >= 0), default=len(after))
-    sentence_prefix = _TARGET_SCOPE_PREFIX.sub("", before[previous_stop + 1:])
+    sentence_prefix = _TARGET_SCOPE_PREFIX.sub("", _previous_target_sentence(before))
     if _TARGET_CONTEXT_UNCLEAR.search(sentence_prefix + after[:next_stop]):
         return None
     if after[:next_stop].lstrip().startswith(("-", "–")):
         return None
-    if excerpt and (excerpt not in unquoted or match[0] not in excerpt):
-        return None
+    if excerpt:
+        amount_start, amount_end = match.span("quantity")
+        excerpt_start = request.find(excerpt, max(0, amount_end - len(excerpt)), amount_start + len(excerpt))
+        if excerpt_start == -1 or excerpt_start > amount_start:
+            return None
     token = match["amount"].lower()
     if token[0].isdigit():
-        whole, _, decimals = token.partition(".")
+        whole, _, decimals = token.replace(",", ".").partition(".")
         basis_points = int(whole) * 100 + int(decimals.ljust(2, "0"))
     elif token == "one hundred":
         basis_points = 10000
     elif token in _TARGET_WORDS:
         basis_points = _TARGET_WORDS[token] * 100
+    elif token in _TARGET_FR_WORDS:
+        basis_points = _TARGET_FR_WORDS[token] * 100
     else:
         tens, _, ones = token.replace("-", " ").partition(" ")
         basis_points = (_TARGET_TENS[tens] + _TARGET_WORDS.get(ones, 0)) * 100
     if not 0 < basis_points <= 10000:
+        return None
+    if model_size <= 0 and any(left <= start < right for left, right in adopted):
         return None
     return basis_points, request[start:end], _grounded_initial_funding(request, unquoted, end)
 
@@ -295,7 +347,7 @@ def _profile_handoff(request, *, status, summary, metric="", limit_bps=-1, targe
 
     source = initial_source.strip().upper()
     source = "ZST.TO" if source == "ZST" else source
-    grounded_target = _grounded_purchase_size(request, target_excerpt)
+    grounded_target = _grounded_purchase_size(request, target_excerpt, target_bps)
     funding_grounded = False
     if (not source and status == "ok" and clarification_field in {"", "target", "initial_source"}
             and additional_loss_limit_bps == -1 and grounded_target and grounded_target[2]

@@ -51,6 +51,10 @@ class ProfileHandoffTests(unittest.TestCase):
             ("I'd add 10 points of portfolio weight to Nvidia.", 1000),
             ("Retirement practice run: I'd buy ten percentage points of NVDA paid from ZST.TO.", 1000),
             ("Simulate adding nine percentage points of NVDA. Later correction: change only the loss metric.", 900),
+            ("Add six percentage points to NVDA from QQQ alone. Do not reduce the buy. "
+             "Keep at least 15 points of portfolio weight in ZST.TO.", 600),
+            ("Dans ce portefeuille fictif, ajoutez 6,25 points de pourcentage à NVDA.", 625),
+            ("Augmentez le poids de NVDA de dix-sept points de pourcentage.", 1700),
         )
         for request, expected in cases:
             with self.subTest(request=request):
@@ -59,6 +63,36 @@ class ProfileHandoffTests(unittest.TestCase):
                 self.assertEqual(draft["target_bps"], expected)
                 self.assertIn(draft["source_excerpts"]["target_bps"], request)
                 self.assertEqual(draft["limit_bps"], FIELDS["limit_bps"])
+
+    def test_quantity_excerpt_corroborates_the_full_trade_clause(self):
+        request = "Add eight percentage points to NVDA by selling QQQ alone. Keep 15% in ZST.TO."
+        for target in (-1, 800):
+            with self.subTest(target=target):
+                draft = _profile_handoff(request, **{**FIELDS, "target_bps": target},
+                                         target_excerpt="eight percentage points")
+                self.assertEqual(profile_policy(draft)["target"], .08)
+                self.assertEqual(draft["source_excerpts"]["target_bps"], "Add eight percentage points to NVDA")
+
+    def test_adopted_quote_requires_corroborating_model_size(self):
+        quotes = (
+            ("Please apply my exact instruction: “Add six percentage points to NVDA from QQQ alone.”",
+             "Add six percentage points to NVDA"),
+            ("Appliquez ma consigne exacte : « Ajoutez six points de pourcentage à NVDA. »",
+             "Ajoutez six points de pourcentage à NVDA"),
+        )
+        for request, clause in quotes:
+            with self.subTest(request=request):
+                draft = _profile_handoff(request, **{**FIELDS, "target_bps": 600}, target_excerpt=clause)
+                self.assertEqual(profile_policy(draft)["target"], .06)
+                self.assertEqual(draft["source_excerpts"]["target_bps"], clause)
+                for target in (-1, 500):
+                    draft = _profile_handoff(request, **{**FIELDS, "target_bps": target}, target_excerpt=clause)
+                    self.assertEqual(draft["clarification_field"], "target")
+                    self.assertIsNone(draft["target_bps"])
+                conflict = _profile_handoff(request, **{**FIELDS, "target_bps": 600}, target_excerpt=clause,
+                                             clarification_field="conflict")
+                self.assertEqual(conflict["clarification_field"], "conflict")
+                self.assertFalse(conflict["target_grounded"])
 
     def test_no_size_recovery_from_negation_quotes_or_competing_amounts(self):
         clause = "Add five percentage points to NVDA"
@@ -77,11 +111,20 @@ class ProfileHandoffTests(unittest.TestCase):
             "Increase NVDA to five percent of the portfolio.",
             "Add 6.257 percentage points to NVDA.",
             "Do a -6.25-percentage-point increase in NVDA.",
+            "Do a -6,25-percentage-point increase in NVDA.",
             "Increase NVDA to between 5 and 6 percentage points.",
             "Do not move ten percentage points into NVDA.",
             "Add 10 points to Nvidia.",
             "An adviser said to buy ten percentage points of NVDA.",
             "Move ten percentage points into NVDA or add twelve points of portfolio weight to Nvidia.",
+            "Ce sont les mots d’un analyste : « Ajoutez six points de pourcentage à NVDA. »",
+            "L’analyste cite : Please apply my exact instruction: “Add six percentage points to NVDA.”",
+            "Si les taux baissent, ajoutez six points de pourcentage à NVDA.",
+            "Ajoutez six points de pourcentage à NVDA ou environ huit points.",
+            "Ajoutez six points de pourcentage à NVDA. Portez NVDA à 12 %.",
+            "Ajoutez six points de pourcentage à NVDA. Utilisez plutôt huit points de pourcentage.",
+            "Please apply my exact instruction: “Add six percentage points to NVDA.” "
+            "Please apply my exact instruction: “Move eight percentage points into NVDA.”",
         )
         for request in cases:
             with self.subTest(request=request):

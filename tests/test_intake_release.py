@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import AsyncMock, patch
 
 from datathon.__main__ import run_request, run_suite
-from datathon.agents import DEFAULT_MODEL, DEFAULT_REGION, AgentRun, StrandsAgents
+from datathon.agents import DEFAULT_REGION, PROFILE_MODEL, AgentRun, StrandsAgents, _profile_handoff
 from datathon.workflow import interpret_request
 
 
@@ -123,7 +123,68 @@ HELD_OUT_CASES = (
 )
 
 
+BILINGUAL_CASES = (
+    IntakeCase(
+        "en_reserve_in_points",
+        "Run this paper trade by buying 7.5 percentage points of NVDA. Sell ZST.TO to pay for the original "
+        "trade. Permit either ZST.TO or QQQ as alternate funding and keep the full purchase size. "
+        "Retain at least 16 points of portfolio weight in ZST.TO. Limit start-to-end losses to 13.25% per replay.",
+        "ok", "terminal_loss", 1325, target_bps=750, initial_source="ZST.TO",
+        allowed_sources=("QQQ", "ZST.TO"), allow_smaller=False, reserve_floor_bps=1600,
+    ),
+    IntakeCase(
+        "en_adopted_size_quote",
+        'Apply my exact instruction: “Buy four percentage points of NVDA.” Use QQQ for the initial trade and '
+        "allow only QQQ to be sold. Allow a smaller purchase and impose no loss cap.",
+        "ok", None, None, target_bps=400, initial_source="QQQ", allowed_sources=("QQQ",), allow_smaller=True,
+    ),
+    IntakeCase(
+        "en_disavowed_size_quote",
+        'For this simulation I want an increase in NVDA, but I have not chosen its extent. The note “Add nine '
+        'percentage points to NVDA.” was someone else’s example and is not my instruction. Sell QQQ alone '
+        "for funding, keep the eventual purchase size fixed, and apply no loss cap.",
+        "needs_input", None, None, "target",
+    ),
+    IntakeCase(
+        "fr_decimal_weight",
+        "Dans ce portefeuille fictif, augmentez le poids de NVDA de 4,75 points de pourcentage. "
+        "Vendez uniquement QQQ pour financer cette opération. Le montant doit rester fixe. "
+        "Dans chaque scénario, la perte de la valeur initiale à la valeur finale est limitée à 12,5 %.",
+        "ok", "terminal_loss", 1250, target_bps=475, initial_source="QQQ", allowed_sources=("QQQ",),
+        allow_smaller=False,
+    ),
+    IntakeCase(
+        "fr_ambiguous_loss",
+        "Pour cette simulation, ajoutez sept points de pourcentage à NVDA. Vendez uniquement ZST.TO pour "
+        "financer l'achat. Une augmentation plus petite est permise. La perte maximale historique est de 13 %.",
+        "needs_input", None, 1300, "loss_metric",
+    ),
+    IntakeCase(
+        "fr_disavowed_loss_quote",
+        "Ajoutez neuf points de pourcentage à NVDA pour ce test fictif. Vendez QQQ pour l'achat initial. "
+        "Autorisez QQQ et ZST.TO comme sources, et autorisez un achat plus petit. Je fixe la perte maximale "
+        "historique à 14 %. Le texte « utilisez la perte de début à fin » est un exemple que je n'adopte pas.",
+        "needs_input", None, 1400, "loss_metric",
+    ),
+)
+
+
 class IntakeReleaseTests(unittest.IsolatedAsyncioTestCase):
+    def test_reported_purchase_sizes_survive_partial_model_excerpts(self):
+        cases = {case.id: case for case in HELD_OUT_CASES}
+        for key, quantity in (("authorized_quoted_rule", "six percentage points"),
+                              ("horizon_and_rejected_esg", "five percentage points")):
+            case = cases[key]
+            with self.subTest(case=key):
+                draft = _profile_handoff(
+                    case.request, status="ok", summary="Validate the extracted fields.", target_excerpt=quantity,
+                    initial_source=case.initial_source, allowed_sources=",".join(case.allowed_sources),
+                    allow_smaller=int(case.allow_smaller), metric=case.metric or "", limit_bps=case.limit_bps or -1,
+                )
+                self.assertEqual(draft["status"], "ok")
+                self.assertEqual(draft["target_bps"], case.target_bps)
+                self.assertIn(quantity, draft["source_excerpts"]["target_bps"])
+
     async def test_ambiguous_or_conflicting_agent_handoff_does_not_release_policy(self):
         for case in (case for case in HELD_OUT_CASES if case.expected_status == "needs_input"):
             with self.subTest(case=case.id):
@@ -212,7 +273,8 @@ async def evaluate_holdout(case, trial, model, region):
 
 
 async def evaluate_holdouts(args):
-    trials = [(case, trial) for trial in range(1, args.repeats + 1) for case in HELD_OUT_CASES]
+    cases = BILINGUAL_CASES if args.cohort == "bilingual" else HELD_OUT_CASES
+    trials = [(case, trial) for trial in range(1, args.repeats + 1) for case in cases]
     rows = []
     for start in range(0, len(trials), args.jobs):
         batch = [evaluate_holdout(case, trial, args.model, args.region) for case, trial in trials[start:start + args.jobs]]
@@ -222,15 +284,17 @@ async def evaluate_holdouts(args):
     scores = {key: sum(row[key] for row in rows) for key in (
         "correct", "premature_policy", "checked_handoff", "trace_clean", "verbatim_excerpts", "converse_responses",
     )}
-    return {"model": args.model, "region": args.region, "runs": rows, "summary": {"runs": len(rows), **scores}}
+    return {"model": args.model, "region": args.region, "cohort": args.cohort,
+            "runs": rows, "summary": {"runs": len(rows), **scores}}
 
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate the held-out fictional requests in competition AWS.")
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--cohort", choices=("mixed", "bilingual"), default="mixed")
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--jobs", type=int, default=2)
-    parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument("--model", default=PROFILE_MODEL)
     parser.add_argument("--region", default=DEFAULT_REGION)
     args = parser.parse_args()
     if args.repeats < 1 or args.jobs < 1:
