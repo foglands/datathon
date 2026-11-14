@@ -67,6 +67,7 @@ class MarketData:
     fx: dict[str, float]
     metadata: tuple[dict[str, str], ...] = ()
     source_path: str = ""
+    official_starter: bool = False
 
 
 def issuer_evidence() -> dict:
@@ -171,4 +172,4 @@ def load_market_data(path: str | Path | None = None) -> MarketData:
         prices.setdefault(ticker, {})[day] = price * fx[day] if currency == "USD" else price
 
     metadata_rows = _csv_rows(texts["sources_metadata.csv"], {"file", "source", "source_url", "retrieved_on"})
-    return MarketData(prices, fx, tuple(metadata_rows), str(source.resolve()))
+    return MarketData(prices, fx, tuple(metadata_rows), str(source.resolve()), official_starter=True)

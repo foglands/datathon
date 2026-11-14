@@ -423,7 +423,8 @@ async def run_case(
             review_result.update(audit_decision(prices_cad=data.prices, baseline=BASE_WEIGHTS, proposal=original,
                                                 maximum=best, policy=confirmed, metrics=review_metrics,
                                                 evidence=review_evidence,
-                                                issuer_context=issuer_context if include_issuer else None))
+                                                issuer_context=issuer_context if include_issuer else None,
+                                                official_starter=data.official_starter))
             result["confirmed_to_reviewed_ms"] = round((perf_counter() - confirmed_at) * 1000, 2)
             return review_result
 

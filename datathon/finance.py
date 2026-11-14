@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Iterable, Mapping
 
 from .data import MarketData
+from .market_calendar import starter_calendar_gap
 
 
 BASE_WEIGHTS = {"SPY": 0.35, "XIU.TO": 0.25, "QQQ": 0.20, "ZST.TO": 0.20, "NVDA": 0.0}
@@ -80,6 +81,8 @@ def _prepare(data: MarketData, windows: Iterable[StressWindow], tickers: Iterabl
         if len(dates) < 2 or dates[0] != window.start or dates[-1] != window.end:
             raise MarketEvidenceError(f"Missing aligned price or FX endpoint for {window.label} "
                                       f"({window.start} to {window.end}).")
+        if data.official_starter and (gap := starter_calendar_gap(window.start, window.end, dates)):
+            raise MarketEvidenceError(gap)
         for ticker, series in (("USD/CAD", data.fx), *((ticker, data.prices[ticker]) for ticker in tickers)):
             if any(isinstance(series[day], bool) or not isinstance(series[day], (int, float))
                    or not math.isfinite(series[day]) or series[day] <= 0 for day in dates):

@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from math import fsum, isfinite
 
 from .evidence import validate_issuer_snapshot
+from .market_calendar import starter_calendar_gap
 
 
 SOURCES = ("QQQ", "ZST.TO")
@@ -50,7 +51,7 @@ def _window_specs(policy, dates):
     return tuple(specs)
 
 
-def _growth_windows(prices, assets, specs, fx_dates):
+def _growth_windows(prices, assets, specs, fx_dates, *, official_starter=False):
     if not specs or prices is None or not assets.issubset(prices):
         raise MissingEvidence("The frozen prices or stress window definitions are missing.")
     all_dates = set.intersection(*(set(prices[ticker]) for ticker in assets))
@@ -72,6 +73,8 @@ def _growth_windows(prices, assets, specs, fx_dates):
                 raise MissingEvidence("Frozen prices do not cover both stress window endpoints.")
         if len(window_dates) < 2:
             raise MissingEvidence("A stress window needs at least two common observations.")
+        if official_starter and (gap := starter_calendar_gap(start, end, window_dates)):
+            raise MissingEvidence(gap)
         growth = {}
         for name in sorted(assets):
             closes = [prices[name][day] for day in window_dates]
@@ -380,7 +383,7 @@ def _verify_certificate(certificate, windows, baseline, policy, exposures):
 
 
 def audit_decision(*, prices_cad, baseline, proposal, policy, metrics, evidence, maximum=None, dates=None,
-                   issuer_context=None):
+                   issuer_context=None, official_starter=False):
     """Audit reported metrics, funding and the best feasible counterfactual from raw inputs."""
     findings = []
     verified = {}
@@ -442,8 +445,10 @@ def audit_decision(*, prices_cad, baseline, proposal, policy, metrics, evidence,
         sources = (evidence.get("price_source"), evidence.get("fx_source"))
         if evidence.get("basis") != "CAD" or any(not isinstance(source, str) or not source.strip() for source in sources):
             raise MissingEvidence("Source identifiers and CAD conversion provenance are required.")
+        if official_starter and dates is not None:
+            raise ValueError("Use the archived window boundaries to review starter replay dates.")
         spec = _window_specs(policy, dates)
-        windows = _growth_windows(prices_cad, assets, spec, evidence.get("fx_dates"))
+        windows = _growth_windows(prices_cad, assets, spec, evidence.get("fx_dates"), official_starter=official_starter)
         exposures = _issuer_coefficients(policy, assets, evidence, issuer_context) if policy.get("issuer_cap") is not None else {}
         portfolio_roles = {"baseline": (baseline, None, None, None),
                            "proposal": (proposal_weights, proposal, proposal_funding, proposal_total)}
