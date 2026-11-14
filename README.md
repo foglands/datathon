@@ -10,7 +10,7 @@ The command-line demo uses a fictional CAD portfolio holding 35% SPY, 25% XIU.TO
 
 [Release verification](submission/verification.md) · [One-page summary](submission/one-pager.pdf) · [Technical summary](submission/technical-summary.pdf) · [Demo video](submission/alphaforge-demo.mp4) · [Demo visuals](submission/visual-handout.pdf)
 
-The package includes both real competition AWS results and a reproducible offline walkthrough. See the verification record for the exact application commit, clean-checkout results and recorded Bedrock request IDs.
+The package includes competition AWS results and a reproducible offline walkthrough. The verification record identifies the optimized application, the earlier demo recording, and the evidence for each revision.
 
 ## What the prototype found
 
@@ -26,7 +26,7 @@ The package includes both real competition AWS results and a reproducible offlin
 After the original audit, open **What could change this decision?**. Select a specific assumption or let Review use Bedrock to pick one supported check. You can describe what matters for that follow-up. The system can verify one alternate loss definition, reserve floor, size rule or disclosure freshness limit. It can also explain which holdings disclosures are needed or abstain.
 
 - **Robert:** compare terminal loss and maximum drawdown while keeping the trade, prices, exchange rates and other policy fields fixed. The checked result shows which funding range disappears.
-- **Amira:** ask what evidence could settle the issuer cap. For the QQQ-funded illustration, documented NVIDIA exposure is about 13.39%. The combined undisclosed contribution from XIU.TO and ZST.TO must be at most 0.60937 percentage points to meet the cap. The illustration remains unresolved.
+- **Amira:** ask what evidence could settle the issuer cap. For the QQQ-funded illustration, documented NVIDIA exposure is about 13.39%. The combined undisclosed contribution from XIU.TO and ZST.TO must be at most 0.60937 percentage points to meet the cap. If reviewed disclosures are available, select them and re-audit the same policy and market replay. The default illustration remains unresolved. [Reviewed disclosures](ISSUER_EVIDENCE.md)
 - A hypothetical result stays separate from the original audited policy. Its export shows the selected change, accepted checks and before/after accounting. Review still controls publication of verified results.
 
 For reserve and disclosure-age checks, you can set a tighter threshold explicitly. The replay verifies that only this field changed. **Historical risk drivers** shows the largest verified contributions for the proposal under the displayed risk metric. The audit independently checks one concrete eligible funding example, with the allowable range where meaningful. If you did not specify a funding preference, the example uses the least ZST.TO sale among tied largest eligible purchases and is labeled as an example.
@@ -36,6 +36,7 @@ The [iteration log](AGENT_ITERATION.md) connects the design, real AWS observatio
 ```bash
 python -m datathon.challenge_benchmark --cohort expanded --data "$DATA" --mode offline \
   --repeats 2 --report outputs/challenge-expanded.json
+python -m datathon.resilience_benchmark --data "$DATA" --repeats 2 --report outputs/resilience.json
 ```
 
 
@@ -49,15 +50,15 @@ python -m datathon.challenge_benchmark --cohort expanded --data "$DATA" --mode o
 | Scenario | Selects how to report historical loss from the confirmed policy. It uses both required windows, and Python retains terminal loss and drawdown for independent review. |
 | Alternatives | Calls the funding solver to check feasible purchase sizes, funding mixes and binding limits. |
 | Review | Calls an independent recomputation to verify candidate metrics, rules, feasible ranges and infeasibility evidence. |
-| Explanation | Summarizes the audited results, funding trade-offs and remaining uncertainty with source references. |
+| Explanation | Renders the checked findings and source references. The default summary runs in Python, with an optional model commentary path. |
 
 The profile establishes the simulation rules before Evidence runs. Exposure, when required, runs alongside Scenario, followed by Alternatives, Review and Explanation. In AWS mode Strands on Amazon Bedrock selects typed tool arguments from the confirmed rules and the frozen catalog. Python validates the exact evidence set, snapshot date, loss metric and windows. If either routed agent fails to produce a usable result, Python applies the confirmed policy and the report identifies the fallback. An independent review is still required for a verdict. Use **Agent activity and AWS trace** to see accepted arguments, rejections, skipped roles and fallbacks. [Routing and verification](https://github.com/WindsTrace/datathon-prep/issues/2)
 
 ## Data and scope
 
-- **Historical stress.** The official starter's adjusted closes and USD/CAD series drive a buy-and-hold replay on common dates. The windows are 2021-12-31 to 2022-12-30 and 2024-12-31 to 2025-04-08. Terminal loss compares the start and end values. Maximum drawdown measures the largest peak-to-trough decline within the window. [Official release](https://chatgpt.com/library?file_id=libfile_9d3dbce691dc8191993a39be5f3b9381&account_id=personal)
+- **Historical stress.** The official starter's adjusted closes and USD/CAD series drive a buy-and-hold replay. The two reference windows are 2021-12-31 to 2022-12-30 and 2024-12-31 to 2025-04-08. Structured input can add a fixed 2023-07-31 to 2023-10-31 replay. The solver and independent review both check the archived joint trading calendar, including historically documented FX exclusions. Terminal loss compares start and end values. Maximum drawdown measures the largest peak-to-trough decline. [Official release](https://chatgpt.com/library?file_id=libfile_9d3dbce691dc8191993a39be5f3b9381&account_id=personal)
 - **Issuer exposure.** The SPY and QQQ SEC filings are dated 2026-06-30 and were filed on 2026-08-28. The reproducible competition reference and publication cutoff are 2026-11-14. The prototype accepts holdings observations at most 180 days old. The dated issuer check is separate from the two historical price replays. Stale, unavailable, invalid and assumption-only weights remain unknown. They widen the exposure range. The displayed coverage is the share of portfolio weight with direct or verified look-through evidence. [Evidence rules](datathon/evidence.py)
-- **Current scope.** The CLI runs preset Robert and Amira scenarios and accepts new simulated NVDA requests against the demo portfolio. The initial purchase is funded by a single sale of QQQ or ZST.TO. The replays use closing prices and omit execution costs, taxes and intraday movements. The results describe the tested scenarios and support educational investment simulations.
+- **Current scope.** The CLI uses the demo portfolio. In Streamlit, **Write a request → Enter inputs directly** lets the user confirm custom weights for the five supported assets. The fictional objective and withdrawal timing can be recorded alongside explicit policy limits. The initial NVDA purchase is funded by a single sale of QQQ or ZST.TO. The replays use closing prices and omit execution costs, taxes and intraday movements.
 
 The full starter inventory inventories the asset universe, adjusted prices, exchange rates, corporate actions, macro series and source metadata. It checks common replay dates, lists omitted FX dates and records the organizer's build notes.
 
@@ -100,6 +101,8 @@ For live calls, use an authenticated competition AWS session. The pinned Strands
 ```bash
 python -m pip install -r requirements.txt
 python -m datathon --data "$DATA" --case all --mode aws --stress --report outputs/aws.json
+python -m datathon.runtime_benchmark --data "$DATA" --mode aws --jobs 1 3 --repeats 2 \
+  --report outputs/runtime.json
 ```
 
 Use `--case robert` or `--case amira` to run one persona. Offline mode simulates role handoffs and runs the financial calculations locally. The first validated release passed **6/6 offline scenarios, 6/6 live competition CloudShell scenarios and 11/11 governance tests**. The live suite recorded **62 successful Converse responses**. Complete seven-role runs took **10.3–12.7 seconds** in that run. [Reproduction and AWS notes](PROTOTYPE.md)

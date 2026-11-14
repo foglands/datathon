@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-14 · Evidence integrity and bounded execution
+
+- Check each archived replay calendar in both the funding solver and independent review. Withhold a funding result when expected trading sessions are missing.
+- Screen drawdown inequalities that hold throughout the purchase domain. Preserve independently checked boundaries and date-pair witnesses.
+- Ground clearly stated English and French purchase sizes in the original request. Keep confirmation and ambiguity checks before the audit.
+- Re-audit reviewed issuer disclosures under the original policy using a digest-pinned catalog. Keep incomplete or stale evidence unresolved.
+- Confirm custom starting weights and run a fixed additional 2023 replay. Record investor objective and withdrawal timing separately from binding limits.
+- Bound time, HTTP attempts and observed model usage across each action. Add matched failure-recovery and controller-load benchmarks. [Results and reproduction](submission/verification.md)
+
 ## 2026-11-14 · Competition package
 
 - Freeze the verified application revision and add the demo, judge one-pager, technical summary and sanitized Bedrock evidence.
