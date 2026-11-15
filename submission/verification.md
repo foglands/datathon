@@ -2,6 +2,19 @@
 
 PolyFinances Datathon 2026 · Montréal
 
+## Profile-first assistant verification
+
+The November 15, 2026 validation used the organizer's frozen starter data on macOS with Python 3.10 and competition CloudShell in `us-east-1` with Python 3.13. Both environments passed 243 regression tests. The local offline CLI passed all six reference and stress cases.
+
+| Live Streamlit flow in competition CloudShell | Observed outcome | Successful Bedrock responses |
+| --- | --- | ---: |
+| Compare two fictional allocations before a planned withdrawal | Bedrock suggested the comparison task. The user confirmed the task and profile, then entered AGG and GLD. The independently verified result showed AGG had the lower worst-window drawdown. | 1 |
+| Audit adding eight percentage points of NVDA with ZST.TO funding | Bedrock suggested the trade audit and interpreted the trade and its stated loss and reserve limits. The confirmed trade breached an assessed constraint. Independent review published the original result. The alternative search was skipped. | 5 |
+
+The live checks used Streamlit AppTest through the same application controls and actual Bedrock runtime. Browser checks confirmed the growth and capital-preservation paths produce different findings on identical assets. Chrome displayed the assistant entry and profile controls at 390 pixels without page overflow. The browser used the offline comparison for these layout checks.
+
+To reproduce the live checks, launch the application from authenticated competition CloudShell or another environment with the configured Bedrock access. Enter a fictional AGG versus GLD question in **Investment assistant**, select **Suggest a task with Bedrock**, then confirm the comparison, capital preservation, and a withdrawal within one year. Select AGG and GLD and run the comparison. **Agent activity** records the successful routing response. For the audit, describe adding eight percentage points of NVDA funded only from ZST.TO with a 15% minimum remaining ZST.TO weight and a 14% terminal-loss cap. Suggest the task, confirm the profile, interpret the request with Bedrock, and confirm the original audit. The **Agent activity** tab records the tool and review calls. Use `python -m unittest discover -q` with both starter path variables set to reproduce the full regression run.
+
 ## Generated-input and cross-model verification
 
 The November 15, 2026 comparison used the same official starter data for the [baseline `6d1fb52`](https://github.com/WindsTrace/datathon-prep/commit/6d1fb52a29f932dceaec94970d72a0820d1c79ad) and [application candidate `957b441`](https://github.com/WindsTrace/datathon-prep/commit/957b4416e6a93d558124a9122f05001f17dcb312). The paired runner generates supported portfolio weights, constraints, funding permissions, historical windows, disclosure gaps, and English or French requests from a seed. Both revisions receive the same generated inputs. The runner alternates execution order, compares financial outputs with an independently checked offline reference, and checks solver authorization separately.

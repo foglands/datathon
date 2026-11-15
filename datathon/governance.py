@@ -167,6 +167,33 @@ def _compare_evaluation(role, expected, claimed, weights, add):
                     actual=expected[metric], claimed=claimed["metrics"][metric])
 
 
+def review_portfolio_comparison(data, options, evaluations, *, windows):
+    """Independently recompute two portfolios over their shared CAD observation dates."""
+    tickers = set().union(*options.values())
+    replays = _growth_windows(
+        data.prices, tickers, _window_specs({"windows": windows}, None), data.fx,
+        official_starter=data.official_starter,
+    )
+
+    def require_consistency(metric, status, message, **_):
+        if status != "pass":
+            raise ValueError(f"Independent review rejected {metric}. {message}")
+
+    checked = {}
+    for label, option in options.items():
+        weights = _weights(dict.fromkeys(tickers, 0.0) | option, tickers)
+        result = _evaluate(replays, weights)
+        claims = evaluations[label]
+        if set(claims.get("weights", {})) != tickers or any(
+            not {"terminal_return", "terminal_loss", "max_drawdown", "peak_date", "trough_date", "observations"}
+            <= row.keys() for row in claims.get("windows", {}).values()
+        ):
+            raise ValueError("The portfolio replay omitted required claims.")
+        _compare_evaluation(label, result, claims, weights, require_consistency)
+        checked[label] = result["windows"]
+    return checked, {name: dates for name, (dates, _) in replays.items()}
+
+
 def _funding(baseline, weights, allowed, target):
     funding = {ticker: baseline[ticker] - weights[ticker] for ticker in SOURCES}
     increase = weights[ISSUER] - baseline[ISSUER]

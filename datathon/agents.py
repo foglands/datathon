@@ -57,6 +57,15 @@ class Role:
 
 
 ROLES = {
+    "assistant_intent": Role(
+        "Select the task that matches the fictional investor's current question, in English or French. "
+        "Use trade_audit for checking one proposed trade against constraints. Use compare_allocations for "
+        "comparing two hypothetical portfolios or assets with historical evidence. A ticker, amount, "
+        "constraint, or asset preference in the request remains unconfirmed. Use unsupported for a request "
+        "outside these tasks, including execution of real trades or personalized advice, or when the requested "
+        "task is unclear. Call select_investment_task once with only the task identifier. Do not extract rules, "
+        "suggest a trade, infer authorization, or present any computed results."
+    ),
     "evidence": Role(
         "Select the appropriate public evidence for this audit. Use the provided evidence tool. "
         "When the tool asks for a scope, use market evidence for historical replay and add the "

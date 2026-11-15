@@ -33,6 +33,11 @@ _REPLAY_SESSIONS = {
 }
 
 
+def starter_replay_sessions(start, end):
+    """Return the pinned joint sessions for a supported historical window."""
+    return _REPLAY_SESSIONS[(start, end)]
+
+
 def starter_calendar_gap(start, end, aligned_dates):
     """Describe deviations from the pinned calendar for a reference window, if any."""
     expected = _REPLAY_SESSIONS.get((start, end))

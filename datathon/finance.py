@@ -122,10 +122,11 @@ def _evaluate(prepared, weights: Mapping[str, float]) -> dict:
     return {"weights": dict(weights), "windows": results}
 
 
-def evaluate_portfolio(data: MarketData, weights: Mapping[str, float], *, windows=STRESS_WINDOWS) -> dict:
-    """Buy and hold at each window start, then report period loss and peak-to-trough drawdown."""
+def evaluate_portfolio(data: MarketData, weights: Mapping[str, float], *, windows=STRESS_WINDOWS,
+                       aligned_tickers=BASE_WEIGHTS) -> dict:
+    """Replay buy and hold with price dates shared by the requested assets."""
     portfolio = _weights(weights)
-    prepared = _prepare(data, windows, (*BASE_WEIGHTS, *portfolio))
+    prepared = _prepare(data, windows, (*aligned_tickers, *portfolio))
     return _evaluate(prepared, portfolio)
 
 

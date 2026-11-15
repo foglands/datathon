@@ -1,10 +1,19 @@
-# AlphaForge AI · Portfolio Decision Audit
+# AlphaForge AI · Investment Decision Assistant
 
 PolyFinances Datathon 2026 · Banque Nationale · AWS
 
-AlphaForge AI shows how the funding source for a proposed trade changes a portfolio's risk and its fit with an investor's stated constraints. The prototype compares the original portfolio, the requested trade and feasible alternatives. It reports which rule drove the decision and which conclusions still depend on missing evidence.
+AlphaForge AI supports two fictional investment decisions. Compare two assets or custom allocations under a confirmed investor profile, or audit a proposed trade and explore alternative funding after separate authorization. Each result identifies the historical measure or rule that drove the outcome and the evidence needed to verify it.
 
-[Quick start](#run-it) · [Latest local and AWS verification](submission/verification.md#generated-input-and-cross-model-verification) · [Risk model reliability implementation](RISK_RELIABILITY_IMPLEMENTATION.md)
+[Quick start](#run-it) · [Latest local and AWS verification](submission/verification.md#profile-first-assistant-verification) · [Risk model reliability implementation](RISK_RELIABILITY_IMPLEMENTATION.md)
+
+## Use the investment assistant
+
+1. Choose an analysis directly or describe a fictional question and ask Bedrock to suggest a supported task. The routing agent selects a task only. The investor confirms the task and supplies the actual options, weights, and limits.
+2. Confirm the investment objective, the time to the next significant withdrawal, and any stated willingness to take risk. The assistant explains its suggested historical comparison priority. The investor can choose a different measure or explicitly enter a binding limit.
+3. Compare two symbols or two allocations using the organizer's 31 covered symbols. The assistant replays both options on common CAD sessions, independently verifies them, and shows which has the more favorable worst-window result for the confirmed priority. A confirmed drawdown limit is applied before the comparison. A required ESG screen with missing evidence leaves the choice unresolved while preserving verified financial figures.
+4. Open **Evidence** for the dates, calculation, and review identifiers. Open **Agent activity** for task routing and observed Bedrock calls. Export the same reviewed result as JSON. Open **Reference cases** to reproduce the trade audit demonstrations.
+
+For a reproducible profile comparison, select AGG and GLD as the two assets with the two standard archived windows. For growth with a withdrawal more than five years away, the return comparison favors GLD in the tested windows. For capital preservation with a withdrawal within one year, the drawdown comparison favors AGG. A confirmed 12% maximum-drawdown cap leaves AGG as the only tested option that meets the cap. These findings describe the chosen historical windows and hypothetical inputs.
 
 ## Choose the scope of the audit
 
@@ -97,13 +106,13 @@ export DATATHON_STARTER_PATH="$DATA"
 export DATATHON_FULL_STARTER_PATH="$DATA"
 ```
 
-### Decision audit screen
+### Investment assistant and reference cases
 
 ```bash
 python -m streamlit run app.py
 ```
 
-Open **Reference case**, select **Offline**, then choose **Robert · loss definition**. The setup card shows the proposed trade and the rules you are about to confirm. To reproduce the funding frontier, enable **Search alternative funding**, run the original audit and select **Confirm and search alternative funding**. The other Robert cases isolate the reserve floor and permission for a smaller purchase. **Amira · issuer exposure** shows a proven breach for the proposal and, if search is authorized, an unresolved alternative.
+Open **Investment assistant** for the question and profile workflow. For the audited trade examples, open **Reference cases**, select **Reference case** and **Offline**, then choose **Robert · loss definition**. The setup card shows the proposed trade and the rules you are about to confirm. To reproduce the funding frontier, enable **Search alternative funding**, run the original audit and select **Confirm and search alternative funding**. The other Robert cases isolate the reserve floor and permission for a smaller purchase. **Amira · issuer exposure** shows a proven breach for the proposal and, if search is authorized, an unresolved alternative.
 
 The **Decision** tab compares the verified portfolios, the rules they trigger and the risk figures for each replay window. Switch the chart between terminal loss and maximum drawdown. **Evidence** shows section-level verification, source dates, requirements, coverage and metric provenance. **Agent activity** shows which stages ran, which were skipped and any recorded Bedrock usage. **Download audit record** exports the same published result used by the workspace.
 

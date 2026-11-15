@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-15 · Profile-first investment decision assistant
+
+- Lead with an investor question, a task choice, and an explicit fictional profile. Keep reference cases in a separate workspace.
+- Use a bounded Bedrock tool to propose the analysis task. Require the investor to confirm the task, inputs, and applicable rules before running it.
+- Compare two assets or two user-defined allocations using common CAD trading dates. Independently recompute the historical results and verify the raw close and FX inputs before displaying them or exporting JSON.
+- Explain how objectives, withdrawal timing, and risk willingness inform the suggested comparison measure. Apply explicit drawdown limits before evaluating the confirmed priority. Keep missing mandatory ESG evidence unresolved.
+- Retain the trade audit, separate authorization for the funding search, and independently reviewed follow-up checks.
+- Pass 243 regressions on macOS and competition CloudShell. Exercise the comparison and the proposed-trade audit from the new Streamlit entry point with real Bedrock calls. [Verification](submission/verification.md#profile-first-assistant-verification)
+
 ## 2026-11-15 · Portfolio decision audit workspace
 
 - Add a Streamlit workspace for reference cases and custom requests, with a market-bundle status, a policy review card, and a separate funding search confirmation after the original audit.

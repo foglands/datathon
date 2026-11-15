@@ -14,7 +14,7 @@ _RELEASE = {
     "limited": ("Limited release", "orange"),
     "blocked": ("Withheld", "red"),
 }
-_METRICS = {"terminal_loss": "Terminal loss", "max_drawdown": "Maximum drawdown"}
+_METRICS = {"terminal_loss": "Terminal loss", "max_drawdown": "Maximum drawdown", "terminal_return": "End-of-window return"}
 _PORTFOLIOS = {"baseline": "Starting", "proposal": "Proposed", "maximum": "Funding example"}
 _SERIES_COLORS = ("#718c9e", "#15736b", "#415b8e")
 _SECTION_LABELS = {
@@ -58,9 +58,11 @@ def _window_series(report: dict, metric: str) -> list[dict]:
     ]
 
 
-def _render_windows(report: dict) -> None:
+def _render_windows(report: dict, preferred_metric: str | None = None) -> None:
     policy_metric = report.get("policy", {}).get("metric")
-    default = policy_metric if policy_metric in _METRICS else "terminal_loss"
+    default = preferred_metric or policy_metric
+    if default not in _METRICS:
+        default = "terminal_loss"
     st.subheader("Historical stress results")
     measures = tuple(_METRICS)
     metric = st.radio(
@@ -118,7 +120,7 @@ def _render_review_record(report: dict) -> None:
         st.code(review_id, language=None)
 
 
-def render_audit_workspace(report: dict) -> None:
+def render_audit_workspace(report: dict, *, preferred_metric: str | None = None) -> None:
     """Render and export the same verified public projection."""
     with st.container(key=f"audit-results-{report['case']}"):
         _render_outcome(report)
@@ -126,7 +128,7 @@ def render_audit_workspace(report: dict) -> None:
         with decision:
             if report["publication"]["independent_review_verified"]:
                 render_comparison(report, show_explanation=False)
-                _render_windows(report)
+                _render_windows(report, preferred_metric)
         with evidence:
             _render_review_record(report)
             render_evidence(report, include_activity=False)

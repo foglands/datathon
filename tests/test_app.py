@@ -41,6 +41,7 @@ class PortfolioAppTests(unittest.TestCase):
     def setUp(self):
         self.app = AppTest.from_file(str(APP), default_timeout=15).run()
         self.assertFalse(self.app.exception)
+        self.select("radio", "Workspace", "Reference cases")
 
     def widget(self, kind, label):
         return next(widget for widget in getattr(self.app, kind) if widget.label == label)

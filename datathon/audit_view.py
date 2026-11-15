@@ -35,6 +35,7 @@ _RULE = {
     "zst_funding_limit": "ZST.TO funding limit",
 }
 _ROLES = {
+    "assistant_intent": "Task routing",
     "profile": "Profile",
     "evidence": "Evidence",
     "exposure": "Exposure",

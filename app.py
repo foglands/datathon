@@ -19,6 +19,7 @@ from datathon.runtime_budget import (
     CHALLENGE_LIMITS, PROFILE_LIMITS, RuntimeBudgetExceeded, bound_audit, run_bounded, run_sync_action,
 )
 from datathon.scope import EXTRA_WINDOW, OBJECTIVES, WITHDRAWAL_TIMES, ReplayScope
+from datathon.streamlit_assistant import clear_assistant_result, render_assistant
 from datathon.streamlit_results import render_audit_workspace
 from datathon.workflow import (
     NUMERIC_POLICY_LABELS, Case, examples, interpret_request, numeric_input_provenance, preset_profile, profile_policy,
@@ -68,12 +69,14 @@ def refresh_market_source():
         return
 
     st.session_state.market_source = source_key
-    had_report = "preset_result" in st.session_state or bool(st.session_state.get("request_results"))
+    had_report = ("preset_result" in st.session_state or bool(st.session_state.get("request_results"))
+                  or "assistant_comparison" in st.session_state)
     for key in ("preset_result", "comparison_result", "active_challenge", "request_confirmed",
                 "request_resize_choice", "request_declined_resize"):
         st.session_state.pop(key, None)
     if "request_results" in st.session_state:
         st.session_state.request_results = {}
+    st.session_state.pop("assistant_comparison", None)
     if had_report:
         st.info("Market data changed. Confirm and rerun the audit to use the current snapshot.")
 
@@ -317,7 +320,7 @@ def preset_audit(setup):
     show_counterfactual(replace(case, search_alternatives=reviewed_search), report, published, runtime)
 
 
-def edit_profile(draft, run_id, *, manual=False, search_alternatives):
+def edit_profile(draft, run_id, *, manual=False, search_alternatives, audit_focus=None):
     """Collect a reviewable draft. Editing the draft never runs an audit."""
     initial = draft.data
 
@@ -375,7 +378,7 @@ def edit_profile(draft, run_id, *, manual=False, search_alternatives):
     )
     metric, limit = None, None
     if loss_cap:
-        initial_metric = initial.get("metric")
+        initial_metric = initial.get("metric") or (audit_focus if manual else None)
         metric = st.radio("The cap measures", tuple(METRICS), format_func=METRICS.get,
                           index=tuple(METRICS).index(initial_metric) if initial_metric in METRICS else None,
                           key=f"{run_id}-metric")
@@ -419,7 +422,7 @@ def edit_profile(draft, run_id, *, manual=False, search_alternatives):
     return edited, changes, loss_cap
 
 
-def edit_scope(run_id):
+def edit_scope(run_id, investor=None):
     with st.expander("Starting portfolio and planning context"):
         custom = st.checkbox("Use custom starting weights", key=f"{run_id}-custom-weights")
         weights = None
@@ -437,10 +440,13 @@ def edit_scope(run_id):
             help=f"{EXTRA_WINDOW.start} through {EXTRA_WINDOW.end}. The 2022 and 2025 replays are still included.",
             key=f"{run_id}-scope-2023",
         )
-        objective = st.selectbox("Fictional investment objective", OBJECTIVES, index=None,
-                                 placeholder="Optional", key=f"{run_id}-objective")
-        withdrawal = st.selectbox("Timing of next meaningful withdrawal", WITHDRAWAL_TIMES, index=None,
-                                  placeholder="Optional", key=f"{run_id}-withdrawal")
+        if investor:
+            objective, withdrawal = investor.objective, investor.withdrawal_time
+        else:
+            objective = st.selectbox("Fictional investment objective", OBJECTIVES, index=None,
+                                     placeholder="Optional", key=f"{run_id}-objective")
+            withdrawal = st.selectbox("Timing of next meaningful withdrawal", WITHDRAWAL_TIMES, index=None,
+                                      placeholder="Optional", key=f"{run_id}-withdrawal")
         if objective or withdrawal:
             st.caption("Set any spending reserve and historical loss limits explicitly in the rules below.")
     if custom or include_2023 or objective or withdrawal:
@@ -448,22 +454,31 @@ def edit_scope(run_id):
     return None
 
 
-def live_request(setup):
+def live_request(setup, *, investor=None, assistant_question="", intent=None):
     with setup:
-        intake = st.radio("Profile input", PROFILE_INPUT, horizontal=True, key="request_intake")
+        intake = st.radio("Profile input", PROFILE_INPUT, index=1 if assistant_question else 0, horizontal=True,
+                          key="assistant_trade_intake" if investor else "request_intake")
     for key in ("request_draft", "request_results", "request_confirmed", "manual_draft_id"):
         if st.session_state.get("active_intake") != intake:
             st.session_state.pop(key, None)
     st.session_state.active_intake = intake
     manual = intake == PROFILE_INPUT[0]
+    esg_required = bool(investor and investor.require_esg)
     with setup:
         search_column, sector_column = st.columns(2)
         requested_search = search_column.checkbox(
             SEARCH_ALTERNATIVES, key="request_search_alternatives",
             help="Prepare the funding search settings. Confirm the search after reviewing the original trade.",
+            disabled=esg_required,
         )
         include_sector = sector_column.checkbox(INCLUDE_SECTOR, key="request_include_sector")
-    unassessed = []
+    unassessed = [{"code": "esg"}] if esg_required else []
+    if esg_required:
+        st.warning("Environmental or social screening is unresolved. A limited audit checks only the original trade.")
+        if not st.checkbox(LIMITED_SCOPE, key="assistant-trade-limited-esg"):
+            st.session_state.pop("request_confirmed", None)
+            return
+        requested_search = False
     scope = None
     scope_error = None
     if manual:
@@ -478,12 +493,17 @@ def live_request(setup):
         question = None
         runtime = configured_bedrock_runtime() if mode == "Bedrock" else None
         try:
-            scope = edit_scope(run_id)
+            scope = edit_scope(run_id, investor)
         except ValueError as exc:
             scope_error = str(exc)
     else:
         runtime = configured_bedrock_runtime()
-        request = st.text_area("Fictional investment request", value=ROBERT_REQUEST, height=145)
+        if investor:
+            scope = ReplayScope(objective=investor.objective, withdrawal_time=investor.withdrawal_time)
+            request = st.text_area("Fictional investment request", value=assistant_question, height=145,
+                                   key="assistant_trade_question")
+        else:
+            request = st.text_area("Fictional investment request", value=ROBERT_REQUEST, height=145)
         previous = st.session_state.get("request_draft")
         if previous and previous[:2] != (request, requested_search):
             for key in ("request_draft", "request_results", "request_confirmed"):
@@ -533,7 +553,7 @@ def live_request(setup):
             if not st.checkbox(LIMITED_SCOPE, key=f"{run_id}-limited-scope"):
                 st.session_state.pop("request_confirmed", None)
                 return
-            unassessed = [{"code": requirement["code"]} for requirement in requirements]
+            unassessed.extend({"code": requirement["code"]} for requirement in requirements)
         if question and field != "unsupported_constraint":
             st.warning(question)
 
@@ -541,6 +561,7 @@ def live_request(setup):
     with st.container(key="audit-editor", border=True):
         edited, changes, loss_cap = edit_profile(
             draft, run_id, manual=manual, search_alternatives=search_alternatives,
+            audit_focus=investor.audit_focus if investor else None,
         )
     if scope_error:
         st.session_state.pop("request_confirmed", None)
@@ -562,6 +583,8 @@ def live_request(setup):
         key += (("execution", mode),)
     if scope:
         key += (("scope", (tuple(scope.baseline.items()), scope.include_2023, scope.objective, scope.withdrawal_time)),)
+    if unassessed:
+        key += (("unassessed", tuple(record["code"] for record in unassessed)),)
     basis = (run_id, key)
     scope_widget_key = f"{run_id}-complete-{key!r}"
     body = {**edited, "status": "ok", "summary": "User confirmed the simulated audit inputs.", "evidence_ids": []}
@@ -607,7 +630,7 @@ def live_request(setup):
     reports = st.session_state.request_results
 
     def run_confirmed(fields, result_key, *, search=False, allow_resize=False):
-        trace = draft.trace
+        trace = (*intent["trace"], *draft.trace) if intent else draft.trace
         if changes and not manual:
             trace = (*trace, {"role": "profile", "event": "draft_edited", "changes": changes})
         if search:
@@ -639,7 +662,9 @@ def live_request(setup):
                 column.markdown(f"**{METRICS[metric]}**  \n{result_label(publish_report(reports[variant]))}")
     report = reports[key]
     published = publish_report(report)
-    render_audit_workspace(published)
+    if investor:
+        st.caption(f"Profile focus · {investor.explanation} The trade verdict uses the confirmed limits.")
+    render_audit_workspace(published, preferred_metric=investor.priority if investor else None)
     if search_alternatives and can_confirm_search(published):
         if show_search_authorization("request-confirm-alternatives") and run_confirmed(body, key, search=True):
             st.rerun()
@@ -663,8 +688,8 @@ def show_masthead(market_bundle_found):
         <header class="audit-masthead">
           <div class="audit-hero-copy">
             <div class="audit-brand"><span class="audit-brand-mark" aria-hidden="true">◈</span> AlphaForge AI</div>
-            <h1>Portfolio decision audit</h1>
-            <p>Stress-test a proposed trade, inspect the rules it triggers, and trace the decision back to the evidence.</p>
+            <h1>Investment decision assistant</h1>
+            <p>Explore a fictional investment question. Compare choices against your goals and trace the result back to the evidence.</p>
           </div>
           <dl class="audit-context">
             <div><dt>Market bundle</dt><dd><span class="audit-dot {data_class}" aria-hidden="true"></span>{data_label}</dd></div>
@@ -673,36 +698,28 @@ def show_masthead(market_bundle_found):
           </dl>
         </header>
         <ol class="audit-steps" aria-label="Audit workflow">
-          <li>Confirm the trade and rules</li>
-          <li>Review the original proposal</li>
-          <li>Authorize a funding search if needed</li>
+          <li>Choose a question</li>
+          <li>Confirm the investor profile</li>
+          <li>Review the checked result</li>
         </ol>
     """)
 
 
 def show_usage_notes():
-    with st.expander("How to read an audit"):
+    with st.expander("How to read the results"):
         st.markdown(
             "**Historical risk.** Terminal loss compares the start and end of a replay. Maximum drawdown "
             "measures the largest fall from a prior peak. Each result applies to its displayed historical windows.\n\n"
             "**Holdings evidence.** Issuer and sector ranges retain unknown exposure when disclosures are missing. "
             "A verified calculation can still yield an unresolved rule.\n\n"
+            "**Supported comparisons.** Compare two assets or user-defined allocations using symbols covered "
+            "by the archived market windows. ESG screening remains unresolved with the available evidence.\n\n"
             "**Supported trades.** Simulate an NVDA purchase funded from QQQ or ZST.TO. Direct entry also "
             "supports custom starting weights across the five covered assets. All runs are fictional."
         )
 
 
-def main():
-    st.set_page_config(page_title="AlphaForge · Portfolio Decision Audit", page_icon="◈", layout="wide")
-    st.html(STYLES)
-    refresh_market_source()
-    market_bundle_found = bool(st.session_state.get("market_source"))
-    show_masthead(market_bundle_found)
-    if not market_bundle_found:
-        st.warning(
-            "Set `DATATHON_STARTER_PATH` to your organizer ZIP or extracted starter folder before running an audit."
-        )
-
+def reference_cases():
     setup = st.container(key="audit-setup", border=True)
     with setup:
         title, input_choice = st.columns((1, 2), vertical_alignment="center")
@@ -718,6 +735,28 @@ def main():
         live_request(setup)
     else:
         preset_audit(setup)
+
+
+def main():
+    st.set_page_config(page_title="AlphaForge · Investment Decision Assistant", page_icon="◈", layout="wide")
+    st.html(STYLES)
+    refresh_market_source()
+    market_bundle_found = bool(st.session_state.get("market_source"))
+    show_masthead(market_bundle_found)
+    if not market_bundle_found:
+        st.warning("Set `DATATHON_STARTER_PATH` to your organizer ZIP or extracted starter folder before running an analysis.")
+    with st.container(key="assistant-nav"):
+        workspace = st.radio("Workspace", ("Investment assistant", "Reference cases"), horizontal=True,
+                             label_visibility="collapsed", key="workspace")
+    if st.session_state.get("active_workspace") != workspace:
+        clear_assistant_result()
+        for key in ("active_input", "preset_key", "preset_result", "comparison_result"):
+            st.session_state.pop(key, None)
+        st.session_state.active_workspace = workspace
+    if workspace == "Investment assistant":
+        render_assistant(market_data, live_request)
+    else:
+        reference_cases()
     show_usage_notes()
 
 
