@@ -1,12 +1,14 @@
-"""Review a pair of hypothetical allocations over common historical sessions."""
+"""Review hypothetical allocations over common historical sessions."""
 
 from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import replace
 from math import fsum, isclose
+import re
 
 from .data import verify_cad_conversion
 from .finance import STRESS_WINDOWS, evaluate_portfolio
+from .fund_benchmarks import apply_proxies, benchmark_proxies
 from .governance import BOUNDARY_EPSILON, review_portfolio_comparison
 from .market_calendar import STARTER_CALENDAR_ID, starter_replay_sessions
 from .review_snapshot import FORMULA_VERSIONS, fingerprint
@@ -21,6 +23,8 @@ _PRIORITY_BASIS = {
 _WINDOW_FIELDS = (
     "terminal_return", "terminal_loss", "max_drawdown", "peak_date", "trough_date", "observations",
 )
+_SINGLE_KIND = "single_allocation"
+_TICKER = re.compile(r"[A-Z][A-Z0-9_.-]{0,23}")
 
 
 class _ReviewedAllocation(dict):
@@ -48,8 +52,6 @@ def _fraction(value, label):
 
 
 def _validated_options(options, market):
-    if not isinstance(options, Mapping) or len(options) != 2:
-        raise ValueError("Enter exactly two allocations to compare.")
     result = {}
     for label, allocation in options.items():
         if not isinstance(label, str) or not label.strip() or len(label) > 80:
@@ -86,22 +88,61 @@ def _finding(priority, options, *, hold=None):
     return finding
 
 
-def _withheld(priority, requirements, reason):
-    return {"status": "withheld", "priority": priority, "reason": reason,
-            "requirements": requirements, "options": {}, "verification": {},
-            "finding": _finding(priority, {}, hold="verification_unavailable")}
+def _withheld(priority, requirements, reason, *, single=False):
+    report = {"status": "withheld", "priority": priority, "reason": reason,
+              "requirements": requirements, "options": {}, "verification": {},
+              "finding": _finding(priority, {}, hold="verification_unavailable")}
+    if single:
+        report["kind"] = _SINGLE_KIND
+    return report
 
 
-def publish_allocation_comparison(report):
-    """Copy a reviewed comparison for display and export, rejecting altered results."""
+def _validated_proxy_context(record, context):
+    if not isinstance(context, Mapping) or set(context) != {"requested_weights", "proxy_substitutions"}:
+        raise ValueError("A proxy replay requires the original weights and explicit ticker substitutions.")
+    if record.get("kind") != _SINGLE_KIND or len(record["options"]) != 1:
+        raise ValueError("Proxy input provenance requires a reviewed single-allocation replay.")
+    requested, substitutions = context["requested_weights"], context["proxy_substitutions"]
+    if not isinstance(requested, Mapping) or not requested or not isinstance(substitutions, Mapping) or not substitutions:
+        raise ValueError("The original weights and proxy substitutions must be nonempty mappings.")
+    symbols = (*requested, *substitutions, *substitutions.values())
+    if any(not isinstance(ticker, str) or not _TICKER.fullmatch(ticker) for ticker in symbols):
+        raise ValueError("Proxy input provenance must use explicit ticker symbols.")
+    if not substitutions.keys() <= requested.keys() or substitutions.keys() & substitutions.values():
+        raise ValueError("Every substitution must map a requested ticker to a distinct replay ticker.")
+    weights = {ticker: _fraction(weight, f"{ticker} weight") for ticker, weight in requested.items()}
+    if not all(weights.values()) or not isclose(fsum(weights.values()), 1.0, rel_tol=0, abs_tol=BOUNDARY_EPSILON):
+        raise ValueError("Requested weights must be positive and total 100%.")
+    replay_weights = next(iter(record["options"].values()))["weights"]
+    if dict(substitutions) != benchmark_proxies(weights, replay_weights):
+        raise ValueError("The substitute tickers do not match the documented fund benchmark objectives.")
+    aggregated_weights = apply_proxies(weights, substitutions)
+    if aggregated_weights.keys() != replay_weights.keys() or any(
+        not isclose(weight, replay_weights[ticker], rel_tol=0, abs_tol=BOUNDARY_EPSILON)
+        for ticker, weight in aggregated_weights.items()
+    ):
+        raise ValueError("The substitutions and original weights differ from the independently reviewed replay.")
+    return {"requested_weights": weights, "proxy_substitutions": dict(substitutions)}
+
+
+def publish_allocation_comparison(report, *, replay_context=None):
+    """Copy a reviewed replay for display and export, rejecting altered results."""
+    single = isinstance(report, _ReviewedAllocation) and report.get("kind") == _SINGLE_KIND
     if isinstance(report, _ReviewedAllocation):
         try:
             snapshot = deepcopy(dict(report))
             if fingerprint(snapshot) == report._review_digest:
+                if replay_context is not None and snapshot["options"]:
+                    try:
+                        snapshot["replay_context"] = _validated_proxy_context(snapshot, replay_context)
+                    except ValueError as exc:
+                        return _withheld(None, {}, str(exc), single=single)
                 return snapshot
         except (TypeError, ValueError):
             pass
-    return _withheld(None, {}, "The comparison changed after independent review. Confirm the inputs and rerun it.")
+    subject = "allocation replay" if single else "comparison"
+    return _withheld(None, {}, f"The {subject} changed after independent review. Confirm the inputs and rerun it.",
+                     single=single)
 
 
 def compare_allocations(data, options, *, priority=None, max_drawdown=None, include_2023=False, require_esg=False):
@@ -112,6 +153,20 @@ def compare_allocations(data, options, *, priority=None, max_drawdown=None, incl
     """
     if priority is not None and (not isinstance(priority, str) or priority not in _PRIORITY_BASIS):
         raise ValueError("Select a supported historical comparison priority.")
+    if not isinstance(options, Mapping) or len(options) != 2:
+        raise ValueError("Enter exactly two allocations to compare.")
+    return _replay_allocations(data, options, priority=priority, max_drawdown=max_drawdown,
+                               include_2023=include_2023, require_esg=require_esg)
+
+
+def analyze_allocation(data, weights, *, max_drawdown=None, include_2023=False, require_esg=False):
+    """Independently verify historical CAD metrics for one confirmed allocation."""
+    return _replay_allocations(data, {"Proposed allocation": weights}, priority=None, max_drawdown=max_drawdown,
+                               include_2023=include_2023, require_esg=require_esg)
+
+
+def _replay_allocations(data, options, *, priority, max_drawdown, include_2023, require_esg):
+    single = len(options) == 1
     if type(include_2023) is not bool or type(require_esg) is not bool:
         raise ValueError("The additional replay and ESG controls must be explicit choices.")
     if max_drawdown is not None:
@@ -128,8 +183,8 @@ def compare_allocations(data, options, *, priority=None, max_drawdown=None, incl
         conversion = verify_cad_conversion(data, tickers=assets, windows=windows)
         if conversion["status"] != "verified":
             raise ValueError("Frozen price and exchange-rate sources are required for independent review.")
-        # The archive defines the same joint Canadian and US dates for both options,
-        # including comparisons between assets with different exchange calendars.
+        # The archive defines the same joint Canadian and US dates for every allocation,
+        # including assets with different exchange calendars.
         replay_data = replace(data, official_starter=True, fx={day: data.fx[day] for day in reference if day in data.fx})
         candidates = {
             label: evaluate_portfolio(replay_data, dict.fromkeys(sorted(assets), 0.0) | weights,
@@ -140,7 +195,8 @@ def compare_allocations(data, options, *, priority=None, max_drawdown=None, incl
     except (ValueError, OverflowError) as exc:
         if max_drawdown is not None:
             requirements["max_drawdown"]["status"] = "unassessed"
-        return _ReviewedAllocation(_withheld(priority, requirements, f"Historical comparison withheld. {exc}"))
+        subject = "allocation replay" if single else "comparison"
+        return _ReviewedAllocation(_withheld(priority, requirements, f"Historical {subject} withheld. {exc}", single=single))
 
     published = {}
     for label, weights in confirmed.items():
@@ -178,5 +234,9 @@ def compare_allocations(data, options, *, priority=None, max_drawdown=None, incl
         "finding": _finding(priority, published, hold="esg_unassessed" if require_esg else None),
         "verification": verification,
     }
+    if single:
+        report["kind"] = _SINGLE_KIND
+        report["finding"].update(option=None, status="unavailable" if require_esg else "neutral",
+                                 basis="esg_unassessed" if require_esg else "single_allocation")
     verification["review_id"] = fingerprint(report)
     return _ReviewedAllocation(report)

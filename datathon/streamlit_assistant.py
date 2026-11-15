@@ -4,11 +4,12 @@ from zipfile import BadZipFile
 
 import streamlit as st
 
-from .allocation_compare import compare_allocations, comparison_assets
+from .allocation_compare import analyze_allocation, compare_allocations, comparison_assets
 from .allocation_view import render_allocation_result
+from .fund_benchmarks import apply_proxies, benchmark_allocations, benchmark_proxies
 from .investor_profile import InvestorProfile, PRIORITIES, RISK_TOLERANCES, suggest_priority
 from .model_settings import bedrock_failure_message, configured_bedrock_runtime
-from .planning_view import render_planning_answer
+from .planning_view import render_balance_context, render_planning_answer
 from .question_intake import analyze_question
 from .question_language import ENGLISH_QUESTION_MESSAGE, is_english_question
 from .runtime_budget import run_sync_action
@@ -26,7 +27,7 @@ _TRADE_STATE = ("request_draft", "request_results", "request_confirmed", "manual
 
 
 def clear_assistant_result():
-    for key in ("assistant_confirmed", "assistant_comparison", "assistant_confirm_text_scope", *_TRADE_STATE):
+    for key in ("assistant_confirmed", "assistant_comparison", "assistant_confirm_text_scope", "assistant_approve_proxy", *_TRADE_STATE):
         st.session_state.pop(key, None)
 
 
@@ -60,9 +61,12 @@ def _question_draft(question, data_loader, *, use_model):
     draft = analyze_question(question, semantic=route)
     if draft.get("needs_assets"):
         data = _market_bundle(data_loader)
-        if data is None:
+        if data is None and draft.get("task") != "analyze_allocation":
             return None
-        draft = analyze_question(question, comparison_assets(data), semantic=route)
+        assets = comparison_assets(data, include_2023=draft["fields"].get("include_2023", False)) if data else ()
+        draft = analyze_question(question, assets, semantic=route)
+        if draft.get("task") == "analyze_allocation":
+            draft["available_assets"] = assets
     st.session_state.assistant_question_draft = draft, route
     return draft, route
 
@@ -78,6 +82,63 @@ def _show_question_sources(sources):
     st.text("\n".join(f"{field.replace('_', ' ').capitalize()} · {excerpt}" for field, excerpt in sources.items()))
 
 
+def _render_allocation_question(draft, route, data_loader):
+    fields = draft["fields"]
+    with st.container(key="assistant-options", border=True):
+        st.subheader("Review your proposed allocation")
+        render_balance_context(draft["plan"])
+        if draft["status"] != "allocation":
+            st.warning(draft["message"])
+            return
+
+        weights = fields["weights"]
+        st.table([{"Asset": ticker, "Starting weight": f"{weight:.2%}"} for ticker, weight in weights.items()])
+        known_groups = [group for group in benchmark_allocations(weights) if group["benchmark"]]
+        if known_groups:
+            st.markdown("**Where the funds invest**")
+            for group in known_groups:
+                label = ", ".join(group["tickers"])
+                links = " · ".join(f"[{ticker}]({url})" for ticker, url in group["sources"].items())
+                st.markdown(f"{group['weight']:.2%} in funds tracking the {group['benchmark']} ({label}). {links}")
+            if any(len(group["tickers"]) > 1 for group in known_groups):
+                st.write("Holding several funds that track the same benchmark repeats that market exposure. "
+                         "Compare underlying holdings and asset classes when assessing diversification.")
+            st.caption("Benchmark weights describe fund objectives. Exact holdings overlap and safety for a retirement date require additional evidence.")
+
+        missing = fields["unsupported_assets"]
+        cap = fields.get("max_drawdown")
+        if cap is not None:
+            st.write(f"Maximum historical drawdown limit · {cap:.2%}")
+        include_2023 = fields.get("include_2023", False)
+        st.caption("Replay windows · 2022, 2023, and early 2025" if include_2023 else "Replay windows · 2022 and early 2025")
+        st.caption("The replay uses CAD market prices and reports percentage results independently of the cash balance.")
+
+        replay_context = None
+        confirmed = True
+        button = "Run historical portfolio replay"
+        if missing:
+            st.warning("Exact replay data are missing for " + ", ".join(missing) + ".")
+            proxies = benchmark_proxies(weights, draft.get("available_assets", ()))
+            if set(proxies) != set(missing):
+                st.write("An exact replay requires a complete price series for each requested asset. Use a fully covered allocation to run a different example.")
+                return
+            actual_weights = apply_proxies(weights, proxies)
+            st.table([{"Requested fund": ticker, "Illustrative stand-in": replacement} for ticker, replacement in proxies.items()])
+            st.write("Illustrative starting weights · " + " · ".join(f"{ticker} {weight:.2%}" for ticker, weight in actual_weights.items()))
+            st.caption("The stand-ins track the same documented benchmarks. The replay uses their own market returns.")
+            confirmed = st.checkbox("I approve these substitutions for the illustrative replay.", key="assistant_approve_proxy")
+            button = "Run illustrative portfolio replay"
+            replay_context = {"requested_weights": weights, "proxy_substitutions": proxies}
+        else:
+            actual_weights = weights
+
+    _run_comparison(
+        data_loader, {"Proposed allocation": actual_weights},
+        InvestorProfile(require_esg=fields.get("require_esg", False)), include_2023, cap, route,
+        can_run=confirmed, request_sources=draft["sources"], button_label=button, single=True, replay_context=replay_context,
+    )
+
+
 def _render_question_answer(question, saved, data_loader, trade_entry):
     if saved is None:
         st.caption("Interpret the question to see planning considerations or the inputs for a specific comparison.")
@@ -91,6 +152,9 @@ def _render_question_answer(question, saved, data_loader, trade_entry):
                     st.json(route["trace"], expanded=False)
         else:
             st.caption(f"{bedrock_failure_message(route.get('trace', ()))} The application used local interpretation.")
+    if draft.get("task") == "analyze_allocation":
+        _render_allocation_question(draft, route, data_loader)
+        return
     if draft["status"] == "planning":
         if limitation := draft.get("limitation"):
             st.warning(limitation)
@@ -228,8 +292,8 @@ def _compare(data_loader, profile, intent):
 
 
 def _run_comparison(data_loader, options, profile, include_2023, cap, intent, *, can_run=True, request_sources=None,
-                    button_label="Confirm inputs and compare"):
-    signature = (options, profile, include_2023, cap)
+                    button_label="Confirm inputs and compare", single=False, replay_context=None):
+    signature = (options, profile, include_2023, cap, single, replay_context)
     saved = st.session_state.get("assistant_comparison")
     if saved and (saved[0] != signature or not can_run):
         st.session_state.pop("assistant_comparison")
@@ -237,16 +301,20 @@ def _run_comparison(data_loader, options, profile, include_2023, cap, intent, *,
     if st.button(button_label, type="primary", disabled=options is None or not can_run):
         if (data := _market_bundle(data_loader)) is None:
             return
-        with st.spinner("Replaying both choices and independently checking the comparison"):
+        with st.spinner("Replaying the confirmed inputs and independently checking the results"):
             try:
-                report = compare_allocations(data, options, priority=profile.priority, max_drawdown=cap,
-                                             include_2023=include_2023, require_esg=profile.require_esg)
+                if single:
+                    report = analyze_allocation(data, next(iter(options.values())), max_drawdown=cap,
+                                                include_2023=include_2023, require_esg=profile.require_esg)
+                else:
+                    report = compare_allocations(data, options, priority=profile.priority, max_drawdown=cap,
+                                                 include_2023=include_2023, require_esg=profile.require_esg)
             except ValueError as exc:
                 st.warning(str(exc))
                 return
         st.session_state.assistant_comparison = saved = (signature, report)
     if saved:
-        render_allocation_result(saved[1], profile, intent=intent, request_sources=request_sources)
+        render_allocation_result(saved[1], profile, intent=intent, request_sources=request_sources, replay_context=replay_context)
 
 
 def render_assistant(data_loader, trade_entry):

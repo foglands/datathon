@@ -169,3 +169,43 @@ class InvestmentAssistantTests(unittest.TestCase):
         self.assertEqual(set(report["options"]), {"NVDA", "BTC-USD"})
         self.assertEqual(report["finding"]["status"], "neutral")
         self.assertIsNone(report["requirements"]["max_drawdown"]["limit"])
+
+
+    def test_single_allocation_can_run_with_currency_suffix(self):
+        question = (
+            "I have $63,000 for retirement. Analyze my portfolio with 60% in SPY and 40% in AGG. Currency: CAD."
+        )
+        self.app.text_area(key="assistant_question").set_value(question).run()
+        self.click("Interpret question")
+        self.assertTrue(any(item.value == "Stated currency · CAD" for item in self.app.text))
+        self.assertFalse(any("Confirm the currency for any calculation" in item.value for item in self.app.caption))
+        self.click("Run historical portfolio replay")
+        report = self.app.session_state["assistant_comparison"][1]
+        self.assertEqual(report["status"], "verified")
+        self.assertEqual(report["options"]["Proposed allocation"]["weights"], {"SPY": .6, "AGG": .4})
+
+    def test_single_allocation_proxy_requires_approval_and_keeps_balance_separate(self):
+        question = (
+            "I have $63,000 to invest. Can you assess my proposed allocation of "
+            "40% in VOO, 35% in SPY, and 25% in QQQ? "
+            "The $88,000 balance is in CAD."
+        )
+        self.app.text_area(key="assistant_question").set_value(question).run()
+        self.click("Interpret question")
+        self.assertTrue(any("different cash balances" in item.value for item in self.app.warning))
+        self.assertTrue(any("75.00% in funds tracking the S&P 500 Index" in item.value for item in self.app.markdown))
+        run = next(item for item in self.app.button if item.label == "Run illustrative portfolio replay")
+        self.assertTrue(run.disabled)
+        self.app.checkbox(key="assistant_approve_proxy").set_value(True).run()
+        self.click("Run illustrative portfolio replay")
+        report = self.app.session_state["assistant_comparison"][1]
+        self.assertEqual(report["status"], "verified")
+        self.assertEqual(report["options"]["Proposed allocation"]["weights"], {"SPY": .75, "QQQ": .25})
+        self.assertTrue(any("Verified illustrative replay" in item.value for item in self.app.markdown))
+
+    def test_missing_prices_without_a_documented_proxy_withhold_replay(self):
+        question = "Evaluate my allocation of 65% in VTI and 35% in AGG."
+        self.app.text_area(key="assistant_question").set_value(question).run()
+        self.click("Interpret question")
+        self.assertTrue(any("missing for VTI" in item.value for item in self.app.warning))
+        self.assertFalse(any("portfolio replay" in item.label for item in self.app.button))

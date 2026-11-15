@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-15 · Assess one weighted portfolio and ground balance currency
+
+- Read a single proposed allocation from the question and review its historical metrics using the same valuation and independent verification as the comparison workflow.
+- Identify benchmark concentration from issuer disclosures. Show missing prices and require explicit approval for documented, same-benchmark illustrative substitutes. Keep the requested and replayed weights in the audit record.
+- Ground inline and separate balance-currency declarations. Flag conflicting balances and keep percentage replays available independently of the balance.
+
 ## 2026-11-15 · Recover trade drafts when Bedrock is unavailable
 
 - Open an editable, source-grounded offline draft for a trade entered through the assistant. Require review of the full request and confirmation before replay.

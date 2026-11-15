@@ -1,4 +1,4 @@
-"""Present the independently verified allocation comparison in Streamlit."""
+"""Present independently verified allocation analysis in Streamlit."""
 
 import json
 from collections.abc import Mapping
@@ -15,6 +15,11 @@ _STATUS = {
     "limited": ("Limited comparison", "orange"),
     "withheld": ("Comparison withheld", "red"),
 }
+_REPLAY_STATUS = {
+    "verified": ("Verified allocation replay", "green"),
+    "limited": ("Limited allocation replay", "orange"),
+    "withheld": ("Allocation replay withheld", "red"),
+}
 _MEASURE_BASIS = {
     "terminal_return": "Lowest terminal return across the selected windows",
     "terminal_loss": "Highest terminal loss across the selected windows",
@@ -30,6 +35,7 @@ _REQUEST_LABELS = {
     "first_asset": "First asset",
     "second_asset": "Second asset",
     "options": "Allocation weights",
+    "weights": "Allocation weights",
     "objective": "Investment objective",
     "withdrawal_time": "Withdrawal horizon",
     "risk_tolerance": "Willingness to take risk",
@@ -39,7 +45,7 @@ _REQUEST_LABELS = {
     "require_esg": "ESG requirement",
 }
 _ROUTING_STATES = {"ready", "proposed", "unsupported", "unavailable", "needs_input"}
-_ROUTING_TASKS = {"trade_audit", "compare_allocations"}
+_ROUTING_TASKS = {"trade_audit", "compare_allocations", "analyze_allocation"}
 _TRACE_FIELDS = {
     "event", "role", "model_id", "region", "tool_name", "status", "duration_ms", "operation", "request_id", "http_status",
     "retry_attempts", "input_tokens", "output_tokens", "total_tokens",
@@ -47,12 +53,13 @@ _TRACE_FIELDS = {
 _USAGE_FIELDS = {"elapsed_ms", "http_attempts_started", "responses_observed", "reported_total_tokens", "limit_reached"}
 
 
-def _routing_record(intent: dict | None, *, from_request: bool = False) -> dict:
+def _routing_record(intent: dict | None, *, from_request: bool = False, single: bool = False) -> dict:
+    task = "analyze_allocation" if single else "compare_allocations"
     if not intent or intent.get("status") not in _ROUTING_STATES:
         mode = "request_text" if from_request else "direct"
-        return {"confirmed_task": "compare_allocations", "mode": mode}
+        return {"confirmed_task": task, "mode": mode}
     return {
-        "confirmed_task": "compare_allocations",
+        "confirmed_task": task,
         "mode": "bedrock_attempt",
         "status": intent["status"],
         "suggested_task": intent["task"] if intent.get("task") in _ROUTING_TASKS else None,
@@ -62,6 +69,15 @@ def _routing_record(intent: dict | None, *, from_request: bool = False) -> dict:
 
 
 def _finding_message(report: dict) -> str:
+    if report.get("kind") == "single_allocation":
+        if not report["options"]:
+            return "Verified historical figures are unavailable."
+        allocation = next(iter(report["options"].values()))
+        if allocation["max_drawdown_test"] == "fail":
+            return "The replay breached the confirmed drawdown limit in at least one historical window."
+        if allocation["max_drawdown_test"] == "pass":
+            return "The replay met the confirmed drawdown limit in every tested historical window."
+        return "Review the historical return, loss, and largest peak-to-trough decline for this replay."
     finding = report["finding"]
     status, basis = finding["status"], finding["basis"]
     if basis == "all_breach_cap":
@@ -126,7 +142,7 @@ def _render_decision(report: dict) -> None:
     priority = report["priority"]
     rows = []
     for name, option in report["options"].items():
-        row = {"Option": name}
+        row = {"Allocation" if report.get("kind") == "single_allocation" else "Option": name}
         if priority is None:
             for metric, label in _MEASURE_BASIS.items():
                 extreme = min if metric == "terminal_return" else max
@@ -144,9 +160,9 @@ def _render_decision(report: dict) -> None:
 def _render_evidence(report: dict) -> None:
     verification = report["verification"]
     if not verification:
-        st.info("No verification record is available for this comparison.")
+        st.info("A verification record is unavailable.")
         return
-    st.caption("CAD adjusted closes on aligned dates. Each option is bought at the start of a window and held through its end.")
+    st.caption("CAD adjusted closes on aligned dates. Each allocation is bought at the start of a window and held through its end.")
     st.table([
         {
             "Window": window_id,
@@ -180,25 +196,34 @@ def _render_evidence(report: dict) -> None:
         st.json(verification, expanded=False)
     st.caption("Findings apply to the tested historical windows. The replay excludes transaction costs and taxes.")
 
+def _render_proxy_basis(context: dict) -> None:
+    substitutions = context["proxy_substitutions"]
+    st.table([
+        {"Requested asset": ticker, "Requested weight": f"{weight:.2%}", "Historical series used": substitutions.get(ticker, ticker)}
+        for ticker, weight in context["requested_weights"].items()
+    ])
+
 
 def _render_activity(record: dict) -> None:
     route = record["task_selection"]
+    single = route["confirmed_task"] == "analyze_allocation"
+    task = "allocation replay" if single else "comparison"
     if route["mode"] == "direct":
-        st.caption("The investor selected and confirmed the comparison task directly.")
+        st.caption(f"The investor selected and confirmed the {task} directly.")
     elif route["mode"] == "request_text":
-        st.caption("The assistant read the comparison inputs from the written request and the investor confirmed them.")
+        st.caption(f"The assistant read the {task} inputs from the written request and the investor confirmed them.")
     else:
         successful_calls = sum(
             event.get("event") == "bedrock" and event.get("status") == "success" for event in route["trace"]
         )
-        st.caption(f"The investor confirmed the comparison task. Bedrock routing returned {successful_calls} successful response(s).")
+        st.caption(f"The investor confirmed the {task}. Bedrock routing returned {successful_calls} successful response(s).")
         with st.expander("Task selection trace"):
             st.json(route, expanded=False)
     if record["verification"]:
-        st.markdown("**Comparison and review**")
-        st.write("Python compared the confirmed allocations and independently reproduced their historical metrics.")
+        st.markdown("**Replay and review**" if single else "**Comparison and review**")
+        st.write("Python replayed the confirmed weights and independently reproduced their historical metrics.")
     else:
-        st.info("The verification step returned no publishable comparison.")
+        st.info(f"The verification step returned no publishable {task}.")
 
 
 def render_allocation_result(
@@ -207,29 +232,42 @@ def render_allocation_result(
     *,
     intent: dict | None = None,
     request_sources: Mapping[str, str] | None = None,
+    replay_context: Mapping[str, object] | None = None,
 ) -> None:
     """Render and download the same checked result with the confirmed profile and bounded route trace."""
     sources = {field: excerpt for field, excerpt in (request_sources or {}).items()
                if field in _REQUEST_LABELS and isinstance(excerpt, str) and excerpt.strip()}
+    published = publish_allocation_comparison(report, replay_context=replay_context)
+    single = published.get("kind") == "single_allocation"
+    proxy = published.get("replay_context")
+    profile_record = profile.report()
+    if single:
+        profile_record.update(priority=None, explanation="The historical replay uses the confirmed starting weights.")
     record = {
-        **publish_allocation_comparison(report),
-        "investor_profile": profile.report(),
-        "task_selection": _routing_record(intent, from_request=bool(sources)),
+        **published,
+        "investor_profile": profile_record,
+        "task_selection": _routing_record(intent, from_request=bool(sources), single=single),
         "input_provenance": {field: "request_text" for field in sources},
     }
-    title, color = _STATUS[record["status"]]
+    title, color = (_REPLAY_STATUS if single else _STATUS)[record["status"]]
+    if proxy:
+        title = "Verified illustrative replay" if record["status"] == "verified" else "Limited illustrative replay"
     with st.container(border=True, key="audit-summary-allocation"):
-        st.subheader("Comparison outcome")
+        st.subheader("Allocation replay outcome" if single else "Comparison outcome")
         st.badge(title, color=color)
+        if proxy:
+            st.warning("The figures describe the substitute allocation. Fund costs and tracking differences can change the original allocation's performance.")
         st.write(_finding_message(record))
         if record.get("reason"):
             st.warning(record["reason"])
-        st.caption(profile.explanation)
+        st.caption(profile_record["explanation"])
 
     decision, evidence, activity = st.tabs(("Decision", "Evidence", "Agent activity"))
     with decision:
         _render_decision(record)
     with evidence:
+        if proxy:
+            _render_proxy_basis(proxy)
         if sources:
             with st.expander("Wording behind the confirmed inputs"):
                 for field, excerpt in sources.items():
@@ -239,6 +277,8 @@ def render_allocation_result(
     with activity:
         _render_activity(record)
     st.download_button(
-        "Download comparison record", json.dumps(record, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
-        file_name="allocation-comparison.json", mime="application/json", key="download-allocation-comparison",
+        "Download allocation record" if single else "Download comparison record",
+        json.dumps(record, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
+        file_name="allocation-replay.json" if single else "allocation-comparison.json", mime="application/json",
+        key="download-allocation-comparison",
     )

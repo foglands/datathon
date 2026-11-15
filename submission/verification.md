@@ -2,6 +2,12 @@
 
 PolyFinances Datathon 2026 · Montréal
 
+## Single-allocation replay and balance clarification
+
+A local browser run recognized one weighted portfolio and detected conflicting cash balances. The allocation summary used issuer disclosures to identify the documented benchmark weights. The organizer archive had no VOO or IVV prices for the selected windows. After explicit approval of both substitutions, the independently reviewed illustrative replay used 75% SPY and 25% QQQ. It showed a 23.7931% maximum drawdown in the 2022 window and 20.1763% in the early-2025 window. These figures apply to the proxy portfolio in CAD. Exact results for the requested funds require their own price series.
+
+A separate browser run recognized a final `Currency: CAD.` statement and produced a verified historical replay of the two covered assets from one allocation. Regression coverage includes conflicting amounts or currencies, preserving the original weights, unrelated currency disclosures, missing asset data, unapproved substitutions, and invalid or unsupported constraints. No live competition AWS call was verified for this revision.
+
 ## Offline trade intake and Bedrock recovery
 
 The previous assistant opened Bedrock profile interpretation after recognizing a trade locally. A diagnostic run with the actual local SDK had no credential provider, stopped with `NoCredentialsError`, and started zero Bedrock HTTP attempts. The application previously displayed the generic `invocation_error`.

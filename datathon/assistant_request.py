@@ -13,7 +13,7 @@ _INTENT = re.compile(
 _SIDE = re.compile(r"\b(?:versus|vs\.?|against|compared (?:to|with)|contre|and\s+(?:portfolio|allocation|option)\s+B)\b|对比|比較|比较|对照|相比|与|和", re.I)
 _PORTFOLIO = re.compile(r"\b(?:holdings|allocations?|portfolios?|weights?|pondérations?|portefeuilles?)\b|组合|組合|配置|权重|權重", re.I)
 _TRADE = re.compile(r"\b(?:buy|buying|sell|selling|purchase|selling|rebalance|rééquilibrer|acheter|vendre)\b|买入|買入|卖出|賣出|调仓|調倉", re.I)
-_PERCENT = r"(?<![\d.,+-])(?P<number>[+-]?\d+(?:[.,]\d+)?)\s*[%％]"
+_PERCENT = r"(?<![\d.+-])(?<!\d,)(?P<number>[+-]?\d+(?:[.,]\d+)?)\s*[%％]"
 _RISK_LIMIT = r"(?:max(?:imum)?\s+)?(?:historical\s+)?(?:drawdown|repli maximal)|最大回撤|历史回撤|歷史回撤|回撤"
 _CAP = re.compile(
     rf"(?:{_RISK_LIMIT})(?:\s+(?:cap|limit|ceiling))?\s*(?:(?:[:：=≤]|<=)|(?:of|is|at most|no more than|under|below|up to|must not exceed|cannot exceed|must be|限为|上限为?|不能超过|不能超過|不超过|不超過|最多|低于|低於|≤)\s*)+[ \t]*{_PERCENT}"
@@ -91,12 +91,19 @@ def _asset_pattern(assets):
     return re.compile(rf"(?<![A-Za-z0-9_.$-])\$?(?P<ticker>{names})(?![A-Za-z0-9_-]|\.[A-Za-z0-9])", re.I)
 
 
-def _weight_matches(text, assets):
+def _weight_matches(text, assets, *, allow_unbound=False):
     """Associate a percentage with the immediately adjacent ticker."""
+    space = r"[^\S\r\n]" if allow_unbound else r"\s"
+    left_connector = re.compile(rf"{space}*(?:[:：=]|at)?{space}*", re.I)
+    right_connector = re.compile(rf"{space}*(?:(?:of|in|into|to){space}+)?", re.I)
     matches = []
     for number in re.finditer(_PERCENT, text):
-        left = [asset for asset in assets if asset.end() <= number.start() and re.fullmatch(r"\s*[:：=]?\s*", text[asset.end():number.start()])]
-        right = [asset for asset in assets if asset.start() >= number.end() and re.fullmatch(r"\s*(?:of\s+)?", text[number.end():asset.start()], re.I)]
+        left = [asset for asset in assets if asset.end() <= number.start()
+                and left_connector.fullmatch(text[asset.end():number.start()])]
+        right = [asset for asset in assets if asset.start() >= number.end()
+                 and right_connector.fullmatch(text[number.end():asset.start()])]
+        if not left and not right and allow_unbound:
+            continue
         if len(left) + len(right) != 1:
             return None
         asset = (left or right)[0]

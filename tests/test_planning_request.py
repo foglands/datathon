@@ -1,6 +1,6 @@
 import unittest
 
-from datathon.planning_request import parse_planning_request
+from datathon.planning_request import balance_currency_code, parse_planning_request
 
 
 class PlanningRequestTests(unittest.TestCase):
@@ -67,6 +67,68 @@ class PlanningRequestTests(unittest.TestCase):
                 plan = parse_planning_request(f"{clause} Where would you park this money?")
                 self.assertEqual(plan["points"]["amount"], "CAD 39,475")
                 self.assertEqual(plan["points"]["currency"], "CAD")
+
+    def test_balance_currency_accepts_inline_and_separate_confirmations(self):
+        for amount, tail, evidence in (
+            ("$42,500", "CAD", "CAD"),
+            ("$42,500", " Currency: CAD.", "CAD"),
+            ("$42,500", " This balance is in Canadian dollars.", "Canadian dollars"),
+            ("42,500 dollars", " The currency of this balance is CAD.", "CAD"),
+            ("$42,500 CAD", "", "CAD"),
+            ("$42,500 in CAD", "", "CAD"),
+            ("CAD $42,500", "", "CAD"),
+        ):
+            with self.subTest(amount=amount, tail=tail):
+                question = f"I have {amount} in savings. Should I buy gold?{tail}"
+                plan = parse_planning_request(question)
+                self.assertNotIn("balance_issue", plan)
+                self.assertIn(plan["points"]["amount"], amount)
+                self.assertEqual(plan["points"]["currency"], evidence)
+                self.assertEqual(balance_currency_code(plan["points"]["currency"]), "CAD")
+                self.assertTrue(all(excerpt in question for excerpt in plan["points"].values()))
+
+    def test_unrelated_currencies_do_not_ground_an_ambiguous_balance(self):
+        question = (
+            "I have $42,500 in savings. Should I buy gold? Tuition costs USD 2,000. "
+            "Gold is quoted in US dollars. My friend has EUR 5,000 in savings. "
+            "Last year's balance was GBP 12,000."
+        )
+        points = parse_planning_request(question)["points"]
+        self.assertEqual(points["amount"], "$42,500")
+        self.assertNotIn("currency", points)
+
+    def test_mixed_stated_balances_are_held_for_confirmation(self):
+        question = (
+            "I have $50,000 to invest. How should I compare gold and a bond fund?"
+            "The $150,000 balance will be processed as Canadian Dollars (CAD), "
+            "and the comparison should use historical windows."
+        )
+        plan = parse_planning_request(question)
+        self.assertEqual(plan["balance_issue"], "conflicting_amounts")
+        self.assertNotIn("amount", plan["points"])
+        self.assertNotIn("currency", plan["points"])
+        self.assertEqual(plan["instruments"], ("gold", "bonds"))
+
+    def test_equal_amount_mentions_and_currency_aliases_are_coalesced(self):
+        question = (
+            "I have $42,500 in savings. Should I buy gold?"
+            "The CAD 42.5k balance will be processed as Canadian Dollars (CAD)."
+        )
+        plan = parse_planning_request(question)
+        self.assertNotIn("balance_issue", plan)
+        self.assertEqual(plan["points"]["amount"], "$42,500")
+        self.assertEqual(plan["points"]["currency"], "CAD")
+
+    def test_conflicting_currency_can_be_explicitly_corrected(self):
+        question = "I have USD 42,500 in savings. Should I buy gold? Currency: CAD."
+        plan = parse_planning_request(question)
+        self.assertEqual(plan["balance_issue"], "conflicting_currencies")
+        self.assertEqual(plan["points"]["amount"], "USD 42,500")
+        self.assertNotIn("currency", plan["points"])
+
+        plan = parse_planning_request(question + " Correction: Currency is CAD, not USD.")
+        self.assertNotIn("balance_issue", plan)
+        self.assertEqual(plan["points"]["currency"], "CAD")
 
     def test_multiple_unattributed_amounts_do_not_become_the_investment_budget(self):
         draft = parse_planning_request("I owe $6,000 and someone offered $20,000. Should I buy gold?")

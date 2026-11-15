@@ -1,6 +1,7 @@
 """Identify the context a user stated in an open-ended investment question."""
 
 import re
+from decimal import Decimal
 
 
 _DECISION_SIGNAL = re.compile(
@@ -36,14 +37,43 @@ _EXPLICIT_ANALYSIS = re.compile(
 )
 _CLAUSE = re.compile(r".+?(?:[!?。！？;；\n]|\.(?=\s|$)|$)", re.S)
 _NUMBER = r"\d+(?:[,，]\d{3})*(?:\.\d+)?(?:\s*[kKmM](?!\w))?"
-_CURRENCY = r"CA\$|US\$|C\$|A\$|CAD|USD|EUR|GBP|CNY|HKD|Canadian dollars?|US dollars?|人民币|人民幣|加元|加币|加幣|美元|港币|港幣|£|€"
+_CURRENCY_ALIASES = {
+    "CAD": r"CAD|CA\$|C\$|Canadian dollars?|加元|加币|加幣",
+    "USD": r"USD|US\$|U\.?S\.? dollars?|American dollars?|美元",
+    "AUD": r"AUD|AU\$|A\$|Australian dollars?",
+    "NZD": r"NZD|NZ\$|New Zealand dollars?",
+    "EUR": r"EUR|euros?|€",
+    "GBP": r"GBP|British pounds?|pounds? sterling|£",
+    "CNY": r"CNY|RMB|Chinese yuan|人民币|人民幣",
+    "HKD": r"HKD|HK\$|Hong Kong dollars?|港币|港幣",
+    "JPY": r"JPY|Japanese yen",
+}
+_CURRENCY = "|".join(_CURRENCY_ALIASES.values())
 _AMOUNT = re.compile(
-    rf"(?<![A-Za-z0-9_.+−-])[+−-]?(?:(?:{_CURRENCY}|\$)\s*[+−-]?{_NUMBER}"
-    rf"|{_NUMBER}\s*(?:[万萬]\s*)?(?:元(?:人民币|人民幣)?|{_CURRENCY})"
+    rf"(?<![A-Za-z0-9_.+−-])[+−-]?(?:(?:(?:{_CURRENCY})(?:\s*\$)?|\$)\s*[+−-]?{_NUMBER}"
+    rf"|{_NUMBER}\s*(?:[万萬]\s*)?(?:元(?:人民币|人民幣)?|dollars?|{_CURRENCY})"
     rf"|{_NUMBER}\s*[万萬])(?![A-Za-z0-9_])",
     re.I,
 )
 _EXPLICIT_CURRENCY = re.compile(_CURRENCY, re.I)
+_AMOUNT_VALUE = re.compile(r"(?P<digits>\d+(?:[,，]\d{3})*(?:\.\d+)?)(?:\s*(?P<scale>[kKmM万萬])(?![A-Za-z]))?")
+_AMOUNT_SCALE = {"k": 3, "m": 6, "万": 4, "萬": 4}
+_INLINE_CURRENCY = re.compile(rf"\s*(?:\(\s*|(?:in\s+)?)(?P<currency>{_CURRENCY})(?![A-Za-z0-9_])\s*\)?", re.I)
+_BALANCE_SUBJECT = r"(?:(?:the|this|that|my|our|your|stated|starting|above)\s+)*(?:(?:cash|savings|account)\s+)?(?:balance|amount|savings|cash|money)"
+_BALANCE_LINK = r"(?:(?:is|are|will be|should be)(?:\s+(?:(?:held|denominated|treated|processed|expressed|stated)\s+(?:as|in)|in))?|in)"
+_CURRENCY_DECLARATION = re.compile(
+    rf"(?:(?P<correction>actually|correction|i mean)\b\s*[:,]?\s*)?"
+    rf"(?:(?:{_BALANCE_SUBJECT}\s+{_BALANCE_LINK}|(?:the\s+)?currency(?:\s+(?:of|for)\s+{_BALANCE_SUBJECT})?"
+    rf"\s*(?:[:=]|\bis\b))\s*)?(?P<currency>{_CURRENCY})"
+    rf"(?:\s*\(\s*(?P<alias>{_CURRENCY})\s*\))?(?:\s*,?\s+not\s+(?P<excluded>{_CURRENCY}))?[.!;。；]?",
+    re.I,
+)
+_BALANCE_REFERENCE = re.compile(r"(?:(?:the|this|that|my|our|your)\s+)?", re.I)
+_BALANCE_REFERENCE_CURRENCY = re.compile(
+    rf"\s+(?:(?:cash|savings|account|starting)\s+)?balance\s+{_BALANCE_LINK}\s+(?P<currency>{_CURRENCY})"
+    rf"(?![A-Za-z0-9_])(?:\s*\(\s*(?P<alias>{_CURRENCY})\s*\))?",
+    re.I,
+)
 _OTHER_AMOUNT_SUFFIX = re.compile(
     r"^\s*(?:(?:of\s+)?(?:(?:credit card|student|mortgage|outstanding)\s+)?(?:debt|loans?|liabilities)\b"
     r"|(?:left\s+)?(?:in|on|as|tied up in)\s+(?:(?:my|our|the|a)\s+)*(?:current\s+|existing\s+|unrealized\s+)?"
@@ -229,20 +259,83 @@ def _personal_statements(clause: str) -> list[str]:
 
 
 def _cash_statements(clauses: list[str]):
-    for clause in clauses:
+    for index, clause in enumerate(clauses):
         for statement in _personal_statements(clause):
             if not _OWN_POSITION.search(statement) or _UNASSERTED_CASH.search(statement):
                 continue
             if _stated_point(_CASH, statement):
                 amounts = [
-                    match[0] for match in _AMOUNT.finditer(statement)
-                    if _BALANCE_CONNECTOR.search(statement[:match.start()]) and not _OTHER_AMOUNT_SUFFIX.match(statement[match.end():])
+                    match for match in _AMOUNT.finditer(statement) if _BALANCE_CONNECTOR.search(statement[:match.start()])
                 ]
-                yield statement, amounts, True
+                yield index, statement, amounts, True
             elif balance := _DIRECT_BALANCE.search(statement):
                 start = _APPROXIMATION.match(statement, balance.end()).end()
-                if (amount := _AMOUNT.match(statement, start)) and not _OTHER_AMOUNT_SUFFIX.match(statement[amount.end():]):
-                    yield statement, [amount[0]], False
+                if amount := _AMOUNT.match(statement, start):
+                    yield index, statement, [amount], False
+
+
+def balance_currency_code(source: str | None) -> str | None:
+    """Return the ISO code for a recognized currency excerpt."""
+    if not isinstance(source, str):
+        return None
+    return next((code for code, alias in _CURRENCY_ALIASES.items() if re.fullmatch(alias, source.strip(), re.I)), None)
+
+
+def _amount_value(literal):
+    match = _AMOUNT_VALUE.search(literal)
+    digits = match["digits"].replace(",", "").replace("，", "")
+    scale = _AMOUNT_SCALE.get((match["scale"] or "").lower(), 0)
+    sign = "-" if set(literal[:match.start()]) & {"-", "−"} else ""
+    return Decimal(f"{sign}{digits}e{scale}")
+
+
+def _balance_facts(clauses, points):
+    saved, other, references = [], [], []
+    for index, statement, amounts, names_cash in _cash_statements(clauses):
+        if names_cash:
+            points.setdefault("cash_position", statement)
+        for match in amounts:
+            suffix = _INLINE_CURRENCY.match(statement, match.end())
+            end = suffix.end() if suffix else match.end()
+            if _OTHER_AMOUNT_SUFFIX.match(statement[end:]):
+                continue
+            currencies = [currency[0] for currency in _EXPLICIT_CURRENCY.finditer(match[0])]
+            if suffix:
+                currencies.append(suffix["currency"])
+            (saved if names_cash else other).append((index, match[0], currencies))
+
+    declarations = []
+    for index, clause in enumerate(clauses):
+        if match := _CURRENCY_DECLARATION.fullmatch(clause):
+            currency, alias, correction, excluded = match.group("currency", "alias", "correction", "excluded")
+            corrected = bool(correction or excluded and balance_currency_code(excluded) != balance_currency_code(currency))
+            declarations.append((index, corrected, (currency, alias)))
+        if amount := _AMOUNT.match(clause, _BALANCE_REFERENCE.match(clause).end()):
+            if match := _BALANCE_REFERENCE_CURRENCY.match(clause, amount.end()):
+                currencies = [currency[0] for currency in _EXPLICIT_CURRENCY.finditer(amount[0])]
+                currencies.extend(match.group("currency", "alias"))
+                references.append((index, amount[0], currencies))
+
+    balances = (saved or other) + references
+    if not balances:
+        return None
+    if len({_amount_value(amount) for _, amount, _ in balances}) > 1:
+        return "conflicting_amounts"
+    points["amount"] = balances[0][1]
+
+    found = {}
+    currency_statements = [(index, False, currencies) for index, _, currencies in balances] + declarations
+    for _, correction, currencies in sorted(currency_statements, key=lambda item: item[0]):
+        if correction:
+            found.clear()
+        for currency in currencies:
+            if code := balance_currency_code(currency):
+                found.setdefault(code, currency)
+    if len(found) > 1:
+        return "conflicting_currencies"
+    if found:
+        points["currency"] = next(iter(found.values()))
+    return None
 
 
 def planning_context(text: str) -> dict:
@@ -269,27 +362,16 @@ def planning_context(text: str) -> dict:
                 points[name] = clause if len(matches) == len(statements) and not _OTHER_PERSON.search(clause) else matches[0]
                 break
 
-    cash_statements = list(_cash_statements(clauses))
-    saved_amounts = set()
-    other_amounts = set()
-    for clause, amounts, names_cash in cash_statements:
-        if names_cash:
-            points.setdefault("cash_position", clause)
-            saved_amounts.update(amounts)
-        else:
-            other_amounts.update(amounts)
-    amounts = saved_amounts or other_amounts
-    if len(amounts) == 1:
-        amount = next(iter(amounts))
-        points["amount"] = amount
-        if currency := _EXPLICIT_CURRENCY.search(amount):
-            points["currency"] = currency[0]
+    balance_issue = _balance_facts(clauses, points)
 
     instruments = tuple(name for name, pattern in _INSTRUMENTS.items() if _mentioned_instrument(pattern, clauses))
     examples = tuple(symbol for symbol, pattern in _EXAMPLE_SYMBOLS.items() if _mentioned_instrument(pattern, clauses))
     planning_facts = points.keys() & {"cash_position", "growth", "beginner", "return_claim"}
     financial = bool(instruments or planning_facts or _FINANCIAL_TOPIC.search(text))
-    return {"points": points, "instruments": instruments, "examples": examples, "financial": financial}
+    context = {"points": points, "instruments": instruments, "examples": examples, "financial": financial}
+    if balance_issue:
+        context["balance_issue"] = balance_issue
+    return context
 
 
 def parse_planning_request(text: str, *, require_decision: bool = False) -> dict | None:
@@ -303,5 +385,5 @@ def parse_planning_request(text: str, *, require_decision: bool = False) -> dict
     points = context["points"]
     personal_goal = not require_decision and bool(points.keys() & {"spending", "growth", "inflation"}) and len(points) > 1
     if context["financial"] and (_DECISION_SIGNAL.search(text) or personal_goal or "return_claim" in points):
-        return {name: context[name] for name in ("points", "instruments", "examples")}
+        return {name: value for name, value in context.items() if name != "financial"}
     return None

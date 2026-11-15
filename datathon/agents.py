@@ -59,7 +59,8 @@ class Role:
 ROLES = {
     "semantic_intake": Role(
         "Interpret the entire latest English question from a fictional investor. Use planning for open questions about investing choices, goals, risks, "
-        "or an investment claim to evaluate, even when the user gives little background. Use compare_allocations "
+        "or an investment claim to evaluate, even when the user gives little background. Use analyze_allocation "
+        "to assess one proposed weighted portfolio. Use compare_allocations "
         "for a requested historical, numerical comparison of specified hypothetical choices. Use trade_audit "
         "for checking an explicit hypothetical change to a portfolio. Use unsupported when the main request "
         "requires a real transaction, a future price or return forecast, or an unrelated task. "

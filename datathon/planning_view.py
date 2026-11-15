@@ -55,13 +55,26 @@ _OPTIONS = {
 _CATEGORY_EXAMPLES = {"equity_funds": "SPY", "sp500": "SPY", "bonds": "AGG", "gold": "GLD"}
 
 
+def render_balance_context(plan):
+    """Display a stated balance separately from any market percentage replay."""
+    points = plan["points"]
+    issue = plan.get("balance_issue")
+    if issue == "conflicting_amounts":
+        st.warning("The request gives different cash balances. Confirm which amount applies.")
+    elif amount := points.get("amount"):
+        st.text(f"Stated amount · {amount}")
+        if issue == "conflicting_currencies":
+            st.warning("The request gives different currencies for the balance. Confirm its currency.")
+        elif currency := points.get("currency"):
+            st.text(f"Stated currency · {currency}")
+
+
 def render_planning_answer(plan, *, allow_example=True):
     """Show an answer now and return example symbols for an optional replay."""
     points, instruments = plan["points"], plan["instruments"]
     with st.container(key="assistant-options", border=True):
         st.subheader("Planning considerations")
-        if stated_balance := points.get("amount"):
-            st.text(f"Stated amount · {stated_balance}")
+        render_balance_context(plan)
         if return_claim := points.get("return_claim"):
             st.text(f"Return claim to check · {return_claim}")
             st.warning(guarantee_guidance())
@@ -106,12 +119,9 @@ def render_planning_answer(plan, *, allow_example=True):
             st.write("When will you first need to withdraw money, and roughly how much will you need then?")
         else:
             st.write("How much of your savings must stay accessible for expenses or emergencies, and when might you need it?")
-        if "amount" in points and "currency" not in points:
-            st.caption("Confirm the currency for any calculation using the stated balance.")
-        st.caption("You can add that detail to your question and interpret it again.")
         with st.expander("Details recognized from your question"):
             st.text("\n".join(f"{_POINT_LABELS[key]} · {value}" for key, value in points.items()
-                              if key in _POINT_LABELS and key not in {"amount", "return_claim"}))
+                              if key in _POINT_LABELS and key not in {"amount", "currency", "return_claim"}))
 
     if not allow_example:
         return None

@@ -120,7 +120,7 @@ class SemanticIntakeTests(unittest.IsolatedAsyncioTestCase):
         tool, = capture["toolConfig"]["tools"]
         schema = tool["toolSpec"]["inputSchema"]["json"]
         self.assertEqual(set(schema["properties"]["task"]["enum"]),
-                         {"planning", "compare_allocations", "trade_audit", "unsupported"})
+                         {"planning", "analyze_allocation", "compare_allocations", "trade_audit", "unsupported"})
         self.assertEqual(set(schema["properties"]), {"task", "task_source", "points", "instruments"})
         self.assertEqual(result["status"], "ready")
         self.assertEqual(result["task"], "planning")

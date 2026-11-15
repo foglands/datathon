@@ -8,7 +8,7 @@ from .planning_request import _OTHER_PERSON, planning_context
 from .runtime_budget import PROFILE_MAX_REQUEST_BYTES, RuntimeBudgetExceeded, RuntimeLimits, run_bounded
 
 
-TaskChoice = Literal["planning", "compare_allocations", "trade_audit", "unsupported"]
+TaskChoice = Literal["planning", "analyze_allocation", "compare_allocations", "trade_audit", "unsupported"]
 PlanningPoint = Literal["cash_position", "spending", "inflation", "growth", "risk", "timing", "beginner",
                         "concentration", "peer_trading", "return_claim"]
 InstrumentChoice = Literal["sp500", "gold", "cash_deposits", "bonds", "equity_funds", "individual_stock", "crypto", "options"]

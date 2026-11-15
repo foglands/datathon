@@ -2,6 +2,7 @@
 
 import re
 
+from .allocation_request import parse_allocation_request
 from .assistant_request import parse_comparison_request
 from .planning_request import parse_planning_request, planning_context
 
@@ -83,6 +84,8 @@ def analyze_question(question: str, assets=None, *, semantic=None) -> dict:
         return _draft("trade_audit", task="trade_audit")
 
     context = planning_context(question)
+    if allocation := parse_allocation_request(question, assets):
+        return {**allocation, "plan": context}
     plan = parse_planning_request(question)
     if task == "unsupported":
         limitation = "The requested action may fall outside the evidence or simulation tools available."
@@ -121,10 +124,15 @@ def analyze_question(question: str, assets=None, *, semantic=None) -> dict:
         model_plan = semantic.get("plan") or {}
         local = plan or context
         plan = {
+            **local,
             "points": {**model_plan.get("points", {}), **local["points"]},
             "instruments": tuple(dict.fromkeys((*local["instruments"], *model_plan.get("instruments", ())))),
             "examples": local["examples"],
         }
+    if task == "analyze_allocation":
+        return _draft("clarify", task=task, plan=context, message=(
+            "List each ticker with its proposed weight. The weights must total 100%."
+        ))
     if plan:
         return _plan_draft(plan)
     if asks_comparison and context["financial"]:
