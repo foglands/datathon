@@ -1,6 +1,31 @@
 # AlphaForge AI release verification
 
-PolyFinances Datathon 2026 · verified November 14, Montréal
+PolyFinances Datathon 2026 · Montréal
+
+## Formula-based publication on competition AWS
+
+Application commit [`afe2036`](https://github.com/WindsTrace/datathon-prep/commit/afe2036c79ed87865bac885c6f3024bb018a2ecb) ran in the competition AWS CloudShell in `us-east-1` using the organizer starter dataset. The run was recorded on November 15, 2026 at 01:04 Toronto time. The CLI passed all six reference cases. Two additional original-only cases passed the publication checks. Across the eight cases, the observed Bedrock Converse responses included 30 HTTP 200 results with AWS request IDs.
+
+| Case | Audit status | Publication | Successful Converse responses | Sample request ID hash prefix |
+| --- | --- | --- | ---: | --- |
+| Robert, authorized terminal-loss search | `fail` | `released` | 4 | `86b80d02b148` |
+| Robert, authorized drawdown search | `fail` | `released` | 4 | `40ba3d4cb180` |
+| Robert, modified risk claim | `invalid` | `blocked` | 4 | `bbcf50d6b0a0` |
+| Robert, ambiguous loss definition | `needs_input` | `blocked` | 1 | `f217ca8fbdcc` |
+| Amira, issuer concentration | `fail` | `limited` | 5 | `2a8d352d090b` |
+| Amira, missing QQQ disclosure | `insufficient_evidence` | `limited` | 5 | `4af8a4d21902` |
+| Robert, original trade only | `fail` | `released` | 3 | `253d254abcf4` |
+| Amira, original trade with sector analysis | `fail` | `limited` | 4 | `88120db2cc05` |
+
+Claude Sonnet 4.5 handled the ambiguous Profile case. Nova 2 Lite handled the audit stages. In both original-only cases, independent Review verified the CAD conversion and the workflow skipped Alternatives. Amira's issuer exposure change and sector section were verified separately. Modifying a sector bound after the audit withheld that section and preserved the verified main result. Modifying Robert's reviewed drawdown blocked publication of the main values.
+
+Reproduce the six reference cases in the authorized AWS session.
+
+```bash
+python -m datathon --data "$DATA" --case all --mode aws --stress --report /tmp/alphaforge-live.json
+```
+
+The test session also saved the full CLI report at `/tmp/alphaforge-afe2036-cli-live.json` and the sanitized result at `/tmp/alphaforge-afe2036-live-proof.json` in CloudShell.
 
 ## Authorized audit and checked publication
 
