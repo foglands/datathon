@@ -26,6 +26,7 @@ COMPARE = "Confirm this change and compare"
 INTERPRET = "Interpret request with Bedrock"
 MANUAL_SCOPE = "These inputs include every binding rule for this simulation."
 SEARCH = "Search alternative funding"
+CONFIRM_SEARCH = "Confirm and search alternative funding"
 LIMITED_SCOPE = "Audit only supported rules and mark the other requirements as not assessed."
 AUTHORIZE = "Authorize a smaller purchase and rerun"
 
@@ -67,6 +68,7 @@ class PortfolioAppTests(unittest.TestCase):
         self.assertFalse(self.has_button(COMPARE))
         self.click(CONFIRM)
         self.assertIn("preset_result", self.app.session_state)
+        self.click(CONFIRM_SEARCH)
         self.assertNotIn("comparison_result", self.app.session_state)
         self.click(COMPARE)
         self.assertGreaterEqual(len(self.app.tabs), 2)
@@ -82,12 +84,19 @@ class PortfolioAppTests(unittest.TestCase):
             self.assertNotIn("frontier", report["audit"]["verified"])
             self.assertTrue(any(event.get("role") == "alternatives" and event.get("event") == "stage_skipped"
                                 for event in report["trace"]))
+            self.assertFalse(self.has_button(CONFIRM_SEARCH))
             solver.assert_not_called()
 
             self.select("checkbox", SEARCH, True)
             self.assertNotIn("preset_result", self.app.session_state)
+            self.assertFalse(self.has_button(CONFIRM_SEARCH))
             solver.assert_not_called()
             self.click(CONFIRM)
+            report = self.app.session_state["preset_result"]
+            self.assertFalse(report["search_alternatives"])
+            self.assertNotIn("alternatives", report)
+            solver.assert_not_called()
+            self.click(CONFIRM_SEARCH)
             report = self.app.session_state["preset_result"]
             self.assertTrue(report["search_alternatives"])
             self.assertIn("alternatives", report)
@@ -101,8 +110,11 @@ class PortfolioAppTests(unittest.TestCase):
 
     def test_purchase_size_comparison_requires_search_consent(self):
         self.select("selectbox", "Scenario", "Robert · purchase size")
+        self.select("checkbox", SEARCH, True)
         self.click(CONFIRM)
         self.assertFalse(self.has_button(COMPARE))
+        self.click(CONFIRM_SEARCH)
+        self.assertTrue(self.has_button(COMPARE))
 
     def test_loss_metric_changes_full_feasibility(self):
         original, changed = self.compare("Robert · loss definition")
@@ -142,6 +154,7 @@ class PortfolioAppTests(unittest.TestCase):
         self.select("selectbox", "Scenario", "Amira · issuer exposure")
         self.select("checkbox", SEARCH, True)
         self.click(CONFIRM)
+        self.click(CONFIRM_SEARCH)
         report = self.app.session_state["preset_result"]
         self.assertEqual(report["status"], "fail")
         self.assertEqual(report["alternatives"]["status"], "insufficient_issuer_evidence")
@@ -153,6 +166,7 @@ class PortfolioAppTests(unittest.TestCase):
     def test_counterfactual_keeps_the_original_audited_policy(self):
         self.select("checkbox", SEARCH, True)
         self.click(CONFIRM)
+        self.click(CONFIRM_SEARCH)
         original = self.app.session_state["preset_result"]
         self.select("selectbox", "Check to run", "toggle_loss_metric")
         self.click("Check once")
@@ -167,6 +181,7 @@ class PortfolioAppTests(unittest.TestCase):
     def test_reserve_challenge_accepts_one_explicit_precision_threshold(self):
         self.select("checkbox", SEARCH, True)
         self.click(CONFIRM)
+        self.click(CONFIRM_SEARCH)
         original = self.app.session_state["preset_result"]
         self.select("selectbox", "Check to run", "tighten_reserve_floor")
         self.select("number_input", "Hypothetical minimum ZST.TO weight (%)", 19.5)
@@ -184,6 +199,7 @@ class PortfolioAppTests(unittest.TestCase):
         self.select("selectbox", "Scenario", "Amira · issuer exposure")
         self.select("checkbox", SEARCH, True)
         self.click(CONFIRM)
+        self.click(CONFIRM_SEARCH)
         self.click("Check once")
 
         challenge = self.app.session_state["active_challenge"][-1]
@@ -199,6 +215,7 @@ class PortfolioAppTests(unittest.TestCase):
                 self.select("selectbox", "Scenario", "Amira · issuer exposure")
                 self.select("checkbox", SEARCH, True)
                 self.click(CONFIRM)
+                self.click(CONFIRM_SEARCH)
                 original = self.app.session_state["preset_result"]
                 self.select("selectbox", "Check to run", "request_issuer_evidence")
                 self.select("multiselect", "Reviewed holdings disclosures to apply", ["xiu", "zst"])
@@ -245,6 +262,8 @@ class PortfolioAppTests(unittest.TestCase):
             self.assertFalse(self.app.session_state["request_results"])
 
             self.click(CONFIRM)
+            self.assertNotIn("alternatives", calls)
+            self.click(CONFIRM_SEARCH)
             key = self.app.session_state["request_confirmed"]
             result = self.app.session_state["request_results"][key]
             self.assertEqual(result["policy"]["metric"], "terminal_loss")
@@ -259,6 +278,8 @@ class PortfolioAppTests(unittest.TestCase):
             self.assertNotIn("request_confirmed", self.app.session_state)
             self.assertFalse(self.app.get("download_button"))
             self.click(CONFIRM)
+            self.assertNotIn("alternatives", calls)
+            self.click(CONFIRM_SEARCH)
             key = self.app.session_state["request_confirmed"]
             result = self.app.session_state["request_results"][key]
             self.assertEqual(result["policy"]["metric"], "max_drawdown")
@@ -271,6 +292,7 @@ class PortfolioAppTests(unittest.TestCase):
             self.assertNotIn("request_confirmed", self.app.session_state)
             self.assertFalse(self.app.get("download_button"))
             self.click(CONFIRM)
+            self.click(CONFIRM_SEARCH)
             edited_key = self.app.session_state["request_confirmed"]
             edited = self.app.session_state["request_results"][edited_key]
             self.assertEqual(edited["policy"], {**result["policy"], "reserve_floor": .18})
@@ -366,6 +388,8 @@ class PortfolioAppTests(unittest.TestCase):
         self.assertFalse(self.has_button(AUTHORIZE))
         self.select("checkbox", MANUAL_SCOPE, True)
         self.click(CONFIRM)
+        self.assertFalse(self.has_button(AUTHORIZE))
+        self.click(CONFIRM_SEARCH)
         before = self.app.session_state["request_confirmed"]
         first = self.app.session_state["request_results"][before]
         self.assertTrue(first["search_alternatives"])
@@ -386,6 +410,31 @@ class PortfolioAppTests(unittest.TestCase):
         self.select("checkbox", SEARCH, False)
         self.assertNotIn("request_confirmed", self.app.session_state)
         self.assertFalse(self.app.get("download_button"))
+
+    def test_inconclusive_issuer_audit_still_waits_for_search_confirmation(self):
+        self.select("radio", "Input", "Write a request")
+        self.select("radio", "Audit execution", "Offline")
+        self.select("checkbox", SEARCH, True)
+        self.fill_manual_profile()
+        self.select("multiselect", "Funding allowed for alternatives", ["QQQ"])
+        self.select("number_input", "Maximum total NVIDIA issuer exposure (%)", 14.0)
+        self.select("checkbox", MANUAL_SCOPE, True)
+        self.assertFalse(self.has_button(CONFIRM_SEARCH))
+
+        with patch("datathon.workflow.solve_funding", wraps=solve_funding) as solver:
+            self.click(CONFIRM)
+            key = self.app.session_state["request_confirmed"]
+            audit = self.app.session_state["request_results"][key]
+            self.assertEqual(audit["decision_reason"], "issuer_evidence_insufficient")
+            self.assertIn("proposal", audit["audit"]["verified"])
+            self.assertNotIn("alternatives", audit)
+            solver.assert_not_called()
+            self.click(CONFIRM_SEARCH)
+            solver.assert_called_once()
+            key = self.app.session_state["request_confirmed"]
+            search = self.app.session_state["request_results"][key]
+            self.assertTrue(search["search_alternatives"])
+            self.assertIn("alternatives", search)
 
     def test_clarified_unsupported_constraint_limits_public_result(self):
         calls = []
@@ -419,6 +468,7 @@ class PortfolioAppTests(unittest.TestCase):
         key = self.app.session_state["request_confirmed"]
         report = self.app.session_state["request_results"][key]
         self.assertFalse(report["search_alternatives"])
+        self.assertFalse(self.has_button(CONFIRM_SEARCH))
         self.assertNotIn("alternatives", calls)
         self.assertIn("review", calls)
         self.assertNotIn(excerpt, str(report))
