@@ -63,7 +63,7 @@ python -m datathon.resilience_benchmark --data "$DATA" --repeats 2 --report outp
 | Alternatives | Calls the funding solver to check feasible purchase sizes, funding mixes and binding limits. |
 | Review | Calls independent Python checks for metrics, limits, funding and exposure, or selects a supported follow-up check when the user delegates that choice. |
 
-The profile establishes the simulation rules before Evidence runs. Exposure, when required, runs alongside Scenario. Alternatives runs after separate search authorization. Review runs before publication. In AWS mode Strands on Amazon Bedrock interprets requests and selects typed tools and arguments. Python validates the evidence set, snapshot date, loss metric and windows. If either routed agent fails to produce a usable result, Python applies the confirmed policy and the report identifies the fallback. Use **Agent activity and AWS trace** to see accepted arguments, rejections, skipped roles and fallbacks. [Routing and verification](https://github.com/WindsTrace/datathon-prep/issues/2)
+The profile establishes the simulation rules before Evidence runs. Exposure, when required, runs alongside Scenario. Alternatives runs after separate search authorization. Review runs before publication. In AWS mode Strands on Amazon Bedrock interprets requests and selects typed tools and arguments. Python validates the evidence set, snapshot date, loss metric and windows. If Evidence or Scenario submits arguments outside the confirmed route, the workflow rejects those arguments and uses the independently specified route immediately. A missing required observation yields an evidence hold. Use **Agent activity and AWS trace** to see accepted arguments, rejections, skipped roles, and fallbacks. [Routing and verification](https://github.com/WindsTrace/datathon-prep/issues/2)
 
 Python owns derived values, rule verdicts and published explanations. Free-text amounts are tied to the applicable source wording and units, or explicitly entered before confirmation. Review rebuilds CAD prices from frozen closes and same-date USD/CAD observations before verifying risk metrics. Sector and issuer exposure changes have their own independent checks and publication status.
 
@@ -105,7 +105,7 @@ python -m streamlit run app.py
 
 Open **Reference case**, select **Offline**, then choose **Robert · loss definition**. To reproduce the funding frontier, enable **Search alternative funding**, run the original audit and select **Confirm and search alternative funding**. The other Robert cases isolate the reserve floor and permission for a smaller purchase. **Amira · issuer exposure** shows a proven breach for the proposal and, if search is authorized, an unresolved alternative. Open **Metric values and provenance** or **Agent activity and AWS trace**, or download the JSON audit record.
 
-Choose **Write a request → Enter inputs directly** and select **Offline** or **Bedrock** for structured intake. With competition AWS credentials, **Write a request → Interpret text with Bedrock** uses the competition's Sonnet 4.5 inference profile and shows the editable interpretation before confirmation. Numeric rules are grounded in the relevant request wording or explicitly entered. The staged audit and delegated Review selector use Nova 2 Lite. Reference cases in **Offline** mode use deterministic calculations and simulated role events. Reference cases in **Bedrock** mode use the displayed structured inputs and real downstream calls. Streamlit and CLI use the same Python solver and independent review.
+Choose **Write a request → Enter inputs directly** and select **Offline** or **Bedrock** for structured intake. With competition AWS credentials, **Write a request → Interpret text with Bedrock** uses Sonnet 4.5 by default and shows the editable interpretation before confirmation. Numeric rules are grounded in the relevant request wording or explicitly entered. The staged audit and delegated Review selector use Nova 2 Lite by default. Reference cases in **Offline** mode use deterministic calculations and simulated role events. Reference cases in **Bedrock** mode use the displayed structured inputs and real downstream calls. Streamlit and CLI use the same Python solver and independent review.
 
 ### Command-line verification
 
@@ -114,7 +114,13 @@ python -m datathon --data "$DATA" --case all --mode offline --stress --report ou
 python -m unittest discover -q
 ```
 
-For live calls, use an authenticated competition AWS session. The pinned Strands SDK is `1.63.0` and the default model is Nova 2 Lite via `us.amazon.nova-2-lite-v1:0` in `us-east-1`.
+For live calls, use an authenticated competition AWS session. The pinned Strands SDK is `1.63.0`. Streamlit and the interactive CLI read optional overrides for compatible Bedrock models. Each selected model needs access to the relevant tools in the chosen region.
+
+| Setting | Default |
+| --- | --- |
+| `DATATHON_PROFILE_MODEL_ID` | `global.anthropic.claude-sonnet-4-5-20250929-v1:0` |
+| `DATATHON_AUDIT_MODEL_ID` | `us.amazon.nova-2-lite-v1:0` |
+| `DATATHON_AWS_REGION` | `us-east-1` |
 
 ```bash
 python -m datathon --data "$DATA" --case all --mode aws --stress --report outputs/aws.json
@@ -132,6 +138,18 @@ python -m datathon --data "$DATA" --mode aws --report outputs/request.json \
 ```
 
 With the terminal-loss clarification, this original-only audit reports breaches of the 15% reserve floor and the 14% terminal-loss limit. To test alternative funding, specify the permitted sources in the request, pass `--search-alternatives`, and enter `SEARCH` after the original audit. If the requested size is infeasible and smaller size remains undecided, a separate prompt can authorize a smaller purchase. [Changelog](CHANGELOG.md)
+
+### Compare revisions with generated inputs
+
+The paired benchmark uses the same generated input and data snapshot for both revisions, and alternates run order. Change the seed for a new combination of supported weights, funding, constraints, windows, disclosure coverage, and English or French wording. Specify a reviewed case manifest with `--manifest` to supply your own inputs. The report includes validity checks, timing, model usage, and hashed request IDs.
+
+```bash
+python -m datathon.paired_benchmark --data "$DATA" --mode aws \
+  --baseline /path/to/baseline-checkout --candidate . --seed 20261115 \
+  --report outputs/paired-aws.json
+```
+
+Use `--intake-model`, `--audit-model`, and `--region` to check other compatible configurations. The generated input space follows the supported trade and asset scope.
 
 ## Repository map
 

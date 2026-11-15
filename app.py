@@ -7,11 +7,12 @@ from zipfile import BadZipFile
 
 import streamlit as st
 
-from datathon.agents import PROFILE_FIELDS, PROFILE_MODEL, AgentRun, StrandsAgents
+from datathon.agents import PROFILE_FIELDS, AgentRun
 from datathon.audit_view import render_comparison, render_evidence, result_label
 from datathon.counterfactual import counterfactual_options, issuer_disclosure_options, run_counterfactual
 from datathon.data import load_market_data, market_data_source
 from datathon.finance import BASE_WEIGHTS
+from datathon.model_settings import configured_bedrock_runtime
 from datathon.publication import publish_check, publish_report
 from datathon.runtime_budget import (
     CHALLENGE_LIMITS, PROFILE_LIMITS, RuntimeBudgetExceeded, bound_audit, run_bounded, run_sync_action,
@@ -256,7 +257,7 @@ def preset_audit(mode):
         st.session_state.pop("preset_result", None)
         st.session_state.pop("comparison_result", None)
 
-    runtime = StrandsAgents() if mode == "Bedrock" else None
+    runtime = configured_bedrock_runtime() if mode == "Bedrock" else None
     if st.button("Confirm inputs and run audit", type="primary"):
         st.session_state.pop("comparison_result", None)
         st.session_state.preset_result = audit(
@@ -445,13 +446,13 @@ def live_request():
         run_id = st.session_state.manual_draft_id
         draft = AgentRun("ok", {}, ({"role": "profile", "event": "manual_profile_entered"},))
         question = None
-        runtime = StrandsAgents() if mode == "Bedrock" else None
+        runtime = configured_bedrock_runtime() if mode == "Bedrock" else None
         try:
             scope = edit_scope(run_id)
         except ValueError as exc:
             scope_error = str(exc)
     else:
-        runtime = StrandsAgents()
+        runtime = configured_bedrock_runtime()
         request = st.text_area("Fictional investment request", value=ROBERT_REQUEST, height=145)
         previous = st.session_state.get("request_draft")
         if previous and previous[:2] != (request, requested_search):
@@ -462,7 +463,7 @@ def live_request():
                 run_id = f"request-{uuid4().hex[:12]}"
                 try:
                     (draft, _, question), usage = run_sync_action(run_bounded(
-                        interpret_request(request.strip(), StrandsAgents(model_id=PROFILE_MODEL), run_id,
+                        interpret_request(request.strip(), configured_bedrock_runtime(profile=True), run_id,
                                           search_alternatives=requested_search, defer_smaller_authorization=True),
                         PROFILE_LIMITS,
                     ))

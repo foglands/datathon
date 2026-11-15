@@ -169,14 +169,18 @@ _SCOPED_PROFILE_PROMPT = (
 _TARGET_AMOUNT = r"(?P<quantity>(?P<amount>" + _TARGET_NUMBER + r")" + _TARGET_UNIT + r")"
 _TARGET_NAME = r"(?:NVDA|Nvidia)\b"
 _TARGET_ACTION = r"(?:add(?:s|ing)?|increase(?:s|d)?|increasing|raise(?:s|d)?|raising|shift(?:s|ing)?|move(?:s|d)?|moving)"
+_TARGET_PURCHASE_ACTION = rf"(?:{_TARGET_ACTION}|fund(?:s|ing)?|buy(?:s|ing)?)"
 _TARGET_FR_ACTION = r"(?:ajout(?:e|er|ez)|augment(?:e|er|ez)|achet(?:er|ez)|déplac(?:e|er|ez))"
+_TARGET_EN_EXACT = r"(?:(?:exactly|precisely)\s+)?"
+_TARGET_FR_EXACT = r"(?:(?:exactement|précisément)\s+)?"
 _TARGET_CLAUSES = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
-    rf"\b(?:{_TARGET_ACTION}|fund(?:s|ing)?|buy(?:s|ing)?)\s+{_TARGET_AMOUNT}\s+(?:of|to|in|into)\s+{_TARGET_NAME}",
-    rf"\b{_TARGET_ACTION}\s+{_TARGET_NAME}(?:\s+(?:position|weight|allocation))?\s+by\s+{_TARGET_AMOUNT}\b",
-    rf"\b{_TARGET_NAME}\s+increase\s+of\s+{_TARGET_AMOUNT}\b",
+    rf"\b{_TARGET_PURCHASE_ACTION}\s+{_TARGET_EN_EXACT}{_TARGET_AMOUNT}\s+(?:of|to|in|into)\s+{_TARGET_NAME}",
+    rf"\b{_TARGET_ACTION}\s+{_TARGET_NAME}(?:\s+(?:position|weight|allocation))?\s+by\s+{_TARGET_EN_EXACT}{_TARGET_AMOUNT}\b",
+    rf"\b{_TARGET_NAME}\s+increase\s+of\s+{_TARGET_EN_EXACT}{_TARGET_AMOUNT}\b",
     rf"(?<![\w.,-]){_TARGET_AMOUNT}\s+increase\s+in\s+{_TARGET_NAME}",
-    rf"\b{_TARGET_FR_ACTION}\s+{_TARGET_AMOUNT}\s+(?:à|de|en|dans)\s+{_TARGET_NAME}",
-    rf"\b{_TARGET_FR_ACTION}\s+(?:le\s+poids\s+de\s+)?{_TARGET_NAME}\s+de\s+{_TARGET_AMOUNT}\b",
+    rf"\b{_TARGET_FR_ACTION}\s+{_TARGET_FR_EXACT}{_TARGET_AMOUNT}\s+(?:à|de|en|dans)\s+{_TARGET_NAME}",
+    rf"\b{_TARGET_FR_ACTION}\s+(?:le\s+poids\s+de\s+)?{_TARGET_NAME}\s+"
+    rf"(?:de\s+{_TARGET_FR_EXACT}|d['’]exactement\s+){_TARGET_AMOUNT}\b",
 ))
 _QUOTED_TARGET_TEXT = re.compile(r'"[^"\n]*"|“[^”\n]*”|‘[^’\n]*’|«[^»\n]*»|(?<!\w)\'[^\'\n]*\'(?!\w)')
 _ADOPTED_TARGET_QUOTE = re.compile(
@@ -208,10 +212,14 @@ _RESERVE_POINT_PREFIX = re.compile(
 )
 _RESERVE_POINT_SUFFIX = re.compile(r"\s+(?:in|dans|en)\s+ZST\.TO(?=$|[\s.!?;])", re.IGNORECASE)
 _OTHER_NVDA_SIZE = re.compile(
-    rf"\b(?:{_TARGET_ACTION})\s+(?:\d+(?:\.\d+)?|(?:{_TARGET_NUMBER}))\s*(?:%|percent\b)[^.!?;\n]*\b(?:NVDA|Nvidia)\b"
-    rf"|\b(?:{_TARGET_ACTION})\s+{_TARGET_NAME}[^.!?;\n]*\bto\s+(?:\d+(?:\.\d+)?|(?:{_TARGET_NUMBER}))\s*(?:%|percent\b)"
+    rf"\b{_TARGET_PURCHASE_ACTION}\s+{_TARGET_EN_EXACT}(?:\d+(?:\.\d+)?|(?:{_TARGET_NUMBER}))"
+    rf"\s*(?:%|percent\b)[^.!?;\n]*\b{_TARGET_NAME}"
+    rf"|\b{_TARGET_ACTION}\s+{_TARGET_NAME}[^.!?;\n]*\bto\s+{_TARGET_EN_EXACT}"
+    rf"(?:\d+(?:\.\d+)?|(?:{_TARGET_NUMBER}))\s*(?:%|percent\b)"
     rf"|\b(?:{_TARGET_FR_ACTION}|port(?:e|er|ez))\s+(?:le\s+poids\s+de\s+)?{_TARGET_NAME}"
-    rf"\s+(?:à|de)\s+(?:{_TARGET_NUMBER})\s*(?:%|pour\s+cent\b)",
+    rf"\s+(?:à|de)\s+{_TARGET_FR_EXACT}(?:{_TARGET_NUMBER})\s*(?:%|pour\s+cent\b)"
+    rf"|\b{_TARGET_FR_ACTION}\s+{_TARGET_FR_EXACT}(?:{_TARGET_NUMBER})"
+    rf"\s*(?:%|pour\s+cent\b)\s+(?:à|de|en|dans)\s+{_TARGET_NAME}",
     re.IGNORECASE,
 )
 

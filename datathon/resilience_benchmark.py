@@ -74,8 +74,12 @@ def _scripted_invoker(fault):
             if tool.name == "lookup_evidence" and fault in ("persistent_invalid_route", "corrected_invalid_route"):
                 invalid = {**arguments, "evidence_ids": ["fixture:unauthorized_source"]}
                 record("injected_fault", fault=fault, tool_name=tool.name)
-                if _call_scripted_tool(tool, invalid, record):
-                    raise AssertionError("The evidence tool accepted an unauthorized source.")
+                response = _call_scripted_tool(tool, invalid, record)
+                if response is not None:
+                    if response.get("routing") != "deterministic_fallback":
+                        raise AssertionError("The evidence tool accepted an unauthorized source.")
+                    # A staged adapter ends the turn with the confirmed local route.
+                    continue
                 if fault == "persistent_invalid_route":
                     return {}, "limit_turns"
             if tool.name == "recheck_decision" and fault == "absent_review_callback":
@@ -83,7 +87,7 @@ def _scripted_invoker(fault):
                 record("injected_fault", fault=fault, tool_name=tool.name)
                 record("tool", tool_name=tool.name, status="success")
                 continue
-            if not _call_scripted_tool(tool, arguments, record):
+            if _call_scripted_tool(tool, arguments, record) is None:
                 return {}, "tool_failure"
             if ((tool.name == "lookup_evidence" and fault == "interrupted_after_evidence")
                     or (tool.name == "recheck_decision" and fault == "interrupted_after_review")):
@@ -97,12 +101,12 @@ def _scripted_invoker(fault):
 def _call_scripted_tool(tool, arguments, record):
     record("scripted_tool_attempt", tool_name=tool.name)
     try:
-        tool.handler(**arguments)
+        response = tool.handler(**arguments)
     except (TypeError, ValueError):
         record("tool", tool_name=tool.name, status="error", input=arguments)
-        return False
+        return None
     record("tool", tool_name=tool.name, status="success", input=arguments)
-    return True
+    return response
 
 
 def _market_input(data, scenario):

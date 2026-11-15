@@ -38,10 +38,12 @@ class ResilienceBenchmarkTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(invalid["bundled"]["completed_independent_review"])
 
         corrected = by_scenario["corrected_invalid_route"]
-        for row in corrected.values():
+        for arm, row in corrected.items():
             self.assertTrue(row["verified_recovery"])
             self.assertEqual(row["validated_tool_rejections"], 1)
-            self.assertEqual(row["routing_fallbacks"], 0)
+            self.assertEqual(row["routing_fallbacks"], int(arm == "staged"))
+        self.assertEqual(corrected["staged"]["scripted_tool_attempts"] + 1,
+                         corrected["bundled"]["scripted_tool_attempts"])
 
         absent = by_scenario["absent_review_callback"]
         for row in absent.values():

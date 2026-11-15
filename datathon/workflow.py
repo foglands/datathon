@@ -228,6 +228,8 @@ async def run_case(
     trace = []
     outputs = {}
     verified_sections = {}
+    terminal_routes = {}
+    route_failures = {}
     input_versions = {
         "issuer_evidence_date": evidence_date, "holdings_max_age_days": holdings_max_age_days,
         "issuer_disclosure_ids": tuple(issuer_disclosure_ids),
@@ -272,6 +274,12 @@ async def run_case(
         outputs[name] = supplied
         return calls[0] if calls else supplied
 
+    def apply_confirmed_route(name, tool_name, expected, operation, reason):
+        trace.append({"role": name, "event": "tool_routing", "tool_name": tool_name,
+                      "status": "deterministic_fallback", "arguments": expected, "reason": reason})
+        outputs[name] = {"status": "fallback", "summary": "Python applied the confirmed policy.", "evidence_ids": []}
+        return operation(**expected)
+
     async def routed_role(name, payload, tool, expected, operation, output):
         stage_started = perf_counter()
         if runtime is None:
@@ -281,28 +289,49 @@ async def run_case(
             operation(**expected)
             return
         result = await runtime.run(name, {**payload, "required_tool": tool.name}, tools=(tool,), run_id=case.id)
-        trace.extend({"role": name, **event} for event in result.trace)
+        recovered = terminal_routes.get(name, {}).get("routing") == "deterministic_fallback"
+        for event in result.trace:
+            if recovered and event.get("event") == "tool" and event.get("tool_name") == tool.name:
+                # The SDK completed the stage with the local result. The submitted route was rejected.
+                event = {**event, "status": "error", "input": {}, "output": None}
+            trace.append({"role": name, **event})
+        if name in route_failures:
+            raise route_failures[name]
         if output:
-            checked_handoff(name, tool.name, result, stage_started)
+            if not recovered:
+                checked_handoff(name, tool.name, result, stage_started)
             return
-        trace.append({"role": name, "event": "tool_routing", "tool_name": tool.name,
-                      "status": "deterministic_fallback", "arguments": expected,
-                      "reason": result.stop_reason if result.status == "error" else "missing_checked_handoff"})
-        outputs[name] = {"status": "fallback", "summary": "Python applied the confirmed policy.",
-                         "evidence_ids": []}
-        operation(**expected)
+        reason = result.stop_reason if result.status == "error" else "missing_checked_handoff"
+        apply_confirmed_route(name, tool.name, expected, operation, reason)
 
     def route(name, tool_name, submitted, expected, operation):
-        # Only successful, policy-checked arguments enter the audit record.
+        if name in terminal_routes:
+            return terminal_routes[name]
         invalid = [key for key, value in submitted.items()
                    if (sorted(value) if isinstance(value, list) and all(isinstance(x, str) for x in value) else value)
                    != (sorted(expected[key]) if isinstance(expected[key], list) else expected[key])]
+        scope = "deterministic_fallback" if invalid else "approved"
         if invalid:
             trace.append({"role": name, "event": "tool_routing", "tool_name": tool_name,
                           "status": "rejected", "invalid_fields": invalid})
-            raise ValueError("Tool arguments must match the confirmed policy and complete available source set: "
-                             + ", ".join(invalid))
-        answer = operation(**submitted)
+            if single_runtime is not None:
+                raise ValueError("Tool arguments must match the confirmed policy and complete available source set: "
+                                 + ", ".join(invalid))
+
+        try:
+            answer = (apply_confirmed_route(name, tool_name, expected, operation, "rejected_arguments")
+                      if invalid else operation(**submitted))
+        except MarketEvidenceError as exc:
+            if single_runtime is not None:
+                raise
+            # A confirmed window missing required market data cannot be repaired by changing model arguments.
+            route_failures[name] = exc
+            terminal_routes[name] = {"status": "insufficient_evidence", "routing": scope}
+            return terminal_routes[name]
+        if invalid:
+            # The checked local result is retained in the workflow. Return a terminal tool handoff.
+            terminal_routes[name] = {"status": "ok", "routing": scope}
+            return terminal_routes[name]
         trace.append({"role": name, "event": "tool_routing", "tool_name": tool_name,
                       "status": "accepted", "arguments": submitted})
         return answer

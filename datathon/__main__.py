@@ -6,8 +6,9 @@ from dataclasses import replace
 from pathlib import Path
 from uuid import uuid4
 
-from .agents import PROFILE_FIELDS, PROFILE_MODEL, AgentRun, StrandsAgents
+from .agents import PROFILE_FIELDS, AgentRun
 from .data import load_market_data
+from .model_settings import configured_bedrock_runtime
 from .publication import publish_report
 from .runtime_budget import PROFILE_LIMITS, RuntimeBudgetExceeded, bound_audit, run_bounded, run_sync_action
 from .workflow import Case, examples, interpret_request, numeric_input_provenance, preset_profile, profile_policy, run_case
@@ -39,11 +40,11 @@ def validate_case(result):
 
 async def run_suite(args):
     data = load_market_data(args.data)
-    runtime = StrandsAgents() if args.mode == "aws" else None
+    runtime = configured_bedrock_runtime() if args.mode == "aws" else None
     results = []
     for case in examples(args.case, args.stress):
         if case.ambiguous:
-            intake = StrandsAgents(model_id=PROFILE_MODEL) if runtime is not None else None
+            intake = configured_bedrock_runtime(profile=True) if runtime is not None else None
             result = await bound_audit(run_case(data, case, intake), case.id, live=intake is not None)
         else:
             preset = AgentRun("ok", preset_profile(case), ({"role": "profile", "event": "preset_inputs_selected"},))
@@ -142,8 +143,8 @@ def print_audit(decision, heading):
 
 
 async def run_request(args):
-    intake_runtime = StrandsAgents(model_id=PROFILE_MODEL)
-    runtime = StrandsAgents()
+    intake_runtime = configured_bedrock_runtime(profile=True)
+    runtime = configured_bedrock_runtime()
     request = args.request.strip()
     search_alternatives = getattr(args, "search_alternatives", False)
     include_sector = getattr(args, "include_sector", False)

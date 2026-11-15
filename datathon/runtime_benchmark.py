@@ -11,8 +11,9 @@ from statistics import median
 from time import perf_counter
 
 from .__main__ import validate_case, write_report
-from .agents import PROFILE_MODEL, AgentRun, StrandsAgents
+from .agents import AgentRun
 from .data import load_market_data
+from .model_settings import configured_bedrock_runtime
 from .runtime_budget import PROFILE_LIMITS, RuntimeBudgetExceeded, bound_audit, run_bounded, run_sync_action
 from .workflow import examples, interpret_request, preset_profile, profile_policy, run_case
 
@@ -24,7 +25,7 @@ async def measure_case(args, case, *, warm_data=None):
     profile = AgentRun("ok", profile_data)
     if args.profile:
         try:
-            model = StrandsAgents(model_id=PROFILE_MODEL)
+            model = configured_bedrock_runtime(profile=True)
             (parsed, policy, _), profile_usage = await run_bounded(
                 interpret_request(case.user_request, model, f"benchmark-{case.id}"), PROFILE_LIMITS,
             )
@@ -38,7 +39,7 @@ async def measure_case(args, case, *, warm_data=None):
                     "profile": profile_usage, "elapsed_ms": (perf_counter() - started) * 1000}
 
     live = args.mode == "aws"
-    runtime = StrandsAgents() if live else None
+    runtime = configured_bedrock_runtime() if live else None
     load_ms = None
 
     async def evaluate():

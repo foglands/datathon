@@ -5,6 +5,7 @@ import inspect
 import json
 import sys
 import unittest
+from dataclasses import replace
 from types import ModuleType, SimpleNamespace
 from unittest.mock import patch
 
@@ -48,7 +49,7 @@ def select_tool_arguments(role, payload):
 class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
     async def run_fixture(self, case, *, changes=None, omit_roles=(), false_tool_success=(),
                           fail_after_tool=(), delay_scenario=False,
-                          profile_overrides=None):
+                          profile_overrides=None, market=MARKET, retry_rejected_routes=False):
         """Inject model choices, then execute the production handlers with those choices."""
         called_roles = []
         changes = changes or {}
@@ -62,14 +63,20 @@ class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
                 if role in false_tool_success:
                     record("tool", tool_name=tool.name, status="success")
                 elif role not in omit_roles:
-                    arguments = {**select_tool_arguments(role, payload), **changes.get(role, {})}
-                    try:
-                        result = tool.handler(**arguments)
-                        status = result.get("status") if isinstance(result, dict) else None
-                    except (TypeError, ValueError):
-                        status = "rejected"
-                    record("tool", tool_name=tool.name, input=arguments,
-                           status="error" if status == "rejected" else "success")
+                    correct = select_tool_arguments(role, payload)
+                    submitted = {**correct, **changes.get(role, {})}
+                    attempts = (submitted, correct) if retry_rejected_routes and role in {"evidence", "scenario"} else (submitted,)
+                    for arguments in attempts:
+                        record("scripted_model_turn")
+                        try:
+                            result = tool.handler(**arguments)
+                            status = result.get("status") if isinstance(result, dict) else None
+                        except (TypeError, ValueError):
+                            status = "rejected"
+                        record("tool", tool_name=tool.name, input=arguments,
+                               status="error" if status == "rejected" else "success")
+                        if status != "rejected":
+                            break
             if role in fail_after_tool:
                 return {}, "limit_turns"
             # Model commentary and claimed citations must not change the audit or its evidence.
@@ -77,7 +84,7 @@ class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
                     "evidence_ids": ["model:made-up-source"]}, "end_turn"
 
         profile = AgentRun("ok", {**preset_profile(case), **(profile_overrides or {})})
-        report = await run_case(MARKET, case, StrandsAgents(invoker=invoke), confirmed_profile=profile)
+        report = await run_case(market, case, StrandsAgents(invoker=invoke), confirmed_profile=profile)
         return report, called_roles
 
     def routing(self, report, role, status):
@@ -140,7 +147,7 @@ class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_invalid_dates_ids_and_scenario_scope_trigger_explicit_fallback(self):
         amira, = examples("amira")
-        report, calls = await self.run_fixture(amira, changes={
+        report, calls = await self.run_fixture(amira, retry_rejected_routes=True, changes={
             "evidence": {"holdings_as_of": "2024-01-01", "evidence_ids": ["model:made-up-source"]},
             "scenario": {"metric": "terminal_loss", "window_ids": ["2022"]},
         })
@@ -151,12 +158,28 @@ class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(any(event.get("event") == "tool" and event.get("role") == role
                                 and event.get("status") == "error" and event.get("input") == {}
                                 for event in report["trace"]))
-            self.routing(report, role, "deterministic_fallback")
+            route = self.routing(report, role, "deterministic_fallback")
+            self.assertEqual(route["reason"], "rejected_arguments")
+            self.assertEqual(sum(event["event"] == "scripted_model_turn" and event["role"] == role
+                                 for event in report["trace"]), 1)
         self.assertIn("review", calls)
         self.assertEqual(report["status"], "fail")
         self.assertNotIn("model:made-up-source", report["evidence"]["evidence_ids"])
         self.assertEqual(report["evidence"]["issuer_snapshot"]["as_of"], "2026-06-30")
         self.assertEqual(set(report["scenarios"]["proposal"]["windows"]), {"2022", "2025"})
+
+    async def test_confirmed_missing_market_data_ends_routing_and_withholds_review(self):
+        robert, _ = examples("robert")
+        market = replace(MARKET, fx={day: rate for day, rate in MARKET.fx.items() if day != DATES[-1]})
+        report, calls = await self.run_fixture(
+            replace(robert, search_alternatives=False), market=market, retry_rejected_routes=True,
+        )
+        self.assertEqual(report["status"], "insufficient_evidence")
+        self.assertEqual(report["decision_reason"], "market_evidence_insufficient")
+        self.assertEqual(report["audit"]["verified"], {})
+        self.assertEqual(calls, ["evidence", "scenario"])
+        self.assertEqual(sum(event["event"] == "scripted_model_turn" and event["role"] == "scenario"
+                             for event in report["trace"]), 1)
 
     async def test_missing_routed_call_recovers_but_missing_review_withholds_decision(self):
         robert, _ = examples("robert")

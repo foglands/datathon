@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-15 · Configurable models and bounded tool recovery
+
+- Read separate Bedrock model settings for Profile and the audit from the application environment.
+- Ground explicitly qualified purchase quantities in English and French while retaining clarification for ambiguous amounts and incompatible units.
+- Resolve a rejected Evidence or Scenario route using the confirmed arguments in the same stage. Hold unavailable market evidence immediately and require the checked Review handoff for publication.
+- Add a paired benchmark with seed-generated inputs, custom manifests, and selectable model configurations. Report authorization, numerical agreement, model calls, and timing for both revisions.
+
 ## 2026-11-15 · Complete the risk reliability acceptance checks
 
 - Bind free-text limits to the user's applicable clause, unit and rule. Request a correction or explicit entry when a binding amount cannot be verified, and record the origin of each confirmed input.

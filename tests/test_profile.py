@@ -146,6 +146,45 @@ class ProfileHandoffTests(unittest.TestCase):
                 self.assertEqual(profile_policy(draft)["target"], .08)
                 self.assertEqual(draft["source_excerpts"]["target_bps"], "Add eight percentage points to NVDA")
 
+    def test_exact_purchase_modifiers_ground_supported_bilingual_quantities(self):
+        cases = (
+            ("Buy exactly twelve percentage points of NVDA from QQQ. Limit start-to-end loss to 14%.",
+             1200, "terminal_loss", 1400),
+            ("Increase NVDA by precisely 3.75 points of portfolio weight. Cap maximum drawdown at 17%.",
+             375, "max_drawdown", 1700),
+            ("Ajoutez exactement 6,25 points de pourcentage à NVDA. Plafonnez la baisse maximale à 13,5 %.",
+             625, "max_drawdown", 1350),
+            ("Augmentez le poids de NVDA d’exactement sept points de pourcentage. Limitez la perte finale à 11 %.",
+             700, "terminal_loss", 1100),
+        )
+        for request, amount, metric, limit in cases:
+            for model_amount in (-1, amount):
+                with self.subTest(request=request, model_amount=model_amount):
+                    draft = _profile_handoff(request, **{**TRADE_FIELDS, "target_bps": model_amount})
+                    policy = profile_policy(draft)
+                    self.assertEqual(draft["target_bps"], amount)
+                    self.assertEqual(draft["limit_bps"], limit)
+                    self.assertEqual(policy["metric"], metric)
+                    self.assertTrue(draft["target_grounded"])
+                    self.assertIn(draft["source_excerpts"]["target_bps"], request)
+
+    def test_exact_modifiers_do_not_authorize_unsupported_or_competing_quantities(self):
+        cases = (
+            ("If rates fall, buy exactly eight percentage points of NVDA.", 800),
+            ("Do not add precisely five percentage points to NVDA.", 500),
+            ("N’ajoutez pas exactement cinq points de pourcentage à NVDA.", 500),
+            ("Buy exactly five percent of NVDA.", 500),
+            ("Buy exactly C$5,000 of NVDA.", 500),
+            ("Add exactly five percentage points to NVDA. Increase NVDA to exactly 9%.", 500),
+            ("Ajoutez exactement cinq points de pourcentage à NVDA. Achetez précisément 9 % de NVDA.", 500),
+        )
+        for request, supplied_amount in cases:
+            with self.subTest(request=request):
+                draft = _profile_handoff(request, **{**TRADE_FIELDS, "target_bps": supplied_amount})
+                self.assertIsNone(draft["target_bps"])
+                self.assertEqual(draft["clarification_field"], "target")
+                self.assertFalse(draft["target_grounded"])
+
     def test_adopted_quote_requires_corroborating_model_size(self):
         quotes = (
             ("Please apply my exact instruction: “Add six percentage points to NVDA from QQQ alone.”",
