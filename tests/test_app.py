@@ -14,7 +14,7 @@ except ModuleNotFoundError as exc:
     AppTest = None
 
 from datathon.agents import AgentRun, StrandsAgents
-from datathon.finance import solve_funding
+from datathon.finance import MarketEvidenceError, solve_funding
 from datathon.workflow import examples, preset_profile
 from tests.test_issuer_reaudit import configured_catalog, synthetic_disclosure
 from tests.test_tool_routing import select_tool_arguments
@@ -435,6 +435,17 @@ class PortfolioAppTests(unittest.TestCase):
             search = self.app.session_state["request_results"][key]
             self.assertTrue(search["search_alternatives"])
             self.assertIn("alternatives", search)
+
+    def test_missing_market_evidence_prevents_the_search_followup(self):
+        self.select("checkbox", SEARCH, True)
+        with (patch("datathon.workflow.evaluate_portfolio", side_effect=MarketEvidenceError("Price window missing")),
+              patch("datathon.workflow.solve_funding", wraps=solve_funding) as solver):
+            self.click(CONFIRM)
+            report = self.app.session_state["preset_result"]
+            self.assertEqual(report["decision_reason"], "market_evidence_insufficient")
+            self.assertNotIn("proposal", report["audit"]["verified"])
+            self.assertFalse(self.has_button(CONFIRM_SEARCH))
+            solver.assert_not_called()
 
     def test_clarified_unsupported_constraint_limits_public_result(self):
         calls = []
