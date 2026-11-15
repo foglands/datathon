@@ -174,6 +174,8 @@ def _render_question_answer(question, saved, data_loader, trade_entry):
     draft, route = saved
     if route:
         if route["status"] == "ready":
+            if draft.get("task") and route.get("task") != draft["task"]:
+                st.caption("The application used the analysis grounded in your question after the Bedrock suggestion differed.")
             if route.get("trace"):
                 with st.expander("Question interpretation activity"):
                     st.json(route["trace"], expanded=False)

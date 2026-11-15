@@ -240,6 +240,18 @@ class GeneralIntakeTests(unittest.TestCase):
                     self.assertEqual(result["status"], "unsupported")
                     self.assertFalse(result.get("plan"))
 
+    def test_model_disagreement_keeps_grounded_comparison_and_scope_checks(self):
+        semantic = {"status": "ready", "task": "unsupported"}
+        for first, second, cap in (("QQQ", "AGG", 9), ("GLD", "SPY", 17)):
+            with self.subTest(first=first, second=second):
+                question = f"Compare {first} and {second}. Limit maximum drawdown to {cap}%."
+                self.assertTrue(analyze_question(question, semantic=semantic)["needs_assets"])
+                result = analyze_question(question, _ASSETS, semantic=semantic)
+                self.assertEqual(result, analyze_question(question, _ASSETS))
+                self.assertEqual(result["status"], "ready")
+                blocked = analyze_question(f"{question} Forecast their returns next year.", _ASSETS, semantic=semantic)
+                self.assertEqual(blocked["status"], "unsupported")
+
     def test_historical_requests_do_not_substitute_an_unavailable_asset(self):
         questions = (
             "Compare the terminal loss for QQQ versus $ZZTEST.",

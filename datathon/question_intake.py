@@ -87,11 +87,6 @@ def analyze_question(question: str, assets=None, *, semantic=None) -> dict:
     if allocation := parse_allocation_request(question, assets):
         return {**allocation, "plan": context}
     plan = parse_planning_request(question)
-    if task == "unsupported":
-        limitation = "The requested action may fall outside the evidence or simulation tools available."
-        if plan:
-            return _plan_draft(plan, limitation=limitation)
-        return _draft("unsupported", message=limitation)
 
     history = bool(_HISTORY.search(question))
     asks_comparison = comparison["status"] != "unrecognized"
@@ -118,6 +113,11 @@ def analyze_question(question: str, assets=None, *, semantic=None) -> dict:
                           message="Which two assets or complete allocations should the historical analysis compare?")
         return {**comparison, "task": "compare_allocations"}
 
+    if task == "unsupported":
+        limitation = "The requested action may fall outside the evidence or simulation tools available."
+        if plan:
+            return _plan_draft(plan, limitation=limitation)
+        return _draft("unsupported", message=limitation)
     if task == "trade_audit" and not plan:
         return _draft("trade_audit", task="trade_audit")
     if task == "planning":
