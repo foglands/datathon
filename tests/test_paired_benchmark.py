@@ -1,9 +1,10 @@
 """The paired cohort uses generated, reproducible input contracts."""
 
 from hashlib import sha256
+import os
 import unittest
 
-from datathon.paired_benchmark import _authorization_preserved, _calls, generate_cases
+from datathon.paired_benchmark import _authorization_preserved, _calls, _evaluate, generate_cases
 from datathon.scope import ReplayScope
 from datathon.workflow import profile_policy
 
@@ -53,3 +54,17 @@ class GeneratedCohortTests(unittest.TestCase):
         self.assertEqual(result["observed_tokens"], 12)
         self.assertEqual(result["routing_fallbacks"], 1)
         self.assertNotIn(request_id, repr(result))
+
+
+@unittest.skipUnless(os.getenv("DATATHON_STARTER_PATH"), "Requires the official starter market data.")
+class ReviewManifestTests(unittest.IsolatedAsyncioTestCase):
+    async def test_manifest_can_verify_replay_in_both_search_scopes(self):
+        case = next(entry for entry in generate_cases(789) if entry["kind"] == "review")
+        for authorized in (False, True):
+            with self.subTest(authorized=authorized):
+                result = await _evaluate({
+                    "case": {**case, "search": authorized},
+                    "mode": "offline",
+                    "data": os.environ["DATATHON_STARTER_PATH"],
+                })
+                self.assertTrue(result["passed"], result)

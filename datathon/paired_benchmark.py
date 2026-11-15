@@ -262,7 +262,8 @@ async def _evaluate(job):
                 result.update(
                     passed=observed_option == case["expected_option"] and checked.get("verified") is True
                     and replay.get("search_alternatives") is case["search"]
-                    and not ({"frontier", "maximum", "solver_status"} & replay.get("audit", {}).get("verified", {}).keys()),
+                    and (case["search"] or not
+                         ({"frontier", "maximum", "solver_status"} & replay.get("audit", {}).get("verified", {}).keys())),
                     review_option=observed_option, review_status=checked.get("status"),
                     review_reason=checked.get("reason"),
                     replay_digest=_digest(_verified_projection(replay)),
