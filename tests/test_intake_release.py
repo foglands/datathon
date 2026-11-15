@@ -278,6 +278,7 @@ class IntakeReleaseTests(unittest.IsolatedAsyncioTestCase):
               patch("datathon.__main__.read_input", return_value="YES"),
               patch("datathon.__main__.print_policy"), patch("datathon.__main__.load_market_data"),
               patch("datathon.__main__.run_case", new_callable=AsyncMock, return_value={"status": "pass"}) as audit,
+              patch("datathon.__main__.publish_report", side_effect=lambda result: result),
               patch("builtins.print")):
             self.assertEqual(await run_request(args), 0)
         inputs = audit.await_args

@@ -12,6 +12,7 @@ from datathon.audit_view import render_comparison, render_evidence, result_label
 from datathon.counterfactual import counterfactual_options, issuer_disclosure_options, run_counterfactual
 from datathon.data import load_market_data
 from datathon.finance import BASE_WEIGHTS
+from datathon.publication import publish_check, publish_report
 from datathon.runtime_budget import (
     CHALLENGE_LIMITS, PROFILE_LIMITS, RuntimeBudgetExceeded, bound_audit, run_bounded, run_sync_action,
 )
@@ -21,9 +22,12 @@ from datathon.workflow import Case, examples, interpret_request, preset_profile,
 
 METRICS = {"terminal_loss": "Terminal loss", "max_drawdown": "Maximum drawdown"}
 FUNDING = ("QQQ", "ZST.TO")
-BLOCKING_PROFILE_FIELDS = {"unsupported_scope", "unsupported_constraint", "multiple_loss_limits", "conflict"}
+BLOCKING_PROFILE_FIELDS = {"unsupported_scope", "multiple_loss_limits", "conflict"}
 PROFILE_INPUT = ("Enter inputs directly", "Interpret text with Bedrock")
 MANUAL_SCOPE = "These inputs include every binding rule for this simulation."
+SEARCH_ALTERNATIVES = "Search alternative funding"
+INCLUDE_SECTOR = "Include equity sector analysis"
+LIMITED_SCOPE = "Audit only supported rules and mark the other requirements as not assessed."
 ROBERT, _ = examples("robert")
 AMIRA, = examples("amira")
 PRESETS = {
@@ -42,19 +46,22 @@ def market_data():
     return load_market_data()
 
 
-def show_policy(policy):
+def show_policy(policy, *, search_alternatives=True):
     st.markdown(
         f"**Buy {policy['target'] * 100:g} percentage points of NVDA** "
         f"using {policy['initial_source']} in the original proposal."
     )
-    funding = ", ".join(policy["allowed_sources"])
-    size = "smaller size allowed" if policy["allow_smaller"] else "exact size required"
-    terms = [f"Funding: {funding}", size, f"ZST.TO floor: {policy['reserve_floor']:.2%}"]
+    terms = ["Original proposal only"]
+    if search_alternatives:
+        funding = ", ".join(policy["allowed_sources"])
+        size = {True: "smaller size allowed", False: "exact size required", None: "test the requested size first"}
+        terms = [f"Alternative funding: {funding}", size[policy["allow_smaller"]]]
+    terms.append(f"ZST.TO floor: {policy['reserve_floor']:.2%}")
     if policy["loss_limit"] is not None:
         terms.append(f"{METRICS[policy['metric']]} cap: {policy['loss_limit']:.2%}")
     if policy["issuer_cap"] is not None:
         terms.append(f"NVIDIA issuer cap: {policy['issuer_cap']:.2%}")
-    if policy["prefer_reserve"] is True:
+    if search_alternatives and policy["prefer_reserve"] is True:
         terms.append("Preference: preserve ZST.TO")
     st.caption(" · ".join(terms))
 
@@ -72,6 +79,7 @@ def audit(case, profile, runtime):
 
 
 def show_report(report):
+    report = publish_report(report)
     render_comparison(report)
     render_evidence(report)
     if report.get("runtime_usage"):
@@ -148,7 +156,7 @@ def show_counterfactual(case, report, runtime):
     saved = st.session_state.get("active_challenge")
     if not saved or saved[:5] != (key, selected, hint, threshold, reviewed_ids):
         return
-    check = saved[-1]
+    check = publish_check(saved[-1])
     if check["status"] == "invalid":
         st.warning(check["statement"])
         return
@@ -245,7 +253,7 @@ def preset_audit(mode):
     show_counterfactual(case, report, runtime)
 
 
-def edit_profile(draft, run_id, *, manual=False):
+def edit_profile(draft, run_id, *, manual=False, search_alternatives):
     """Collect a reviewable draft. Editing the draft never runs an audit."""
     initial = draft.data
 
@@ -269,11 +277,23 @@ def edit_profile(draft, run_id, *, manual=False):
     edited = {
         "target_bps": amount("target_bps", "NVDA purchase size (percentage points)", "10 percentage points adds 10% of the portfolio to NVDA."),
         "initial_source": option("initial_source", "Funding for the original proposal", FUNDING),
-        "allowed_sources": st.multiselect("Funding allowed for alternatives", FUNDING,
-                                          default=initial.get("allowed_sources", []), key=f"{run_id}-allowed_sources"),
-        "allow_smaller": option("allow_smaller", "Allow a smaller purchase", (True, False),
-                                format_func=lambda value: "Yes" if value else "No"),
+        "allowed_sources": initial.get("allowed_sources", []),
+        "allow_smaller": None,
+        "prefer_reserve": initial.get("prefer_reserve"),
     }
+    if search_alternatives:
+        edited["allowed_sources"] = st.multiselect(
+            "Funding allowed for alternatives", FUNDING,
+            default=initial.get("allowed_sources") or ([edited["initial_source"]] if edited["initial_source"] else []),
+            key=f"{run_id}-allowed_sources",
+        )
+        if type(initial.get("allow_smaller")) is bool:
+            edited["allow_smaller"] = option("allow_smaller", "Allow a smaller purchase", (True, False),
+                                             format_func=lambda value: "Yes" if value else "No")
+        edited["prefer_reserve"] = option(
+            "prefer_reserve", "Preference to preserve ZST.TO", (None, True, False),
+            format_func={None: "Unstated", True: "Prefer to preserve", False: "No preference"}.get,
+        )
     loss_cap = st.checkbox(
         "Apply a historical loss cap",
         value=initial.get("limit_bps") is not None or initial.get("metric") is not None
@@ -293,10 +313,8 @@ def edit_profile(draft, run_id, *, manual=False):
         "limit_bps": limit,
         "reserve_floor_bps": amount("reserve_floor_bps", "Minimum ZST.TO weight (%)", "This floor is a binding rule."),
         "issuer_cap_bps": amount("issuer_cap_bps", "Maximum total NVIDIA issuer exposure (%)", "Includes direct and disclosed indirect common equity."),
-        "prefer_reserve": option("prefer_reserve", "Preference to preserve ZST.TO", (None, True, False),
-                                 format_func={None: "Unstated", True: "Prefer to preserve", False: "No preference"}.get),
     })
-    edited["allowed_sources"] = sorted(edited["allowed_sources"])
+    edited["allowed_sources"] = sorted(edited["allowed_sources"] or [])
     extracted = {key: initial.get(key) for key in PROFILE_FIELDS}
     extracted["allowed_sources"] = sorted(extracted["allowed_sources"] or [])
     changes = {key: {"from": extracted[key], "to": value} for key, value in edited.items() if value != extracted[key]}
@@ -314,6 +332,7 @@ def edit_profile(draft, run_id, *, manual=False):
                     ("reserve_floor_bps", "Reserve floor"), ("issuer_cap_bps", "Issuer cap"),
                     ("prefer_reserve", "Reserve preference"),
                 )
+                if search_alternatives or field not in {"allowed_sources", "allow_smaller", "prefer_reserve"}
             ]
             st.table(rows)
     return edited, changes, loss_cap
@@ -355,6 +374,12 @@ def live_request():
             st.session_state.pop(key, None)
     st.session_state.active_intake = intake
     manual = intake == PROFILE_INPUT[0]
+    requested_search = st.checkbox(
+        SEARCH_ALTERNATIVES, key="request_search_alternatives",
+        help="Compare funding choices only after you authorize the search.",
+    )
+    include_sector = st.checkbox(INCLUDE_SECTOR, key="request_include_sector")
+    unassessed = []
     scope = None
     scope_error = None
     if manual:
@@ -375,7 +400,7 @@ def live_request():
         runtime = StrandsAgents()
         request = st.text_area("Fictional investment request", value=ROBERT_REQUEST, height=145)
         previous = st.session_state.get("request_draft")
-        if previous and previous[0] != request:
+        if previous and previous[:2] != (request, requested_search):
             for key in ("request_draft", "request_results", "request_confirmed"):
                 st.session_state.pop(key, None)
         if st.button("Interpret request with Bedrock", type="primary", disabled=not request.strip()):
@@ -383,7 +408,9 @@ def live_request():
                 run_id = f"request-{uuid4().hex[:12]}"
                 try:
                     (draft, _, question), usage = run_sync_action(run_bounded(
-                        interpret_request(request.strip(), StrandsAgents(model_id=PROFILE_MODEL), run_id), PROFILE_LIMITS,
+                        interpret_request(request.strip(), StrandsAgents(model_id=PROFILE_MODEL), run_id,
+                                          search_alternatives=requested_search, defer_smaller_authorization=True),
+                        PROFILE_LIMITS,
                     ))
                     draft = replace(draft, trace=(*draft.trace, {"role": "profile", "event": "runtime_usage", **usage}))
                 except RuntimeBudgetExceeded:
@@ -391,26 +418,44 @@ def live_request():
                         st.session_state.pop(key, None)
                     st.warning("Interpretation reached its time budget. You can enter the simulation inputs directly.")
                     return
-            st.session_state.request_draft = (request, run_id, draft, question)
+            st.session_state.request_draft = (request, requested_search, run_id, draft, question)
             st.session_state.request_results = {}
             st.session_state.pop("request_confirmed", None)
         saved = st.session_state.get("request_draft")
         if not saved:
             return
-        _, run_id, draft, question = saved
+        _, _, run_id, draft, question = saved
         if draft.status == "error":
             st.error(question)
             st.caption("Switch to Enter inputs directly to audit a complete set of supported rules without Bedrock intake.")
             return
-        if question:
-            st.warning(question)
-            if draft.data.get("clarification_field") in BLOCKING_PROFILE_FIELDS:
-                if excerpt := draft.data.get("unsupported_excerpt"):
+        field = draft.data.get("clarification_field")
+        if field in BLOCKING_PROFILE_FIELDS:
+            if question:
+                st.warning(question)
+            if excerpt := draft.data.get("unsupported_excerpt"):
+                st.text(excerpt)
+            st.caption("Revise the original request before interpreting it again. Direct entry can audit supported rules you choose to confirm.")
+            return
+        if field == "unsupported_constraint" or draft.data.get("unassessed_requirements"):
+            requirements = draft.data.get("unassessed_requirements") or [
+                {"code": "other_binding", "excerpt": draft.data.get("unsupported_excerpt")}
+            ]
+            st.warning("Some binding requirements have not been assessed. A limited audit can only check the original proposal against supported rules.")
+            for requirement in requirements:
+                if excerpt := requirement.get("excerpt"):
                     st.text(excerpt)
-                st.caption("Revise the original request before interpreting it again. Direct entry can audit supported rules you choose to confirm.")
+            if not st.checkbox(LIMITED_SCOPE, key=f"{run_id}-limited-scope"):
+                st.session_state.pop("request_confirmed", None)
                 return
+            unassessed = [{"code": requirement["code"]} for requirement in requirements]
+        if question and field != "unsupported_constraint":
+            st.warning(question)
 
-    edited, changes, loss_cap = edit_profile(draft, run_id, manual=manual)
+    search_alternatives = requested_search and not unassessed
+    edited, changes, loss_cap = edit_profile(
+        draft, run_id, manual=manual, search_alternatives=search_alternatives,
+    )
     if scope_error:
         st.session_state.pop("request_confirmed", None)
         st.warning(scope_error)
@@ -419,24 +464,35 @@ def live_request():
         st.session_state.pop("request_confirmed", None)
         st.caption("Select a loss definition and enter the cap before confirming.")
         return
+    key = tuple((field, tuple(value) if isinstance(value, list) else value) for field, value in edited.items())
+    key += (("search_alternatives", search_alternatives), ("include_sector", include_sector))
+    if manual:
+        key += (("execution", mode),)
+    if scope:
+        key += (("scope", (tuple(scope.baseline.items()), scope.include_2023, scope.objective, scope.withdrawal_time)),)
+    basis = (run_id, key)
+    scope_widget_key = f"{run_id}-complete-{key!r}"
     body = {**edited, "status": "ok", "summary": "User confirmed the simulated audit inputs.", "evidence_ids": []}
+    if unassessed:
+        body["unassessed_requirements"] = unassessed
+    if search_alternatives and st.session_state.get("request_resize_choice") == basis:
+        body["allow_smaller"] = True
+        key = tuple((field, True if field == "allow_smaller" else value) for field, value in key)
     try:
-        policy = profile_policy(body, baseline=scope.baseline if scope else BASE_WEIGHTS)
+        policy = profile_policy(
+            body, baseline=scope.baseline if scope else BASE_WEIGHTS,
+            search_alternatives=search_alternatives, defer_smaller_authorization=True,
+        )
     except ValueError as exc:
         st.session_state.pop("request_confirmed", None)
         if str(exc) != question:
             st.caption(str(exc))
         return
-    key = tuple((field, tuple(value) if isinstance(value, list) else value) for field, value in edited.items())
-    if manual:
-        key += (("execution", mode),)
-    if scope:
-        key += (("scope", (tuple(scope.baseline.items()), scope.include_2023, scope.objective, scope.withdrawal_time)),)
     if st.session_state.get("request_confirmed") != key:
         st.session_state.pop("request_confirmed", None)
 
     st.subheader("Confirm your inputs" if manual else "Confirm the interpretation")
-    show_policy(policy)
+    show_policy(policy, search_alternatives=search_alternatives)
     if scope:
         st.caption("Starting weights · " + " · ".join(f"{ticker} {weight:.2%}" for ticker, weight in scope.baseline.items()))
         st.caption("Historical replays · " + ", ".join(window.id for window in scope.windows))
@@ -444,26 +500,36 @@ def live_request():
             st.caption(f"Planning context · {context}")
     complete = True
     if manual:
-        complete = st.checkbox(MANUAL_SCOPE, key=f"{run_id}-complete-{key!r}")
+        complete = st.checkbox(MANUAL_SCOPE, key=scope_widget_key)
         if not complete:
             st.session_state.pop("request_confirmed", None)
-    if st.button("Confirm inputs and run audit", type="primary", disabled=not complete):
+    request_case = Case(
+        run_id, "User-confirmed fictional request.", "terminal_loss", None, 0, scope=scope,
+        search_alternatives=search_alternatives, include_sector=include_sector,
+    )
+    reports = st.session_state.request_results
+
+    def run_confirmed(fields, result_key, *, allow_resize=False):
         trace = draft.trace
         if changes and not manual:
             trace = (*trace, {"role": "profile", "event": "draft_edited", "changes": changes})
-        confirmed = replace(draft, status="ok", data=body, trace=trace)
-        case = new_case(Case(run_id, "User-confirmed fictional request.", "terminal_loss", None, 0, scope=scope))
-        report = audit(case, confirmed, runtime)
+        if allow_resize:
+            trace = (*trace, {"role": "profile", "event": "smaller_purchase_authorized"})
+        confirmed = replace(draft, status="ok", data=fields, trace=trace)
+        report = audit(new_case(request_case), confirmed, runtime)
         if report is not None:
-            st.session_state.request_results[key] = report
-            st.session_state.request_confirmed = key
+            reports[result_key] = report
+            st.session_state.request_confirmed = result_key
         else:
-            st.session_state.request_results.pop(key, None)
+            reports.pop(result_key, None)
             st.session_state.pop("request_confirmed", None)
+        return report
+
+    if st.button("Confirm inputs and run audit", type="primary", disabled=not complete):
+        run_confirmed(body, key)
     if st.session_state.get("request_confirmed") != key:
         return
 
-    reports = st.session_state.request_results
     if policy["loss_limit"] is not None:
         comparison_keys = {metric: tuple((field, metric if field == "metric" else value) for field, value in key)
                            for metric in METRICS}
@@ -471,9 +537,19 @@ def live_request():
             st.subheader("Compare the two confirmed rules")
             for column, (metric, variant) in zip(st.columns(2), comparison_keys.items()):
                 column.markdown(f"**{METRICS[metric]}**  \n{result_label(reports[variant])}")
-    show_report(reports[key])
-    active = Case(reports[key]["case"], "User-confirmed fictional request.", "terminal_loss", None, 0, scope=scope)
-    show_counterfactual(active, reports[key], runtime)
+    report = reports[key]
+    show_report(report)
+    if report.get("needs_smaller_authorization") and st.session_state.get("request_declined_resize") != basis:
+        st.caption("The full purchase is infeasible. A smaller purchase could be checked if you authorize it.")
+        if st.button("Authorize a smaller purchase and rerun"):
+            resized_key = tuple((field, True if field == "allow_smaller" else value) for field, value in key)
+            if run_confirmed({**body, "allow_smaller": True}, resized_key, allow_resize=True) is not None:
+                st.session_state.request_resize_choice = basis
+                st.rerun()
+        if st.button("Keep the requested size"):
+            st.session_state.request_declined_resize = basis
+            st.rerun()
+    show_counterfactual(replace(request_case, id=report["case"]), report, runtime)
 
 
 def main():

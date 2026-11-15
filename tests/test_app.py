@@ -24,6 +24,9 @@ CONFIRM = "Confirm inputs and run audit"
 COMPARE = "Confirm this change and compare"
 INTERPRET = "Interpret request with Bedrock"
 MANUAL_SCOPE = "These inputs include every binding rule for this simulation."
+SEARCH = "Search alternative funding"
+LIMITED_SCOPE = "Audit only supported rules and mark the other requirements as not assessed."
+AUTHORIZE = "Authorize a smaller purchase and rerun"
 
 
 @unittest.skipIf(AppTest is None, "Install Streamlit to run the UI tests.")
@@ -190,6 +193,7 @@ class PortfolioAppTests(unittest.TestCase):
         with patch.object(StrandsAgents, "run", autospec=True, side_effect=simulate_bedrock):
             self.select("radio", "Input", "Write a request")
             self.select("radio", "Profile input", "Interpret text with Bedrock")
+            self.select("checkbox", SEARCH, True)
             self.assertFalse(self.has_button(CONFIRM))
             self.click(INTERPRET)
             self.assertEqual(calls, ["profile"])
@@ -269,8 +273,6 @@ class PortfolioAppTests(unittest.TestCase):
     def fill_manual_profile(self):
         self.select("number_input", "NVDA purchase size (percentage points)", 5.0)
         self.select("selectbox", "Funding for the original proposal", "QQQ")
-        self.select("multiselect", "Funding allowed for alternatives", ["QQQ"])
-        self.select("selectbox", "Allow a smaller purchase", False)
         self.select("checkbox", "Apply a historical loss cap", True)
         self.select("radio", "The cap measures", "terminal_loss")
         self.select("number_input", "Historical loss cap (%)", 14.0)
@@ -283,6 +285,8 @@ class PortfolioAppTests(unittest.TestCase):
             self.select("radio", "Audit execution", "Offline")
             self.assertFalse(self.has_button(INTERPRET))
             self.assertFalse(self.has_button(CONFIRM))
+            self.assertFalse(any(item.label == "Funding allowed for alternatives" for item in self.app.multiselect))
+            self.assertFalse(any(item.label == "Allow a smaller purchase" for item in self.app.selectbox))
             self.fill_manual_profile()
             self.assertTrue(self.widget("button", CONFIRM).disabled)
             self.select("checkbox", MANUAL_SCOPE, True)
@@ -294,6 +298,10 @@ class PortfolioAppTests(unittest.TestCase):
             report = self.app.session_state["request_results"][key]
             self.assertEqual(report["mode"], "offline")
             self.assertEqual(report["policy"]["loss_limit"], .14)
+            self.assertFalse(report["search_alternatives"])
+            self.assertNotIn("alternatives", report)
+            self.assertNotIn("frontier", report["audit"]["verified"])
+            self.assertFalse(any(event["role"] == "alternatives" for event in report["trace"]))
             self.assertTrue(any(event["event"] == "manual_profile_entered" for event in report["trace"]))
             self.assertNotIn("source_excerpts", report["agent_outputs"]["profile"])
             self.select("number_input", "Historical loss cap (%)", 15.0)
@@ -305,6 +313,76 @@ class PortfolioAppTests(unittest.TestCase):
             key = self.app.session_state["request_confirmed"]
             self.assertEqual(self.app.session_state["request_results"][key]["policy"]["loss_limit"], .15)
             run.assert_not_awaited()
+
+    def test_manual_search_defers_smaller_permission_until_exact_size_fails(self):
+        self.select("radio", "Input", "Write a request")
+        self.select("radio", "Audit execution", "Offline")
+        self.select("checkbox", SEARCH, True)
+        self.select("number_input", "NVDA purchase size (percentage points)", 10.0)
+        self.select("selectbox", "Funding for the original proposal", "ZST.TO")
+        self.select("multiselect", "Funding allowed for alternatives", ["ZST.TO"])
+        self.select("number_input", "Minimum ZST.TO weight (%)", 15.0)
+        self.assertFalse(any(item.label == "Allow a smaller purchase" for item in self.app.selectbox))
+        self.assertFalse(self.has_button(AUTHORIZE))
+        self.select("checkbox", MANUAL_SCOPE, True)
+        self.click(CONFIRM)
+        before = self.app.session_state["request_confirmed"]
+        first = self.app.session_state["request_results"][before]
+        self.assertTrue(first["search_alternatives"])
+        self.assertTrue(first["needs_smaller_authorization"])
+        self.assertNotIn("maximum", first["audit"]["verified"])
+        self.assertTrue(self.has_button(AUTHORIZE))
+
+        self.click(AUTHORIZE)
+        after = self.app.session_state["request_confirmed"]
+        second = self.app.session_state["request_results"][after]
+        self.assertNotEqual(before, after)
+        self.assertTrue(second["policy"]["allow_smaller"])
+        self.assertEqual(second["alternatives"]["status"], "feasible_partial")
+        self.assertAlmostEqual(second["audit"]["verified"]["maximum"]["total"], .05)
+        self.assertFalse(self.has_button(AUTHORIZE))
+        self.assertEqual(self.app.session_state["request_results"][before], first)
+
+        self.select("checkbox", SEARCH, False)
+        self.assertNotIn("request_confirmed", self.app.session_state)
+        self.assertFalse(self.app.get("download_button"))
+
+    def test_clarified_unsupported_constraint_limits_public_result(self):
+        calls = []
+        excerpt = "Only buy stocks rated AAA for ESG."
+        blocked = {
+            **preset_profile(examples("robert")[0]),
+            "status": "needs_input", "summary": "This hard rule cannot be assessed.",
+            "clarification_field": "unsupported_constraint", "unsupported_excerpt": excerpt,
+            "unassessed_requirements": [{"code": "esg", "excerpt": excerpt}],
+        }
+
+        async def simulate_bedrock(runtime, role, payload, tools=(), *, run_id=None):
+            calls.append(role)
+            if role == "profile":
+                return AgentRun("needs_input", blocked)
+            for tool in tools:
+                tool.handler(**select_tool_arguments(role, payload))
+            return AgentRun("ok", {"status": "ok", "summary": "Test reply", "evidence_ids": []})
+
+        with patch.object(StrandsAgents, "run", autospec=True, side_effect=simulate_bedrock):
+            self.select("radio", "Input", "Write a request")
+            self.select("radio", "Profile input", "Interpret text with Bedrock")
+            self.select("checkbox", SEARCH, True)
+            self.click(INTERPRET)
+            self.assertFalse(self.has_button(CONFIRM))
+            self.assertEqual(calls, ["profile"])
+            self.select("checkbox", LIMITED_SCOPE, True)
+            self.assertTrue(self.has_button(CONFIRM))
+            self.click(CONFIRM)
+
+        key = self.app.session_state["request_confirmed"]
+        report = self.app.session_state["request_results"][key]
+        self.assertFalse(report["search_alternatives"])
+        self.assertNotIn("alternatives", calls)
+        self.assertIn("review", calls)
+        self.assertNotIn(excerpt, str(report))
+        self.assertIn("esg", str(report["requirements"]).lower())
 
     def test_manual_audit_confirms_custom_weights_and_keeps_the_scope_on_replay(self):
         self.select("radio", "Input", "Write a request")
