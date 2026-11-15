@@ -56,6 +56,7 @@ class PlanningRequestTests(unittest.TestCase):
             "Add eight percentage points of NVDA by selling only ZST.TO.",
             "Should I execute the order to buy gold with my savings?",
             "We need to decide where to eat today. What are my options?",
+            "Can I put all my books on one shelf?",
         ):
             with self.subTest(question=question):
                 self.assertIsNone(parse_planning_request(question))
@@ -72,3 +73,26 @@ class PlanningRequestTests(unittest.TestCase):
         self.assertEqual(draft["instruments"], ("gold",))
         self.assertNotIn("risk", draft["points"])
         self.assertNotIn("timing", draft["points"])
+
+    def test_mixed_question_keeps_concentration_and_guarantee_as_context(self):
+        question = (
+            "I worked for four years and saved $38,000. I'm new to investing. My colleagues trade tech stocks, "
+            "options, and crypto. I want financial independence. Can I put all $38k into Bitcoin or Nvidia? "
+            "Is there anything that guarantees a 24% return each year?"
+        )
+        draft = parse_planning_request(question)
+        self.assertEqual(draft["instruments"], ("individual_stock", "crypto", "options"))
+        self.assertEqual(draft["examples"], ("NVDA", "BTC-USD"))
+        points = draft["points"]
+        self.assertEqual(points["amount"], "$38,000")
+        self.assertIn("all $38k", points["concentration"])
+        self.assertIn("24% return", points["return_claim"])
+        self.assertIn("colleagues", points["peer_trading"])
+        self.assertNotIn("timing", points)
+        self.assertNotIn("currency", points)
+
+    def test_standalone_return_claim_routes_to_education_without_fabricating_a_product(self):
+        draft = parse_planning_request("Can you recommend a guaranteed 18% annual return?")
+        self.assertIn("18% annual return", draft["points"]["return_claim"])
+        self.assertFalse(draft["examples"])
+        self.assertIsNone(parse_planning_request("Forecast next year's return for BTC-USD and guarantee a 20% return."))

@@ -114,3 +114,21 @@ class InvestmentAssistantTests(unittest.TestCase):
         self.assertEqual(set(report["options"]), {"SPY", "GLD"})
         self.assertIsNone(report["requirements"]["max_drawdown"]["limit"])
         self.assertEqual(report["finding"]["status"], "neutral")
+
+    def test_all_in_and_return_promise_are_answered_before_any_optional_replay(self):
+        question = (
+            "I have saved $34,000 and never invested. My colleagues are trading stock options. "
+            "Can I put all my savings into NVDA or Bitcoin? Is there a guaranteed 22% annual return?"
+        )
+        self.app.text_area(key="assistant_question").set_value(question).run()
+        self.click("Interpret question")
+        self.assertTrue(any("fraud warning sign" in item.value for item in self.app.warning))
+        for topic in ("Individual company stocks", "Cryptoassets such as Bitcoin", "Options and leverage"):
+            self.assertTrue(any(topic in item.value for item in self.app.markdown))
+        self.assertNotIn("assistant_comparison", self.app.session_state)
+
+        self.click("Compare NVDA and BTC-USD historically")
+        report = self.app.session_state["assistant_comparison"][1]
+        self.assertEqual(set(report["options"]), {"NVDA", "BTC-USD"})
+        self.assertEqual(report["finding"]["status"], "neutral")
+        self.assertIsNone(report["requirements"]["max_drawdown"]["limit"])

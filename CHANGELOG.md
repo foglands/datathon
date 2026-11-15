@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-15 · Respond to concentration and high-return claims
+
+- Interpret open-ended first-person and guarantee questions about investing. Keep the stated savings balance, beginner context, interest in a concentrated position, and return claim available in the response.
+- Explain individual stocks, cryptoassets, options, and high guaranteed returns using public investor-education sources.
+- Offer an independently verified NVDA and BTC-USD example when both are mentioned. Keep the two historical series unranked.
+
 ## 2026-11-15 · Answer open-ended investment planning questions
 
 - Recognize stated balances, spending needs, inflation concerns, and risk concerns in a planning question. Ask about missing timing or cash needs while offering relevant educational information and sources.

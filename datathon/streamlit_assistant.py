@@ -106,12 +106,13 @@ def _render_question_answer(question, saved, data_loader, trade_entry):
     draft, route = saved
     if draft["status"] == "planning":
         if options := render_planning_answer(draft["plan"]):
+            pair = " and ".join(options)
             st.subheader("Explore a historical example")
-            st.write("Compare SPY and GLD as examples of S&P 500 and gold exposure. Each is shown separately in CAD "
+            st.write(f"Compare {pair} as examples of the exposures you mentioned. Each is shown separately in CAD "
                      "over the archived stress windows. The figures are nominal, so evaluating purchasing power would "
                      "also require inflation over the same periods.")
             _run_comparison(data_loader, options, InvestorProfile(), False, None, None,
-                            button_label="Compare SPY and GLD historically")
+                            button_label=f"Compare {pair} historically")
         return
     if route and route["task"] == "trade_audit":
         panel = st.container(key="assistant-trade", border=True)

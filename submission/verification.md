@@ -2,6 +2,10 @@
 
 PolyFinances Datathon 2026 · Montréal
 
+## Mixed investment question verification
+
+All 269 local regressions passed with the official starter data. The browser processed a single prompt about saved cash, peers' trading gains, NVIDIA, Bitcoin, options, and a guaranteed annual return. The response flagged the return claim and described concentration, crypto, and options risk. The work history left the withdrawal horizon open. The separate NVDA and BTC-USD example returned a verified, unranked CAD historical comparison. A standalone guarantee request also reaches educational guidance. Explicit forecast, historical analysis, and trade requests retain their existing routing checks.
+
 ## Planning question verification
 
 All 266 local regressions passed with the official starter data. Streamlit tests verified a planning response before the market bundle was loaded. An open-ended question about family expenses, inflation, past losses, S&P 500 funds, and gold produced a spending question and sourced explanations of the options in the browser. No dated withdrawal or numeric loss limit was assumed. The optional SPY and GLD historical comparison ran separately and displayed both verified series in CAD without a relative winner.

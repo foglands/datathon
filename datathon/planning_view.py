@@ -2,6 +2,8 @@
 
 import streamlit as st
 
+from .planning_risk import RISK_OPTIONS, guarantee_guidance
+
 
 _GOALS = "https://www.canada.ca/en/financial-consumer-agency/services/savings-investments/savings-investment-goals.html"
 _INFLATION = "https://www.bankofcanada.ca/2025/03/price-check-inflation-in-canada/"
@@ -13,6 +15,8 @@ _POINT_LABELS = {
     "amount": "Stated amount", "currency": "Stated currency", "cash_position": "Cash or savings",
     "spending": "Planned spending", "inflation": "Purchasing power concern", "growth": "Growth or income goal",
     "risk": "Concern about losses", "timing": "Stated timing",
+    "beginner": "Investing experience", "concentration": "Concentration being considered",
+    "peer_trading": "Other people's reported trades", "return_claim": "Return claim to check",
 }
 
 _OPTIONS = {
@@ -42,6 +46,7 @@ _OPTIONS = {
         "Check which companies and markets the fund holds. A fund can diversify across holdings while remaining exposed "
         f"to stock-market losses. [Diversification guidance]({_ASSET_ALLOCATION})",
     ),
+    **RISK_OPTIONS,
 }
 
 
@@ -52,12 +57,23 @@ def render_planning_answer(plan):
         st.subheader("Planning considerations")
         if stated_balance := points.get("amount"):
             st.text(f"Stated amount · {stated_balance}")
+        if return_claim := points.get("return_claim"):
+            st.text(f"Return claim to check · {return_claim}")
+            st.warning(guarantee_guidance())
         if "spending" in points:
             st.write("Separate money you expect to spend from money you could leave invested through a downturn. "
                      "For the spending portion, the withdrawal date and accessible amount come first.")
         else:
             st.write("Start with when you need the money and what loss you could absorb at that time. "
                      "Those two facts help decide which options are worth comparing.")
+        if "concentration" in points:
+            st.markdown("Putting the entire balance into one asset exposes it to that asset's price swings. "
+                        f"A diversified allocation spreads exposure across investments. [Diversification guidance]({_ASSET_ALLOCATION})")
+        if "peer_trading" in points:
+            st.write("Treat other people's profits as individual outcomes. Compare choices using their downside and "
+                     "the risk to your savings over your own time horizon.")
+        if "beginner" in points:
+            st.write("Before comparing returns, check how each investment can make or lose money and how you would get your cash out.")
         if "risk" in points:
             st.write("Your concern about a market drop matters most if you would need to sell during it. "
                      "First identify the money that must stay accessible, then consider what loss you could tolerate on the rest.")
@@ -74,15 +90,19 @@ def render_planning_answer(plan):
                 st.markdown(f"**{heading}.** {details}")
 
         st.markdown("**The next detail to establish**")
-        st.write("How much needs to stay available for planned expenses?" if "timing" in points else
-                 "When will you first need to withdraw money, and roughly how much will you need then?")
+        if "timing" in points:
+            st.write("How much needs to stay available for planned expenses?")
+        elif "spending" in points:
+            st.write("When will you first need to withdraw money, and roughly how much will you need then?")
+        else:
+            st.write("How much of your savings must stay accessible for expenses or emergencies, and when might you need it?")
         if "amount" in points and "currency" not in points:
             st.caption("Confirm the currency for any calculation using the stated balance.")
         st.caption("You can add that detail to your question and interpret it again.")
         with st.expander("Details recognized from your question"):
             st.text("\n".join(f"{_POINT_LABELS[key]} · {value}" for key, value in points.items()
-                              if key in _POINT_LABELS and key != "amount"))
+                              if key in _POINT_LABELS and key not in {"amount", "return_claim"}))
 
-    if {"sp500", "gold"} <= set(instruments):
-        return {"SPY": {"SPY": 1.0}, "GLD": {"GLD": 1.0}}
+    if len(plan["examples"]) == 2:
+        return {symbol: {symbol: 1.0} for symbol in plan["examples"]}
     return None
