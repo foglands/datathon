@@ -15,10 +15,12 @@ _GROWTH, _PRESERVATION, _WITHDRAWAL = OBJECTIVES
 _NEAR_TERM, _, _LONG_TERM = WITHDRAWAL_TIMES
 
 
-def _priority_suggestion(objective: str, withdrawal_time: str, risk_tolerance: str | None) -> tuple[str, str]:
-    if objective not in OBJECTIVES:
+def _priority_suggestion(
+    objective: str | None, withdrawal_time: str | None, risk_tolerance: str | None,
+) -> tuple[str | None, str]:
+    if objective is not None and objective not in OBJECTIVES:
         raise ValueError("Choose a fictional investment objective.")
-    if withdrawal_time not in WITHDRAWAL_TIMES:
+    if withdrawal_time is not None and withdrawal_time not in WITHDRAWAL_TIMES:
         raise ValueError("Choose the next meaningful withdrawal horizon.")
     if risk_tolerance is not None and risk_tolerance not in RISK_TOLERANCES:
         raise ValueError("Choose a stated willingness to take investment risk.")
@@ -33,6 +35,8 @@ def _priority_suggestion(objective: str, withdrawal_time: str, risk_tolerance: s
             "For capital preservation, maximum drawdown highlights the largest fall from a prior peak "
             "during each replay."
         )
+    if objective is None or withdrawal_time is None:
+        return None, "The available history is presented side by side."
     if objective == _GROWTH and withdrawal_time == _LONG_TERM:
         if risk_tolerance == "Low":
             return "max_drawdown", (
@@ -54,8 +58,10 @@ def _priority_suggestion(objective: str, withdrawal_time: str, risk_tolerance: s
     )
 
 
-def suggest_priority(objective: str, withdrawal_time: str, risk_tolerance: str | None = None) -> str:
-    """Suggest a historical metric which the investor must confirm or change."""
+def suggest_priority(
+    objective: str | None = None, withdrawal_time: str | None = None, risk_tolerance: str | None = None,
+) -> str | None:
+    """Suggest a historical metric if provided context supports one."""
     return _priority_suggestion(objective, withdrawal_time, risk_tolerance)[0]
 
 
@@ -63,25 +69,28 @@ def suggest_priority(objective: str, withdrawal_time: str, risk_tolerance: str |
 class InvestorProfile:
     """Store confirmed fictional context without inferring binding financial limits."""
 
-    objective: str
-    withdrawal_time: str
-    priority: str
+    objective: str | None = None
+    withdrawal_time: str | None = None
+    priority: str | None = None
     require_esg: bool = False
     risk_tolerance: str | None = None
 
     def __post_init__(self):
         suggest_priority(self.objective, self.withdrawal_time, self.risk_tolerance)
-        if not isinstance(self.priority, str) or self.priority not in PRIORITIES:
+        if self.priority is not None and (not isinstance(self.priority, str) or self.priority not in PRIORITIES):
             raise ValueError("Confirm a supported historical comparison priority.")
         if type(self.require_esg) is not bool:
             raise ValueError("Confirm whether the comparison requires ESG evidence.")
 
     @property
     def explanation(self) -> str:
+        if self.priority is None:
+            return "Review the verified historical measures side by side."
         suggested, reason = _priority_suggestion(self.objective, self.withdrawal_time, self.risk_tolerance)
         if suggested == self.priority:
             return reason
-        return f"{reason} Your confirmed comparison priority is {PRIORITIES[self.priority].lower()}."
+        confirmation = f"Your confirmed comparison priority is {PRIORITIES[self.priority].lower()}."
+        return f"{reason} {confirmation}" if suggested else confirmation
 
     @property
     def audit_focus(self) -> str | None:

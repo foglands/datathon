@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-15 · Ground comparisons in the investor's question
+
+- Extract supported assets or weighted allocations, limits, historical measures, and stated context from the question. Show the interpreted request for confirmation before running it.
+- Show an unranked comparison when the investor leaves the priority open. Flag ambiguous or unsupported constraints without substituting a manual form.
+- Use Bedrock to locate original clauses when the local interpreter needs help. Check every extracted value in the typed source before offering it.
+- Keep manual input available from the empty question and record the origin of inputs in the reviewed report.
+
 ## 2026-11-15 · Profile-first investment decision assistant
 
 - Lead with an investor question, a task choice, and an explicit fictional profile. Keep reference cases in a separate workspace.

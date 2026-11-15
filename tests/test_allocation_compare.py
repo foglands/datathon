@@ -61,6 +61,22 @@ class AllocationCompareTests(unittest.TestCase):
         self.assertIsNone(screened["finding"]["option"])
         self.assertEqual(set(screened["options"]["A"]["windows"]), {"2022", "2023", "2025"})
 
+    def test_neutral_comparison_keeps_metrics_and_checks_an_explicit_limit(self):
+        neutral = publish_allocation_comparison(compare_allocations(self.market, self.options))
+        self.assertEqual(neutral["status"], "verified")
+        self.assertEqual(neutral["finding"]["status"], "neutral")
+        self.assertEqual(neutral["finding"]["basis"], "no_priority")
+        self.assertIsNone(neutral["finding"]["option"])
+        self.assertIsNone(neutral["options"]["A"]["priority_value"])
+        self.assertAlmostEqual(neutral["options"]["A"]["windows"]["2022"]["max_drawdown"], .24)
+
+        one_passes = compare_allocations(self.market, self.options, max_drawdown=.10)
+        self.assertEqual(one_passes["finding"]["basis"], "cap_pass")
+        self.assertEqual(one_passes["finding"]["option"], "B")
+        both_breach = compare_allocations(self.market, self.options, max_drawdown=.01)
+        self.assertEqual(both_breach["finding"]["basis"], "all_breach_cap")
+        self.assertIsNone(both_breach["finding"]["option"])
+
     def test_unverified_prices_or_mutated_reports_have_no_published_metrics(self):
         report = compare_allocations(self.market, self.options, priority="terminal_return")
         self.assertEqual(publish_allocation_comparison(report)["status"], "verified")

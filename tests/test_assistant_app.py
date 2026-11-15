@@ -54,12 +54,43 @@ class InvestmentAssistantTests(unittest.TestCase):
         self.assertIsNone(limited["finding"]["option"])
 
     def test_intent_suggestion_cannot_confirm_or_run_an_analysis(self):
-        proposal = {"status": "proposed", "task": "compare_allocations", "trace": [], "usage": {}}
-        question = "Compare a Canadian equity fund with a bond fund for a planned withdrawal."
+        proposal = {"status": "proposed", "task": "trade_audit", "trace": [], "usage": {}}
+        question = "Add eight percentage points of NVDA by selling only ZST.TO."
         with patch("datathon.streamlit_assistant.suggest_intent", return_value=proposal) as suggest:
             self.app.text_area(key="assistant_question").set_value(question).run()
-            self.click("Suggest a task with Bedrock")
+            self.click("Interpret with Bedrock")
             self.assertEqual(suggest.await_args.args[0], question)
-            self.assertEqual(self.app.selectbox(key="assistant_task").value, "compare_allocations")
-            self.assertNotIn("assistant_confirmed", self.app.session_state)
+            self.assertEqual(self.app.text_area(key="assistant_trade_question").value, question)
+            self.assertNotIn("request_results", self.app.session_state)
             self.assertFalse(any(item.label == "Confirm inputs and compare" for item in self.app.button))
+
+    def test_question_text_sets_options_and_cap_without_manual_form(self):
+        question = "Compare AGG and GLD. Maximum drawdown must not exceed {}%."
+        for cap, expected in ((12, "AGG"), (8, None)):
+            self.app.text_area(key="assistant_question").set_value(question.format(cap)).run()
+            self.assertFalse(self.app.get("download_button"))
+            self.click("Interpret question")
+            self.assertNotIn("assistant_comparison", self.app.session_state)
+            self.assertFalse(any(item.label == "Investment objective" for item in self.app.selectbox))
+            self.assertFalse(self.app.number_input)
+            self.click("Confirm inputs and compare")
+            report = self.app.session_state["assistant_comparison"][1]
+            self.assertEqual(set(report["options"]), {"AGG", "GLD"})
+            self.assertEqual(report["requirements"]["max_drawdown"]["limit"], cap / 100)
+            self.assertEqual(report["finding"]["option"], expected)
+
+    def test_unhandled_requirement_does_not_run_using_unrelated_form(self):
+        question = "Compare AGG and GLD and forecast next month returns."
+        self.app.text_area(key="assistant_question").set_value(question).run()
+        self.click("Interpret question")
+        self.assertTrue(self.app.warning)
+        self.assertFalse(any(item.label == "Confirm inputs and compare" for item in self.app.button))
+        self.assertNotIn("assistant_comparison", self.app.session_state)
+
+    def test_question_without_profile_can_compare_neutrally(self):
+        self.app.text_area(key="assistant_question").set_value("Compare AGG and GLD.").run()
+        self.click("Interpret question")
+        self.click("Confirm inputs and compare")
+        report = self.app.session_state["assistant_comparison"][1]
+        self.assertIsNone(report["priority"])
+        self.assertEqual(report["finding"]["status"], "neutral")

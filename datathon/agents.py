@@ -66,6 +66,16 @@ ROLES = {
         "task is unclear. Call select_investment_task once with only the task identifier. Do not extract rules, "
         "suggest a trade, infer authorization, or present any computed results."
     ),
+    "comparison_request": Role(
+        "Locate operative clauses from a fictional investor's comparison question. "
+        "Copy complete clauses exactly as supplied in candidate_clauses. Preserve negations, "
+        "qualifiers, ticker lists, and percentages. Identify comparison options, objective, withdrawal "
+        "timing, risk willingness, priority, drawdown cap, replay window, and ESG requirement. "
+        "Use issue_clause for a condition that cannot be represented, an explicit conflict, or a request "
+        "for future predictions, real transactions, or personalized advice. Leave an uncertain field empty. "
+        "Call locate_comparison_clauses once. Never give an interpretation value, change the wording, "
+        "drop a binding condition, or calculate anything."
+    ),
     "evidence": Role(
         "Select the appropriate public evidence for this audit. Use the provided evidence tool. "
         "When the tool asks for a scope, use market evidence for historical replay and add the "

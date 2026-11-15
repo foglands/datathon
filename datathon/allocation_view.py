@@ -1,6 +1,7 @@
 """Present the independently verified allocation comparison in Streamlit."""
 
 import json
+from collections.abc import Mapping
 
 import altair as alt
 import streamlit as st
@@ -25,6 +26,18 @@ _PREFERRED_RESULT = {
     "max_drawdown": "lowest worst-window drawdown",
 }
 _CAP_RESULT = {"pass": "Meets the limit", "fail": "Breaches the limit", "not_requested": "No limit requested"}
+_REQUEST_LABELS = {
+    "first_asset": "First asset",
+    "second_asset": "Second asset",
+    "options": "Allocation weights",
+    "objective": "Investment objective",
+    "withdrawal_time": "Withdrawal horizon",
+    "risk_tolerance": "Willingness to take risk",
+    "priority": "Comparison priority",
+    "max_drawdown": "Drawdown limit",
+    "include_2023": "2023 stress window",
+    "require_esg": "ESG requirement",
+}
 _ROUTING_STATES = {"proposed", "unsupported", "unavailable", "needs_input"}
 _ROUTING_TASKS = {"trade_audit", "compare_allocations"}
 _TRACE_FIELDS = {
@@ -34,9 +47,10 @@ _TRACE_FIELDS = {
 _USAGE_FIELDS = {"elapsed_ms", "http_attempts_started", "responses_observed", "reported_total_tokens", "limit_reached"}
 
 
-def _routing_record(intent: dict | None) -> dict:
+def _routing_record(intent: dict | None, *, from_request: bool = False) -> dict:
     if not intent or intent.get("status") not in _ROUTING_STATES:
-        return {"confirmed_task": "compare_allocations", "mode": "direct"}
+        mode = "request_text" if from_request else "direct"
+        return {"confirmed_task": "compare_allocations", "mode": mode}
     return {
         "confirmed_task": "compare_allocations",
         "mode": "bedrock_attempt",
@@ -54,6 +68,8 @@ def _finding_message(report: dict) -> str:
         return "Both options breach the confirmed drawdown limit in at least one selected window."
     if status == "unavailable":
         return "A relative finding is unavailable under the confirmed requirements."
+    if status == "neutral":
+        return "Both options are shown side by side across the tested historical windows."
     if status == "tie":
         measure = _MEASURE_BASIS[report["priority"]].lower()
         return f"The eligible options tie on {measure}."
@@ -65,8 +81,9 @@ def _finding_message(report: dict) -> str:
 
 def _render_chart(report: dict) -> None:
     measures = tuple(PRIORITIES)
+    initial_measure = report["priority"] or "max_drawdown"
     metric = st.radio(
-        "Historical measure", measures, index=measures.index(report["priority"]),
+        "Historical measure", measures, index=measures.index(initial_measure),
         format_func=PRIORITIES.__getitem__, horizontal=True, key=f"allocation-measure-{report['priority']}",
     )
     options = report["options"]
@@ -106,14 +123,19 @@ def _render_chart(report: dict) -> None:
 def _render_decision(report: dict) -> None:
     if not report["options"]:
         return
-    st.table([
-        {
-            "Option": name,
-            _MEASURE_BASIS[report["priority"]]: f"{option['priority_value']:.2%}",
-            "Drawdown limit": _CAP_RESULT[option["max_drawdown_test"]],
-        }
-        for name, option in report["options"].items()
-    ])
+    priority = report["priority"]
+    rows = []
+    for name, option in report["options"].items():
+        row = {"Option": name}
+        if priority is None:
+            for metric, label in _MEASURE_BASIS.items():
+                extreme = min if metric == "terminal_return" else max
+                row[label] = f"{extreme(window[metric] for window in option['windows'].values()):.2%}"
+        else:
+            row[_MEASURE_BASIS[priority]] = f"{option['priority_value']:.2%}"
+        row["Drawdown limit"] = _CAP_RESULT[option["max_drawdown_test"]]
+        rows.append(row)
+    st.table(rows)
     _render_chart(report)
     if report["requirements"]["esg"]["status"] == "unassessed":
         st.caption("The verified historical figures cover financial performance. ESG eligibility remains unknown.")
@@ -163,6 +185,8 @@ def _render_activity(record: dict) -> None:
     route = record["task_selection"]
     if route["mode"] == "direct":
         st.caption("The investor selected and confirmed the comparison task directly.")
+    elif route["mode"] == "request_text":
+        st.caption("The assistant read the comparison inputs from the written request and the investor confirmed them.")
     else:
         successful_calls = sum(
             event.get("event") == "bedrock" and event.get("status") == "success" for event in route["trace"]
@@ -177,12 +201,21 @@ def _render_activity(record: dict) -> None:
         st.info("The verification step returned no publishable comparison.")
 
 
-def render_allocation_result(report: dict, profile: InvestorProfile, *, intent: dict | None = None) -> None:
+def render_allocation_result(
+    report: dict,
+    profile: InvestorProfile,
+    *,
+    intent: dict | None = None,
+    request_sources: Mapping[str, str] | None = None,
+) -> None:
     """Render and download the same checked result with the confirmed profile and bounded route trace."""
+    sources = {field: excerpt for field, excerpt in (request_sources or {}).items()
+               if field in _REQUEST_LABELS and isinstance(excerpt, str) and excerpt.strip()}
     record = {
         **publish_allocation_comparison(report),
         "investor_profile": profile.report(),
-        "task_selection": _routing_record(intent),
+        "task_selection": _routing_record(intent, from_request=bool(sources)),
+        "input_provenance": {field: "request_text" for field in sources},
     }
     title, color = _STATUS[record["status"]]
     with st.container(border=True, key="audit-summary-allocation"):
@@ -197,6 +230,11 @@ def render_allocation_result(report: dict, profile: InvestorProfile, *, intent: 
     with decision:
         _render_decision(record)
     with evidence:
+        if sources:
+            with st.expander("Wording behind the confirmed inputs"):
+                for field, excerpt in sources.items():
+                    st.caption(_REQUEST_LABELS[field])
+                    st.text(excerpt)
         _render_evidence(record)
     with activity:
         _render_activity(record)

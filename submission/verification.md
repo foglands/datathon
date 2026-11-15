@@ -2,6 +2,18 @@
 
 PolyFinances Datathon 2026 · Montréal
 
+## Question-driven comparison verification
+
+The question intake regression passed 259 local tests on macOS with the organizer's starter data. All six offline CLI reference and stress cases passed.
+
+| Input in the Streamlit question box | Checked result |
+| --- | --- |
+| Compare AGG and GLD with a maximum drawdown of no more than 12% | AGG met the cap in both test windows. GLD breached the cap. |
+| Change only the cap in the question to 8% | The prior result cleared. Both assets breached the new cap in at least one window. |
+| Compare AGG and GLD with no profile or priority | Both verified sets of measures appeared side by side. |
+
+Chrome verified the cap change using Chinese input and displayed the corresponding original wording. The automated tests also check weighted allocations, quote provenance, and ambiguous or unsupported instructions. The new Bedrock clause-selection logic was checked with SDK tool tests using simulated responses. The live AWS runs in the following section cover the earlier assistant revision.
+
 ## Profile-first assistant verification
 
 The November 15, 2026 validation used the organizer's frozen starter data on macOS with Python 3.10 and competition CloudShell in `us-east-1` with Python 3.13. Both environments passed 243 regression tests. The local offline CLI passed all six reference and stress cases.

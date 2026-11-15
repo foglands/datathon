@@ -48,3 +48,14 @@ class InvestorProfileTests(unittest.TestCase):
             InvestorProfile("Growth", "Within 1 year", "max_drawdown", require_esg="yes")
         with self.assertRaisesRegex(ValueError, "willingness"):
             InvestorProfile("Growth", "Within 1 year", "max_drawdown", risk_tolerance="max")
+
+    def test_plain_and_partial_requests_can_keep_or_select_a_priority(self):
+        self.assertIsNone(suggest_priority())
+        self.assertIsNone(suggest_priority("Growth"))
+        self.assertEqual(suggest_priority("Capital preservation"), "max_drawdown")
+        self.assertEqual(suggest_priority(withdrawal_time="Within 1 year"), "max_drawdown")
+        self.assertIsNone(InvestorProfile().report()["priority"])
+        self.assertIsNone(InvestorProfile("Capital preservation").audit_focus)
+        explicit = InvestorProfile(priority="max_drawdown")
+        self.assertEqual(explicit.audit_focus, "max_drawdown")
+        self.assertIn("confirmed comparison priority is maximum drawdown", explicit.explanation)

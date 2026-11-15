@@ -72,6 +72,9 @@ def _finding(priority, options, *, hold=None):
     if len(eligible) == 1:
         finding.update(status="difference", option=eligible[0], basis="cap_pass")
     elif len(eligible) == 2:
+        if priority is None:
+            finding.update(status="neutral", basis="no_priority")
+            return finding
         left, right = eligible
         values = {label: options[label]["priority_value"] for label in eligible}
         if isclose(values[left], values[right], rel_tol=0, abs_tol=BOUNDARY_EPSILON):
@@ -101,13 +104,13 @@ def publish_allocation_comparison(report):
     return _withheld(None, {}, "The comparison changed after independent review. Confirm the inputs and rerun it.")
 
 
-def compare_allocations(data, options, *, priority, max_drawdown=None, include_2023=False, require_esg=False):
+def compare_allocations(data, options, *, priority=None, max_drawdown=None, include_2023=False, require_esg=False):
     """Compare two confirmed allocations using independently verified CAD replay results.
 
     Return only findings derived from the common replay windows. A requested
     but unassessed screen precludes an overall eligibility finding.
     """
-    if not isinstance(priority, str) or priority not in _PRIORITY_BASIS:
+    if priority is not None and (not isinstance(priority, str) or priority not in _PRIORITY_BASIS):
         raise ValueError("Select a supported historical comparison priority.")
     if type(include_2023) is not bool or type(require_esg) is not bool:
         raise ValueError("The additional replay and ESG controls must be explicit choices.")
@@ -153,7 +156,7 @@ def compare_allocations(data, options, *, priority, max_drawdown=None, include_2
                                     **{field: rows[window.id][field] for field in _WINDOW_FIELDS}}
                         for window in windows},
             "max_drawdown_test": cap_result,
-            "priority_value": worst(row[priority] for row in rows.values()),
+            "priority_value": worst(row[priority] for row in rows.values()) if priority is not None else None,
         }
     verification = {
         "method": "Independent CAD price and buy-and-hold replay recomputation",

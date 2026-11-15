@@ -77,6 +77,7 @@ def refresh_market_source():
     if "request_results" in st.session_state:
         st.session_state.request_results = {}
     st.session_state.pop("assistant_comparison", None)
+    st.session_state.pop("assistant_question_draft", None)
     if had_report:
         st.info("Market data changed. Confirm and rerun the audit to use the current snapshot.")
 
@@ -457,7 +458,7 @@ def edit_scope(run_id, investor=None):
 def live_request(setup, *, investor=None, assistant_question="", intent=None):
     with setup:
         intake = st.radio("Profile input", PROFILE_INPUT, index=1 if assistant_question else 0, horizontal=True,
-                          key="assistant_trade_intake" if investor else "request_intake")
+                          key="assistant_trade_intake" if investor or assistant_question else "request_intake")
     for key in ("request_draft", "request_results", "request_confirmed", "manual_draft_id"):
         if st.session_state.get("active_intake") != intake:
             st.session_state.pop(key, None)
@@ -500,6 +501,7 @@ def live_request(setup, *, investor=None, assistant_question="", intent=None):
         runtime = configured_bedrock_runtime()
         if investor:
             scope = ReplayScope(objective=investor.objective, withdrawal_time=investor.withdrawal_time)
+        if investor or assistant_question:
             request = st.text_area("Fictional investment request", value=assistant_question, height=145,
                                    key="assistant_trade_question")
         else:
@@ -698,8 +700,8 @@ def show_masthead(market_bundle_found):
           </dl>
         </header>
         <ol class="audit-steps" aria-label="Audit workflow">
-          <li>Choose a question</li>
-          <li>Confirm the investor profile</li>
+          <li>Describe the decision</li>
+          <li>Confirm the interpreted inputs</li>
           <li>Review the checked result</li>
         </ol>
     """)
