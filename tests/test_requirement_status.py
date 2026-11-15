@@ -1,13 +1,13 @@
 import json
 import os
 import unittest
+from dataclasses import replace
 
 from datathon.agents import AgentRun
 from datathon.data import load_market_data
 from datathon.publication import publish_report
 from datathon.requirement_status import apply_requirement_status, unassessed_codes
 from datathon.workflow import examples, preset_profile, run_case
-from dataclasses import replace
 
 
 class RequirementStatusTests(unittest.TestCase):

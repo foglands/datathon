@@ -140,7 +140,7 @@ def profile_policy(profile, *, baseline=BASE_WEIGHTS, search_alternatives=True, 
     elif not allowed:
         raise ValueError("May alternatives sell QQQ, ZST.TO, or either fund?")
     if target / 10000 > baseline[source] + 1e-12:
-        raise ValueError(f"The proposed one-fund sale exceeds the starting {source} position. What smaller request should be evaluated?")
+        raise ValueError(f"The proposed one-fund sale exceeds the starting {source} position. Check the sale amount or funding source.")
     if not search_alternatives:
         smaller = False
     elif type(smaller) is not bool and not (defer_smaller_authorization and smaller is None):
