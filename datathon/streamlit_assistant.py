@@ -9,6 +9,8 @@ from .allocation_compare import analyze_allocation, compare_allocations, compari
 from .allocation_view import render_allocation_result
 from .fund_benchmarks import apply_proxies, benchmark_allocations, benchmark_proxies
 from .investor_profile import InvestorProfile, PRIORITIES, RISK_TOLERANCES, suggest_priority
+from .live_market_view import render_live_market_result
+from .live_market_workflow import run_live_market_workflow
 from .model_settings import bedrock_failure_message, configured_bedrock_runtime
 from .planning_view import render_balance_context, render_planning_answer
 from .question_intake import analyze_question
@@ -75,12 +77,20 @@ def _market_bundle(data_loader):
         return None
 
 
-def _question_draft(question, data_loader, *, use_model):
+def _question_draft(question, data_loader, *, use_model, use_live=False):
     clear_assistant_result()
     st.session_state.pop("assistant_question_draft", None)
     if not is_english_question(question):
         st.warning(ENGLISH_QUESTION_MESSAGE)
         return None
+    if use_live:
+        with st.spinner("Understanding the request, checking market data, and interpreting the verified results"):
+            result = run_sync_action(run_live_market_workflow(question))
+        if result["intake"]["status"] != "not_applicable":
+            saved = {"status": "live_market", "result": result}, None
+            st.session_state.assistant_question_draft = saved
+            return saved
+
     route = None
     if use_model:
         with st.spinner("Understanding the goal, concerns, and requested analysis"):
@@ -88,12 +98,13 @@ def _question_draft(question, data_loader, *, use_model):
     draft = analyze_question(question, semantic=route)
     if draft.get("needs_assets"):
         data = _market_bundle(data_loader)
-        if data is None and draft.get("task") != "analyze_allocation":
+        if data is not None or draft["task"] == "analyze_allocation":
+            assets = comparison_assets(data, include_2023=draft["fields"].get("include_2023", False)) if data else ()
+            draft = analyze_question(question, assets, semantic=route)
+            if draft["task"] == "analyze_allocation":
+                draft["available_assets"] = assets
+        elif draft["status"] != "share_purchase":
             return None
-        assets = comparison_assets(data, include_2023=draft["fields"].get("include_2023", False)) if data else ()
-        draft = analyze_question(question, assets, semantic=route)
-        if draft.get("task") == "analyze_allocation":
-            draft["available_assets"] = assets
     st.session_state.assistant_question_draft = draft, route
     return draft, route
 
@@ -107,6 +118,23 @@ def _question_options(fields):
 
 def _show_question_sources(sources):
     st.text("\n".join(f"{field.replace('_', ' ').capitalize()} · {excerpt}" for field, excerpt in sources.items()))
+
+
+def _render_share_purchase(draft):
+    fields = draft["fields"]
+    ticker, shares = fields["ticker"], fields["shares"]
+    st.subheader("Proposed share purchase")
+    st.text(f"Shares · {shares}\nTicker · {ticker}")
+    st.write("A purchase-cost estimate needs an assumed price per share and its currency. "
+             "Assessing concentration after the purchase also requires your current portfolio value, "
+             "any existing position in this ticker, and the funding source.")
+    if fields["historical_available"] is False:
+        st.info(f"The archived stress windows lack complete price coverage for {ticker}. "
+                f"A verified replay requires price data for {ticker}.")
+    elif fields["historical_available"]:
+        st.caption(f"Archived prices cover {ticker}. Enter your proposed portfolio weights to run a historical portfolio replay.")
+    with st.expander("Wording used from your question"):
+        _show_question_sources(draft["sources"])
 
 
 def _render_allocation_question(draft, route, data_loader):
@@ -172,6 +200,9 @@ def _render_question_answer(question, saved, data_loader, trade_entry):
     if saved is None:
         return
     draft, route = saved
+    if draft["status"] == "live_market":
+        render_live_market_result(draft["result"])
+        return
     if route:
         if route["status"] == "ready":
             if draft.get("task") and route.get("task") != draft["task"]:
@@ -181,6 +212,9 @@ def _render_question_answer(question, saved, data_loader, trade_entry):
                     st.json(route["trace"], expanded=False)
         else:
             st.caption(f"{bedrock_failure_message(route.get('trace', ()))} The application used local interpretation.")
+    if draft["status"] == "share_purchase":
+        _render_share_purchase(draft)
+        return
     if draft.get("task") == "analyze_allocation":
         _render_allocation_question(draft, route, data_loader)
         return
@@ -368,23 +402,25 @@ def render_assistant(data_loader, trade_entry):
             question = _assistant_question()
             with st.container(key="assistant-question-actions"):
                 actions, submit = st.columns((2, 1), gap="small", vertical_alignment="center")
-                interpret = submit.form_submit_button("Interpret question", type="primary", width="stretch")
+                use_live = submit.form_submit_button("Analyze with live data", type="primary", width="stretch")
                 with actions, st.popover("Options", help="Question interpretation settings"):
-                    st.caption("Bedrock sends this fictional question to the configured AWS model.")
+                    st.caption("Use the archived scenarios or interpret the request locally.")
+                    interpret = st.form_submit_button("Interpret question")
                     use_model = st.form_submit_button("Interpret with Amazon Bedrock")
-            st.caption("English · Fictional scenarios only")
+            st.caption("English · Fictional scenarios only · Live analysis sends your question to Amazon Bedrock")
         if question != st.session_state.get("assistant_last_question"):
             clear_assistant_result()
             st.session_state.pop("assistant_question_draft", None)
             st.session_state.assistant_last_question = question
         if question:
-            saved = (_question_draft(question, data_loader, use_model=use_model) if interpret or use_model
+            saved = (_question_draft(question, data_loader, use_model=use_model, use_live=use_live)
+                     if use_live or interpret or use_model
                      else st.session_state.get("assistant_question_draft"))
     if question and saved and not show_result:
         with st.container(key="assistant-new-question"):
             st.button("New question", on_click=_clear_question, type="tertiary")
     elif not question:
-        if interpret or use_model:
+        if use_live or interpret or use_model:
             st.warning(ENGLISH_QUESTION_MESSAGE)
         _starter_actions()
         with st.container(key="assistant-manual"), st.expander("Enter inputs directly"):

@@ -8,9 +8,9 @@ AlphaForge AI helps learners reason through an investment question, replay one p
 
 ## Use the investment assistant
 
-1. Write a fictional investment question in English and select **Interpret question**. Describe your goal, concerns, and the decisions you want help with, or load one of the starter questions and edit it. Planning works without the market bundle and shows which parts of the question informed the answer.
-2. To use AWS for interpretation, open **Options** and select **Interpret with Amazon Bedrock**. That action sends the submitted question to the configured model. The model proposes the task and cites the original wording. The local path remains available if AWS cannot complete the request.
-3. The assistant explains the trade-offs for a planning question and asks for a missing detail when it would change the analysis. Some choices include an optional, separately confirmed CAD historical example. References to live prices, future returns, and real orders get an explicit scope message. The assistant can still address a separate planning question in the same request.
+1. Write a fictional investment question in English and select **Analyze with live data**. For example, enter `I want to buy 200 shares of AMD.` The first Bedrock model selects a read-only lookup for one grounded U.S. ticker. The application retrieves the latest eligible trade and, for a proposed purchase, recent daily closes from Alpaca. Python verifies the observations and calculates the supported metrics. A second Bedrock call selects an explanation using the verified record. This flow needs authorized AWS and [Alpaca access](#configure-live-market-data).
+2. For an explicit archived scenario or local planning, open **Options** and select **Interpret question**. **Interpret with Amazon Bedrock** sends the question to the configured model for archived or planning workflows. Check the original wording offered before confirming an archived replay.
+3. The assistant explains the trade-offs for a planning question and asks for a missing detail when it would change the analysis. Some choices include an optional, separately confirmed CAD historical example. Future forecasts and real orders are outside the simulation scope.
 4. To assess one hypothetical portfolio, give each ticker and its starting weight. For example, enter `Analyze a portfolio with 60% in SPY and 40% in AGG.` The assistant groups documented fund benchmarks and independently verifies a historical replay for covered prices. The start balance and its currency are separate from the percentage analysis. If a fund lacks prices and a documented proxy is available, approve the named substitutions to run an illustrative replay.
 5. For a numerical comparison, specify two supported tickers or give the weights in two hypothetical allocations. For example, enter `Compare AGG and GLD. Maximum drawdown must not exceed 12%.` Review the proposed inputs and wording, then select **Confirm inputs and compare**. Comparisons without a stated preference can be shown side by side. The historical results come from the Python valuation and independent review.
 6. To audit a hypothetical trade, describe the change in your question. The audit opens an editable offline draft from the supported terms. Check the draft against your full request and confirm it before the historical replay. You can also leave the question blank and enter structured inputs directly. Alternative funding search has its own authorization after the original audit.
@@ -109,6 +109,12 @@ export DATA="/path/to/Datathon2026.zip"
 export DATATHON_STARTER_PATH="$DATA"
 export DATATHON_FULL_STARTER_PATH="$DATA"
 ```
+
+### Configure live market data
+
+Set `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY` in the application environment. Set `DATATHON_ALPACA_ACCOUNT` to `paper` (default) or `live` to match the key pair for the read-only calendar endpoint. Use `DATATHON_ALPACA_FEED=iex` for the IEX exchange feed, `sip` for the consolidated feed with the corresponding entitlement, or `delayed_sip` for the 15-minute delayed consolidated trade feed. The UI displays the actual trade and retrieval timestamps. [Alpaca market data API](https://docs.alpaca.markets/us/reference/stocklatesttradesingle-1)
+
+The live analysis supports one U.S. ticker. The recent-history lookup covers 90 calendar days through the previous New York date. Python requires an exact trading-calendar match before reporting price return and maximum drawdown. Purchase cost uses the dated trade price and the user's stated quantity. Portfolio impact requires additional holdings and funding data. Archived stress scenarios use the separately configured starter bundle.
 
 ### Investment assistant and reference cases
 

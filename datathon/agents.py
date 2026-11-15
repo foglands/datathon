@@ -57,6 +57,13 @@ class Role:
 
 
 ROLES = {
+    "live_market_summary": Role(
+        "Analyze only the verified public market evidence supplied for a fictional investment query. "
+        "Call select_market_summary once. Choose the primary emphasis and next information to confirm "
+        "from the supplied allowed values. Choose none when the request needs no follow-up. "
+        "Consider price timing, purchase cost, and historical downside "
+        "when present. Never add claims, amounts, execution advice, or predictions."
+    ),
     "semantic_intake": Role(
         "Interpret the entire latest English question from a fictional investor. Use planning for open questions about investing choices, goals, risks, "
         "or an investment claim to evaluate, even when the user gives little background. Use analyze_allocation "

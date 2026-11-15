@@ -88,6 +88,37 @@ def _compose(clauses, separator, rng):
 
 
 class GeneralIntakeTests(unittest.TestCase):
+    def test_share_purchase_keeps_source_amount_and_ticker_across_model_outcomes(self):
+        cases = (
+            ("i want to invest 200 share of AMD stock", "AMD", "200", False),
+            ("I'm considering buying 12.5 shares of $spy.", "SPY", "12.5", True),
+            ("We plan to purchase 1,200 XIU.TO shares.", "XIU.TO", "1,200", True),
+        )
+        for question, ticker, shares, available in cases:
+            for task in (None, "unsupported", "trade_audit", "compare_allocations"):
+                with self.subTest(question=question, model_task=task):
+                    semantic = {"status": "ready", "task": task} if task else None
+                    first = analyze_question(question, semantic=semantic)
+                    self.assertTrue(first["needs_assets"])
+                    self.assertIsNone(first["fields"]["historical_available"])
+                    result = analyze_question(question, _ASSETS, semantic=semantic)
+                    self.assertEqual(result["status"], "share_purchase")
+                    self.assertEqual(result["fields"], {
+                        "ticker": ticker, "shares": shares, "historical_available": available,
+                    })
+                    self.assertEqual(result["sources"]["proposed_purchase"], question)
+
+    def test_share_purchase_respects_order_scope_and_operating_language(self):
+        for request in ("Buy 200 shares of AMD now.", "I want to buy 200 shares of AMD. Place a market order.",
+                        "I want to buy 200 shares of AMD. Forecast its price next year."):
+            with self.subTest(request=request):
+                self.assertEqual(analyze_question(request, _ASSETS)["status"], "unsupported")
+        for request in ("I don't want to buy 200 shares of AMD.", "My colleague wants to buy 200 shares of AMD.",
+                        "I want to buy 5 shares of pizza.", "I want to buy 0 shares of AMD.",
+                        "I want to buy 5 shares of AMD or NVDA."):
+            with self.subTest(request=request):
+                self.assertNotEqual(analyze_question(request, _ASSETS)["status"], "share_purchase")
+
     def test_composed_planning_questions_keep_stated_money_goal_and_risk(self):
         for language, variants in _PLANNING.items():
             for seed in _SEEDS:

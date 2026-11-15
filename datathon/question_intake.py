@@ -38,6 +38,27 @@ _TRADE_AUDIT = re.compile(
     r"|(?:买入|買入|卖出|賣出)[^。！？\n]{0,32}(?:百分点|百分點)",
     re.I,
 )
+_PURCHASE_INTENT = (
+    r"(?:(?:i|we)\s+(?:(?:want|plan|intend|would like)\s+to|(?:am|are)\s+(?:considering|thinking about))"
+    r"|i['’]m\s+(?:considering|thinking about)|we['’]re\s+(?:considering|thinking about)"
+    r"|(?:i|we)['’]d\s+like\s+to|(?:what if|should|could|can)\s+(?:i|we)"
+    r"|(?:simulate|analyze|assess|test))"
+)
+_TICKER_TEXT = r"[A-Z][A-Z0-9]{0,7}(?:[.-][A-Z0-9]{1,5})?"
+_PURCHASE_TICKER = rf"(?:\${_TICKER_TEXT}|(?-i:{_TICKER_TEXT}))"
+_SHARE_TERMS = (
+    rf"(?P<shares>(?:[0-9]{{1,3}}(?:,[0-9]{{3}})+|[0-9]+)(?:\.[0-9]+)?)\s+"
+    rf"(?:shares?\s+(?:(?:of|in)\s+)?(?P<after>{_PURCHASE_TICKER})(?:\s+(?:stock|ETF))?"
+    rf"|(?P<before>{_PURCHASE_TICKER})\s+shares?)"
+)
+_SHARE_PURCHASE = re.compile(
+    rf"{_PURCHASE_INTENT}\s+(?:buy(?:ing)?|purchas(?:e|ing)|invest(?:ing)?(?:\s+in)?)\s+{_SHARE_TERMS}[.!?]?",
+    re.I,
+)
+_SHARE_ORDER = re.compile(
+    rf"(?:please\s+)?(?:buy|purchase|sell)\s+{_SHARE_TERMS}(?:\s+(?:now|immediately|at market))?[.!?]?",
+    re.I,
+)
 _LIMIT_ACTION = "This simulation can explain a trade or audit confirmed hypothetical inputs. It cannot execute an order."
 _LIMIT_FORECAST = "The available market evidence is historical. A live quote or future price or return estimate is unavailable."
 
@@ -56,6 +77,26 @@ def _plan_draft(plan, *, limitation=None):
     return _draft("planning", task="planning", plan=plan, limitation=limitation)
 
 
+def _share_purchase(clauses, assets):
+    """Use one explicitly proposed ticker and share quantity from the original question."""
+    matches = [(clause, match) for clause in clauses if (match := _SHARE_PURCHASE.fullmatch(clause))]
+    if len(matches) != 1:
+        return None
+    clause, match = matches[0]
+    ticker = (match["after"] or match["before"]).lstrip("$").upper()
+    shares = match["shares"]
+    if ticker in _NON_SYMBOL or not shares.strip("0,."):
+        return None
+    draft = _draft("share_purchase", task="planning", needs_assets=assets is None)
+    draft["fields"] = {
+        "ticker": ticker,
+        "shares": shares,
+        "historical_available": None if assets is None else ticker in assets,
+    }
+    draft["sources"] = {"proposed_purchase": clause}
+    return draft
+
+
 def analyze_question(question: str, assets=None, *, semantic=None) -> dict:
     """Combine whole-request interpretation with grounded, mode-specific input checks.
 
@@ -72,7 +113,7 @@ def analyze_question(question: str, assets=None, *, semantic=None) -> dict:
     comparison = parse_comparison_request(question, () if assets is None else assets)
     clauses = tuple(match[0].strip() for match in _CLAUSE.finditer(question) if match[0].strip())
     blocked = tuple(clause for clause in clauses if _positive_match(_FORECAST, clause))
-    if any(_positive_match(_ORDER, clause) for clause in clauses):
+    if any(_positive_match(_ORDER, clause) or _SHARE_ORDER.fullmatch(clause) for clause in clauses):
         return _draft("unsupported", message=_LIMIT_ACTION)
     if blocked:
         if not _HISTORY.search(question) and len(blocked) < len(clauses):
@@ -87,13 +128,14 @@ def analyze_question(question: str, assets=None, *, semantic=None) -> dict:
     if allocation := parse_allocation_request(question, assets):
         return {**allocation, "plan": context}
     plan = parse_planning_request(question)
+    purchase = _share_purchase(clauses, assets)
 
     history = bool(_HISTORY.search(question))
     asks_comparison = comparison["status"] != "unrecognized"
     apparent_symbols = set(_SYMBOL.findall(question)) - _NON_SYMBOL
     explicit_comparison = (
         (history and (asks_comparison or len(apparent_symbols) >= 2 or (context["financial"] and _CHOICE.search(question))))
-        or task == "compare_allocations"
+        or (task == "compare_allocations" and purchase is None)
         or (asks_comparison and (len(apparent_symbols) >= 2 or not plan and (apparent_symbols or context["financial"])))
     )
     if comparison["status"] == "ready" or explicit_comparison:
@@ -113,6 +155,8 @@ def analyze_question(question: str, assets=None, *, semantic=None) -> dict:
                           message="Which two assets or complete allocations should the historical analysis compare?")
         return {**comparison, "task": "compare_allocations"}
 
+    if purchase:
+        return purchase
     if task == "unsupported":
         limitation = "The requested action may fall outside the evidence or simulation tools available."
         if plan:

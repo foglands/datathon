@@ -82,7 +82,9 @@ def refresh_market_source():
     if "request_results" in st.session_state:
         st.session_state.request_results = {}
     st.session_state.pop("assistant_comparison", None)
-    st.session_state.pop("assistant_question_draft", None)
+    draft = st.session_state.get("assistant_question_draft")
+    if draft and draft[0]["status"] != "live_market":
+        st.session_state.pop("assistant_question_draft")
     if had_report:
         st.info("Market data changed. Confirm and rerun the audit to use the current snapshot.")
 
@@ -730,7 +732,7 @@ def show_navigation(market_bundle_found):
                 label_visibility="collapsed", key="workspace",
             )
         with status:
-            label = "Market data ready" if market_bundle_found else "Market data unavailable"
+            label = "Archived data ready" if market_bundle_found else "Archived data unavailable"
             data_state = "ready" if market_bundle_found else "unavailable"
             st.html(f'<div class="app-data-status" data-state="{data_state}">{label}</div>')
     return workspace
@@ -745,7 +747,9 @@ def show_usage_notes(market_bundle_found):
             "measures the largest fall from a prior peak. Each result applies to its displayed historical windows.\n\n"
             "**Holdings evidence.** Issuer and sector ranges retain unknown exposure when disclosures are missing. "
             "A verified calculation can still yield an unresolved rule.\n\n"
-            "**Market data.** Replays value one allocation or compare two choices in CAD using covered historical "
+            "**Live market data.** The assistant checks the source, trade time, and trading calendar before publishing "
+            "metrics for a U.S. ticker. Purchase cost uses the reported trade price and the requested share count.\n\n"
+            "**Archived market data.** Replays value one allocation or compare two choices in CAD using covered historical "
             "prices. ESG screening remains unresolved with the available evidence.\n\n"
             "**Supported trades.** Simulate an NVDA purchase funded from QQQ or ZST.TO. Direct entry also "
             "supports custom starting weights across the five covered assets. All runs are fictional."

@@ -1,8 +1,14 @@
 """Verify profile-driven outcomes and confirmation at the assistant entry point."""
 
+from datetime import date, datetime, timezone
+from functools import partial
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
+
+from datathon.agents import AgentRun
+from datathon.live_market_data import AlpacaMarketData
+from datathon.live_market_workflow import run_live_market_workflow
 
 from tests.test_app import APP, AppTest
 
@@ -78,6 +84,69 @@ class InvestmentAssistantTests(unittest.TestCase):
         self.app.text_area(key="assistant_question").set_value("Can you help me invest my cash?").run()
         self.click("Interpret question")
         self.assertEqual(self.app.session_state["assistant_question_draft"][0]["status"], "planning")
+
+    def test_share_purchase_recovers_when_bedrock_cannot_connect(self):
+        self.app.text_area(key="assistant_question").set_value("i want to invest 200 share of AMD stock").run()
+        failed = {"status": "unavailable", "trace": [{
+            "event": "agent_exception", "error_type": "ProxyConnectionError",
+        }]}
+        with patch("datathon.streamlit_assistant.interpret_semantic_request", return_value=failed):
+            self.click("Interpret with Amazon Bedrock")
+        self.assertTrue(any(item.value == "Proposed share purchase" for item in self.app.subheader))
+        self.assertTrue(any(item.value == "Shares · 200\nTicker · AMD" for item in self.app.text))
+        self.assertTrue(any("lack complete price coverage for AMD" in item.value for item in self.app.info))
+        self.assertFalse(self.app.get("download_button"))
+        self.assertNotIn("request_results", self.app.session_state)
+
+    def test_live_request_checks_network_evidence_before_the_model_conclusion(self):
+        question = "i want to invest 200 share of AMD stock"
+        sequence = []
+
+        async def interpret(role, payload, *, tools, stop_after_tool):
+            sequence.append(role)
+            self.assertEqual(payload["user_request"], question)
+            tools[0].handler(intent="share_purchase", scope="quote_and_history", data_source="alpaca",
+                             source="clause_1", ticker="AMD", share_count="200")
+            return AgentRun("ok", {})
+
+        def fetch(request, _timeout):
+            if "/trades/latest" in request.full_url:
+                sequence.append("latest_trade")
+                return {"symbol": "AMD", "trade": {"t": "2026-11-13T19:00:00Z", "p": 125}}
+            if "/bars" in request.full_url:
+                sequence.append("daily_bars")
+                return {"symbol": "AMD", "bars": [{"t": "2026-11-12T05:00:00Z", "c": 125},
+                                                   {"t": "2026-11-13T05:00:00Z", "c": 100}]}
+            sequence.append("trading_calendar")
+            return [{"date": "2026-11-12"}, {"date": "2026-11-13"}]
+
+        async def explain(role, payload, *, tools, stop_after_tool):
+            sequence.append(role)
+            evidence = payload["verified_market_evidence"]
+            self.assertEqual(evidence["indicative_notional"], "25000")
+            self.assertEqual(evidence["trailing"]["max_drawdown_fraction"], "0.2")
+            self.assertNotIn("user_request", payload)
+            tools[0].handler(emphasis="purchase_cost", next_input="portfolio_context")
+            return AgentRun("ok", {"summary": "Fabricated quote: USD 9999"})
+
+        intake, summary = AsyncMock(), AsyncMock()
+        intake.run.side_effect = interpret
+        summary.run.side_effect = explain
+        provider = AlpacaMarketData("fixture-key", "fixture-secret", transport=fetch,
+                                    clock=lambda: datetime(2026, 11, 15, 12, tzinfo=timezone.utc))
+        workflow = partial(run_live_market_workflow, intake_runtime=intake, summary_runtime=summary,
+                           provider_factory=lambda: provider, today=date(2026, 11, 15))
+        self.app.text_area(key="assistant_question").set_value(question).run()
+        with patch("datathon.streamlit_assistant.run_live_market_workflow", workflow), patch(
+            "datathon.streamlit_assistant._market_bundle", side_effect=AssertionError("A live lookup checked archived data"),
+        ):
+            self.click("Analyze with live data")
+
+        self.assertEqual(sequence, ["live_market_intake", "latest_trade", "daily_bars", "trading_calendar", "live_market_summary"])
+        self.assertTrue(any(item.value == "Proposed purchase of AMD" for item in self.app.subheader))
+        self.assertTrue(any(item.value == "Model interpretation" for item in self.app.subheader))
+        self.assertEqual({item.label: item.value for item in self.app.metric}["Indicative purchase cost"], "USD 25,000.00")
+        self.assertFalse(any("9999" in item.value for item in self.app.markdown))
 
     def test_model_only_comparison_requires_full_scope_confirmation(self):
         proposal = {"status": "ready", "task": "compare_allocations", "trace": [], "usage": {}}
