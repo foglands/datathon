@@ -1,171 +1,177 @@
-# 目录
-- [目录](#目录)
-- [AWS服务用处案例](#aws服务用处案例)
-  - [工具用处与介绍](#工具用处与介绍)
-    - [1. 核心大模型与调度层](#1-核心大模型与调度层)
-    - [2. 企业级增强与安全防护层](#2-企业级增强与安全防护层)
-    - [3. 大规模生产与代理执行层](#3-大规模生产与代理执行层)
-- [初步规划](#初步规划)
-  - [金融/业务 @Shaoze](#金融业务-shaoze)
-  - [技术/开发 @Pengpeng @Liu](#技术开发-pengpeng-liu)
-    - [本地/快速原型端：Kiro (kiro.dev)](#本地快速原型端kiro-kirodev)
-    - [云端深度开发与调优端：Amazon SageMaker AI Studio (JupyterLab)](#云端深度开发与调优端amazon-sagemaker-ai-studio-jupyterlab)
-  - [练手 Case Study：智能量化投资分析助手 (Smart Quantitative \& Fundamental Analyzer)](#练手-case-study智能量化投资分析助手-smart-quantitative--fundamental-analyzer)
-    - [一、 项目背景与业务目标 (Business Context \& Objectives)](#一-项目背景与业务目标-business-context--objectives)
-    - [二、 给定数据集结构 (Dataset Schema)](#二-给定数据集结构-dataset-schema)
-    - [三、 练手任务清单 (Tasks for Practice)](#三-练手任务清单-tasks-for-practice)
-      - [任务 1：数据预处理与验证 (Data Preprocessing)](#任务-1数据预处理与验证-data-preprocessing)
-      - [任务 2：量化指标核心计算器 (Quant Calculation Tools)](#任务-2量化指标核心计算器-quant-calculation-tools)
-- [实际步骤](#实际步骤)
-  - [Samedi 14 novembre （Présentation du défi）](#samedi-14-novembre-présentation-du-défi)
-    - [1. 准备queries](#1-准备queries)
-    - [2. 准备通用工具集](#2-准备通用工具集)
-  - [Lundi 16 novembre 13:00 （收尾）](#lundi-16-novembre-1300-收尾)
-  - [Lundi 16 novembre 14:00 （Date limite de soumission ）](#lundi-16-novembre-1400-date-limite-de-soumission-)
+# Contents
 
+- [Contents](#contents)
+- [AWS service use cases](#aws-service-use-cases)
+  - [Tools and their roles](#tools-and-their-roles)
+    - [1. Foundation models and orchestration](#1-foundation-models-and-orchestration)
+    - [2. Enterprise capabilities and safeguards](#2-enterprise-capabilities-and-safeguards)
+    - [3. Production infrastructure and agent execution](#3-production-infrastructure-and-agent-execution)
+- [Initial plan](#initial-plan)
+  - [Finance and business @Shaoze](#finance-and-business-shaoze)
+  - [Engineering and development @Pengpeng @Liu](#engineering-and-development-pengpeng-liu)
+    - [Local development and rapid prototyping with Kiro (kiro.dev)](#local-development-and-rapid-prototyping-with-kiro-kirodev)
+    - [Cloud development and tuning with Amazon SageMaker AI Studio (JupyterLab)](#cloud-development-and-tuning-with-amazon-sagemaker-ai-studio-jupyterlab)
+  - [Practice case study — Smart Quantitative & Fundamental Analyzer](#practice-case-study--smart-quantitative--fundamental-analyzer)
+    - [I. Business context and objectives](#i-business-context-and-objectives)
+    - [II. Dataset schema](#ii-dataset-schema)
+    - [III. Practice tasks](#iii-practice-tasks)
+      - [Task 1. Data preprocessing and validation](#task-1-data-preprocessing-and-validation)
+      - [Task 2. Quantitative calculation tools](#task-2-quantitative-calculation-tools)
+- [Schedule](#schedule)
+  - [Saturday, November 14 — Challenge presentation](#saturday-november-14--challenge-presentation)
+    - [1. Prepare queries](#1-prepare-queries)
+    - [2. Prepare reusable tools](#2-prepare-reusable-tools)
+  - [Monday, November 16 at 13:00 — Wrap-up](#monday-november-16-at-1300--wrap-up)
+  - [Monday, November 16 at 14:00 — Submission deadline](#monday-november-16-at-1400--submission-deadline)
 
-# AWS服务用处案例 
+# AWS service use cases
 
-- 市场监控与反洗钱/反欺诈 (Market Surveillance & Fraud Detection)
-- 金融犯罪与合规调查 (Financial Crime Investigations)
-- "人工智能投资副手"与资产管理 (Artificial Investment Associate / Portfolio Management)
-- 智能投资研究助手 (Investment Research Assistant)
+- Market surveillance, anti-money-laundering controls, and fraud detection
+- Financial crime and compliance investigations
+- AI investment associate and portfolio management
+- AI investment research assistant
 
+## Tools and their roles
 
-## 工具用处与介绍
-### 1. 核心大模型与调度层
-**Amazon Bedrock**:
+### 1. Foundation models and orchestration
 
-作用：提供各种顶尖基础大模型（如 Nova、Claude、Llama、Mistral）的统一 API 接口。无论是 Kiro 还是你在 SageMaker 里写代码调用大模型，底层基本都通过 Bedrock 来访问这些模型。
+**Amazon Bedrock**
 
-**Strands Agents**:
+Bedrock provides a unified API for foundation models such as Nova, Claude, Llama, and Mistral. Kiro or code running in SageMaker can use Bedrock to access those models.
 
-作用：一个轻量级的开源 Python/TypeScript SDK。如果你想在代码里快速写一个具备工具调用能力的 AI 代理（Agent），只需要写几行代码导入它，它帮你处理好大模型与本地工具函数（如 @tool 装饰器）之间的交互逻辑。
+**Strands Agents**
 
-### 2. 企业级增强与安全防护层
-**Knowledge Bases (知识库)**:
+Strands Agents is a lightweight, open-source SDK for Python and TypeScript. It handles interactions between a foundation model and local functions registered as tools, including functions decorated with `@tool`.
 
-作用：用于检索增强生成 (RAG)。如果比赛中需要让 AI 去查阅大量公司财报、PDF 报告或内部文档，并基于真实文档回答，Knowledge Bases 负责帮你的智能体快速检索并“锚定”相关内容，防止大模型胡说八道（幻觉）。
+### 2. Enterprise capabilities and safeguards
 
-**Guardrails (安全护栏)**:
+**Knowledge Bases**
 
-作用：用于内容审核与合规控制。它可以帮你过滤掉敏感词、禁止回答某些违规话题、自动对用户输入的个人隐私信息（PII）进行脱敏掩码处理，并检查 AI 的回答是否严格基于真实来源。
+Knowledge Bases supports retrieval-augmented generation (RAG). If the challenge requires the agent to consult company financial statements, PDF reports, or internal documents, the service can retrieve relevant passages and help ground answers in those sources.
 
-### 3. 大规模生产与代理执行层
-**Bedrock AgentCore**:
+**Guardrails**
 
-作用：面向大规模生产环境的代理基础设施集。它提供代理运行时的会话管理、长期/短期内存保持（Memory）、多代理间的网关通信（Gateway）以及运行状态的可观测性（Observability）。
+Guardrails supports content moderation and compliance controls. It can filter sensitive terms, restrict specified topics, mask personally identifiable information (PII) in user input, and check whether responses are grounded in the provided sources.
 
-**AgentCore Code Interpreter** (代码解释器):
+### 3. Production infrastructure and agent execution
 
-作用：一个沙箱隔离的代码执行环境。当你的 AI 代理需要动态计算数据时，它可以让大模型自己编写一段 Python 代码并在安全隔离的环境中运行，最后把计算结果返回给代理。
+**Bedrock AgentCore**
 
+AgentCore provides infrastructure for agents running at production scale. Its capabilities include runtime session management, short- and long-term memory, gateway communication between agents, and observability.
 
-# 初步规划
-## 金融/业务 @Shaoze
+**AgentCore Code Interpreter**
 
-- 负责梳理业务逻辑、把控财务指标、设计策略框架及最后的简报汇报（Pitch）。
-- 准备Report模板
-  - Document structure (?Intro - Details - Conclusion?)
+The Code Interpreter provides an isolated environment for executing code. When an agent needs an on-demand calculation, the model can write Python code, run it in the sandbox, and receive the result.
+
+# Initial plan
+
+## Finance and business @Shaoze
+
+- Define the business logic, oversee the financial metrics, design the strategy framework, and deliver the final pitch.
+- Prepare a report template.
+  - Consider an introduction, a details section, and a conclusion.
   - Diagrams
   - Tables
 
+## Engineering and development @Pengpeng @Liu
 
-## 技术/开发 @Pengpeng @Liu
+Set up the AWS environment and clean the data.
 
-负责 AWS 环境配置、数据清洗
-- Kiro (Agentic workflow)
-- SageMaker (jupyter notebook & python lib)
+- Kiro for the agent workflow
+- SageMaker for Jupyter notebooks and Python libraries
 
-负责 Technical Documentation
-- 明细 Agent 工作流程
-- 明细
+Prepare technical documentation.
 
-### 本地/快速原型端：Kiro (kiro.dev)
-适用场景：适合项目初期快速启动、代码编写刚起步时，或者需要通过自然语言快速生成基础架构。
+- Describe the agent workflow in detail.
+- Document other implementation details.
 
-可进行的微调/操作：
+### Local development and rapid prototyping with Kiro (kiro.dev)
 
-模型选择：通过底层对接的 API 选择不同的基础大模型（如 Amazon Bedrock 支持的 Nova、Claude 等）。
+Kiro fits the early stages of the project, when the team is getting started with the code or wants to scaffold the project using natural language.
 
-快速编写代码：用自然语言让 Kiro 自动生成数据预处理和清洗脚本（例如编写基于 pandas 处理 CSV 文件的逻辑）。
+- **Model selection** through integrated APIs for foundation models such as Nova and Claude on Amazon Bedrock.
+- **Rapid development** using natural-language requests to generate preprocessing and cleaning scripts, including pandas code for CSV files.
 
-### 云端深度开发与调优端：Amazon SageMaker AI Studio (JupyterLab)
-适用场景：适合进行深入、细颗粒度的量化建模、回测和算法迭代的主战场。
+### Cloud development and tuning with Amazon SageMaker AI Studio (JupyterLab)
 
-可进行的微调/操作：
+Use JupyterLab for detailed quantitative modeling, backtesting, and algorithm iteration.
 
-数据清理与特征工程：在 Jupyter 单元格中逐行编写 Python 代码，利用 pandas 和 NumPy 处理数据框、处理缺失值、统一转换日期。
+- **Data cleaning and feature engineering** using Python in notebook cells. Use pandas and NumPy to work with data frames, handle missing values, and normalize date formats.
+- **Model selection and tuning** using machine learning libraries such as scikit-learn to train models and adjust hyperparameters.
+- **Agent tools** using functions registered with `@tool`, such as functions that calculate volatility or the Sharpe ratio.
 
-模型选择与参数微调：调用机器学习库（如 scikit-learn）进行算法模型的训练与超参数调整。
+## Practice case study — Smart Quantitative & Fundamental Analyzer
 
-Agent 工具函数编写：编写并注册 @tool 装饰器函数（如自定义计算波动率、夏普比率的计算逻辑）。
+### I. Business context and objectives
 
+As a junior quantitative analyst at an asset management firm, you need to assess the market risk and financial health of a group of technology stocks over a weekend. Use Canadian equities such as TECH.TO as examples.
 
-## 练手 Case Study：智能量化投资分析助手 (Smart Quantitative & Fundamental Analyzer)
+With limited time, use Python scripts and an AI agent to automate data cleaning, calculate volatility and the Sharpe ratio, extract key financial statement figures, and produce a structured analysis report.
 
-### 一、 项目背景与业务目标 (Business Context & Objectives)
-作为资产管理公司的初级量化分析师，你需要在周末期间快速评估一组科技股（以加拿大股票为例，如 TECH.TO 等）的市场风险与基本面健康度。
-由于时间有限，你需要借助 Python 脚本与 AI 代理（Agent）自动化完成数据清洗、核心量化指标计算（波动率、夏普比率）以及财报关键指标提取，最终输出一份结构化的分析报告。
+### II. Dataset schema
 
-### 二、 给定数据集结构 (Dataset Schema)
-项目包含两个核心 CSV 数据文件，你可以直接在本地或 SageMaker 中创建模拟数据进行练习 
+The project uses two CSV datasets. You can create synthetic data for the exercise locally or in SageMaker.
 
-1. 价格数据集：prices_daily.csv
-记录了资产每日的交易表现：
-- date (日期): YYYY-MM-DD
-- symbol (股票代码): 如 TECH.TO
-- close (收盘价 - 毛价)
-- adj_close (调整后收盘价 - 核心避坑字段：防股票分拆失真)
-- volume (交易量)
+1. Daily trading data in `prices_daily.csv`
 
-2. 财务数据集：company_financials.csv
+   - `date` — trading date in YYYY-MM-DD format
+   - `symbol` — ticker, such as TECH.TO
+   - `close` — unadjusted closing price
+   - `adj_close` — adjusted closing price, which avoids distortions due to stock splits
+   - `volume` — trading volume
 
-记录了公司的季度基本面数据：
-- date (发布日期 - 核心避坑字段：防前视偏差)
-- symbol (股票代码)
-- quarter (财季): 如 Q1, Q2revenue (营业收入)
-- net_income (净利润)
-- free_cash_flow (自由现金流)
+2. Quarterly company fundamentals in `company_financials.csv`
 
-### 三、 练手任务清单 (Tasks for Practice)
-请尝试通过编写 Python 脚本
+   - `date` — publication date, used to guard against look-ahead bias
+   - `symbol` — ticker
+   - `quarter` — fiscal quarter, such as Q1 or Q2
+   - `revenue` — revenue
+   - `net_income` — net income
+   - `free_cash_flow` — free cash flow
 
-#### 任务 1：数据预处理与验证 (Data Preprocessing)
-- 要求： 读取 prices_daily.csv。
-- 避坑点：必须使用 adj_close（调整后收盘价）计算收益率，严禁使用毛价 close。
-- 检查并按 date 排序，确保时间序列无错位。
+### III. Practice tasks
 
-#### 任务 2：量化指标核心计算器 (Quant Calculation Tools)
-编写两个独立的 Python 函数（可尝试封装为 @tool）：
-1. 波动率计算 (volatility)：
-  - 计算每日对数收益率或百分比收益率：$r_t = \frac{P_t}{P_{t-1}} - 1$
-  - 利用统计标准差计算年化波动率：$\text{Vol} = \text{stdev}(r) \times \sqrt{252} \times 100$
+Complete the tasks using Python scripts.
 
-2. 夏普比率计算 (sharpe_ratio)：
-  - 假设无风险利率（Risk-free rate）为 2% (0.02)。
-  - 计算公式：$\text{Sharpe} = \frac{\text{Annualized Return} - \text{Rf}}{\text{Annualized Volatility}}$。
-  
-3. 基本面与时间对齐验证 (Fundamental Alignment)
-- 要求： 读取 company_financials.csv。
-- 避坑点： 确保在分析某季度财报时，策略调用的时间必须在财报的发布日期（Publication Date）之后，严禁使用财季刚结束但未公开的数据（防范前视偏差）。
+#### Task 1. Data preprocessing and validation
 
-4. 代理工作流组装与报告生成 (Agent Orchestration & Synthesis)
-- 要求：
-  - 模仿 Strands Agents 的写法，将上述计算函数注册为代理的工具。   
-  - 输入自然语言指令（例如：“请分析 TECH.TO 在 prices_daily.csv 中的年化波动率，并结合财务数据检查其自由现金流表现”）。
-  - 输出一段包含具体数值、计算依据以及引用来源的结构化文本报告。
+- Read `prices_daily.csv`.
+- Calculate returns from `adj_close`. Do not use the unadjusted `close`.
+- Validate and sort the observations by `date` so the time series stays aligned.
 
-# 实际步骤
+#### Task 2. Quantitative calculation tools
 
-## Samedi 14 novembre （Présentation du défi）
-过程中注意关键的时间段与关键词
+Write two independent Python functions. You can register them with `@tool`.
 
-### 1. 准备queries 
+1. **Volatility** (`volatility`)
+   - Compute daily log or percentage returns. For percentage returns, use $r_t = \frac{P_t}{P_{t-1}} - 1$.
+   - Compute annualized volatility using the standard deviation of returns, $\text{Vol} = \text{stdev}(r) \times \sqrt{252} \times 100$.
 
-### 2. 准备通用工具集 
+2. **Sharpe ratio** (`sharpe_ratio`)
+   - Assume a risk-free rate of 2% (0.02).
+   - Use $\text{Sharpe} = \frac{\text{Annualized Return} - \text{Rf}}{\text{Annualized Volatility}}$.
 
-## Lundi 16 novembre 13:00 （收尾）
+3. **Fundamental data and date alignment**
+   - Read `company_financials.csv`.
+   - Use a quarterly financial statement only when the strategy's evaluation date follows its publication date. Using an unpublished statement just after the fiscal quarter ends would introduce look-ahead bias.
 
-## Lundi 16 novembre 14:00 （Date limite de soumission ）
-: vidéo, one-pager et documentation technique
+4. **Agent orchestration and reporting**
+   - Register the calculation functions as agent tools, following the Strands Agents pattern.
+   - Submit a natural-language request such as “Calculate the annualized volatility of TECH.TO from `prices_daily.csv` and use the financial data to assess its free cash flow.”
+   - Produce a structured text report with specific figures, calculation methods, and cited sources.
+
+# Schedule
+
+## Saturday, November 14 — Challenge presentation
+
+Note the important time windows and key terms during the presentation.
+
+### 1. Prepare queries
+
+### 2. Prepare reusable tools
+
+## Monday, November 16 at 13:00 — Wrap-up
+
+## Monday, November 16 at 14:00 — Submission deadline
+
+Submit the video, one-pager, and technical documentation.

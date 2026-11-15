@@ -7,6 +7,7 @@ The official release contains the English and French 19-page case briefs, the En
 ## How to work in this project
 
 - Respond to the user in Chinese by default. Keep official French labels where they help trace a requirement and use the language requested for competition deliverables.
+- Write GitHub-facing documentation, change notes, issue and pull request text, commit messages, and push summaries in English.
 - The user asked to understand the full requirements, explore deeply, and wait for the challenge before developing a solution. The kickoff slides now establish the challenge. When asked to implement, start with a specific investment decision to support, then use the current organizer materials to resolve open questions and choose the workflow with the team.
 - The user aims to win an award. Design the prototype and pitch around what the judges can verify against the rubric. Show a specific, evidence-backed financial insight, the investor constraint that changes the decision, the distinct contribution of each agent, and the concrete AWS operation. Use the same case across the prototype, video, technical documentation and one-pager.
 - Treat the organizer's latest written instructions as authoritative. This file records the kickoff materials and earlier project discussions. Update it when a newer organizer instruction clarifies a rule or deadline. Distinguish organizer requirements, prior preparation, and implementation choices.
