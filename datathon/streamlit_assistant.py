@@ -83,15 +83,21 @@ def _question_draft(question, data_loader, *, use_model, use_live=False):
     if not is_english_question(question):
         st.warning(ENGLISH_QUESTION_MESSAGE)
         return None
+    route = None
     if use_live:
         with st.spinner("Understanding the request, checking market data, and interpreting the verified results"):
             result = run_sync_action(run_live_market_workflow(question))
-        if result["intake"]["status"] != "not_applicable":
+        intake = result["intake"]
+        if intake["status"] == "planning":
+            if intake["origin"] == "bedrock":
+                route = {"status": "ready", "task": "planning", "trace": intake["trace"]}
+            elif any(event.get("event") == "agent_exception" for event in intake["trace"]):
+                route = {"status": "unavailable", "task": "planning", "trace": intake["trace"]}
+        elif intake["status"] != "not_applicable":
             saved = {"status": "live_market", "result": result}, None
             st.session_state.assistant_question_draft = saved
             return saved
 
-    route = None
     if use_model:
         with st.spinner("Understanding the goal, concerns, and requested analysis"):
             route = run_sync_action(interpret_semantic_request(question, configured_bedrock_runtime(profile=True)))

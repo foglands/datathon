@@ -7,7 +7,8 @@ from decimal import Decimal
 _DECISION_SIGNAL = re.compile(
     r"[?？]|\b(?:compar(?:e|ing)|choos(?:e|ing)|decid(?:e|ing)|weigh(?:ing)?|prioriti[sz](?:e|ing)|consider(?:ing)?|recommend|suggest|evaluate|assess|"
     r"guidance|advice|trade[- ]?offs|pros and cons|lean toward|help (?:me|us)|thinking (?:about|of)|"
-    r"torn between|wonder(?:ing)?|how to|what to|where to)\b"
+    r"torn between|wonder(?:ing)?|how to|what to|where to|what(?: is|['’]s) your (?:opinion|view)|"
+    r"what do you think|what are your thoughts)\b"
     r"|怎么|怎麼|怎样|怎樣|如何|选哪|選哪|取舍|取捨|比较|比較|对比|對比|建议|建議|适合|適合|考虑|考慮|纠结|糾結"
     r"|\b(?:comment|quel(?:le)?s?|choisir|comparer|h[ée]siter|conseil|pour et contre)\b",
     re.I,
@@ -190,6 +191,13 @@ _POINTS = {
         r"|(?:亏过钱|虧過錢|亏了钱|虧了錢|亏损过|虧損過|厌恶风险|厭惡風險|不能亏|不能虧|保本)",
         re.I,
     ),
+    "risk_preference": re.compile(
+        r"\b(?:i\s+(?:want|prefer|need|would like|am looking for)|we\s+(?:want|prefer|need|would like|are looking for)"
+        r"|i['’]m looking for|we['’]re looking for|(?:i|we)['’]d (?:like|prefer)|and (?:want|prefer))\s+"
+        r"(?:to (?:invest|choose|find|hold|keep)\s+(?:(?:with|in|for)\s+)?(?:something\s+)?)?"
+        r"(?:a\s+|an\s+)?(?:low(?:er)?[- ]risk|conservative)\b",
+        re.I,
+    ),
     "timing": re.compile(
         rf"\b(?:time horizon|investment horizon|withdrawal date)\s*(?:is\s+|of\s+|:\s*)(?:{_DURATION}|{_STATED_DATE})\b"
         r"|\b(?:need|withdraw|spend|use|access|pay|park|lock up)\b[^.?!;\n]{0,48}"
@@ -225,6 +233,7 @@ _INSTRUMENTS = {
     ),
     "equity_funds": re.compile(r"\b(?:(?:equity|stock|index)\s+(?:funds?|ETFs?)|fonds indiciels?|fonds d['’]actions)\b|股票基金|指数基金|指數基金", re.I),
     "individual_stock": re.compile(rf"(?:{_NVIDIA.pattern})|\b(?:individual|single-company|tech|technology) (?:stocks?|shares?)\b|科技股|个股|個股", re.I),
+    "stocks": re.compile(r"\bstock shares?\b|\bequities\b|(?<!individual )(?<!single-company )(?<!tech )(?<!technology )\bstocks\b", re.I),
     "crypto": re.compile(rf"(?:{_BITCOIN.pattern})|\b(?:crypto(?:currenc(?:y|ies))?|ethereum)\b|加密货币|加密貨幣", re.I),
     "options": re.compile(r"\b(?:options trading|trad(?:e|ing) (?:[^.?!\n]{1,45},\s*)?options|(?:stock|call|put) options|calls and puts)\b|期权|期權", re.I),
 }
@@ -356,6 +365,7 @@ def planning_context(text: str) -> dict:
             matches = [
                 statement for statement in statements
                 if not (name == "spending" and _SPENDING_EFFECT.search(statement))
+                and not (name == "risk_preference" and _QUOTED_STATEMENT.search(statement))
                 and _stated_point(pattern, statement)
             ]
             if matches:
@@ -366,7 +376,7 @@ def planning_context(text: str) -> dict:
 
     instruments = tuple(name for name, pattern in _INSTRUMENTS.items() if _mentioned_instrument(pattern, clauses))
     examples = tuple(symbol for symbol, pattern in _EXAMPLE_SYMBOLS.items() if _mentioned_instrument(pattern, clauses))
-    planning_facts = points.keys() & {"cash_position", "growth", "beginner", "return_claim"}
+    planning_facts = points.keys() & {"cash_position", "growth", "beginner", "return_claim", "risk_preference"}
     financial = bool(instruments or planning_facts or _FINANCIAL_TOPIC.search(text))
     context = {"points": points, "instruments": instruments, "examples": examples, "financial": financial}
     if balance_issue:
@@ -383,7 +393,9 @@ def parse_planning_request(text: str, *, require_decision: bool = False) -> dict
 
     context = planning_context(text)
     points = context["points"]
-    personal_goal = not require_decision and bool(points.keys() & {"spending", "growth", "inflation"}) and len(points) > 1
+    personal_goal = not require_decision and (
+        bool(points.keys() & {"spending", "growth", "inflation"}) and len(points) > 1 or "risk_preference" in points
+    )
     if context["financial"] and (_DECISION_SIGNAL.search(text) or personal_goal or "return_claim" in points):
         return {name: value for name, value in context.items() if name != "financial"}
     return None

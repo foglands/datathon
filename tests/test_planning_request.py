@@ -4,6 +4,30 @@ from datathon.planning_request import balance_currency_code, parse_planning_requ
 
 
 class PlanningRequestTests(unittest.TestCase):
+    def test_opinion_request_uses_stated_budget_options_and_risk_preference(self):
+        question = ("i want to invest with a low risk investment, such as stock share or something like bitcoin, "
+                    "i have 50000 canadian dollar, what is your opinion")
+        plan = parse_planning_request(question)
+        self.assertEqual(plan["instruments"], ("stocks", "crypto"))
+        self.assertEqual(plan["points"]["amount"], "50000 canadian dollar")
+        self.assertEqual(balance_currency_code(plan["points"]["currency"]), "CAD")
+        self.assertIn("low risk", plan["points"]["risk_preference"])
+        self.assertNotIn("timing", plan["points"])
+        self.assertNotIn("loss_limit", plan["points"])
+
+    def test_low_risk_refers_to_the_users_preference(self):
+        for question in ("I have CAD 18,000 and want a low-risk investment.",
+                         "I'd prefer a conservative investment.",
+                         "I'm looking for a lower-risk investment."):
+            with self.subTest(question=question):
+                self.assertIn("risk_preference", parse_planning_request(question)["points"])
+        for question in ("Is Bitcoin a low-risk investment?", "My mother wants a low-risk investment. What do you think?",
+                         "I don't want a low-risk investment. What are your thoughts on Bitcoin?",
+                         '"I want a low-risk investment." What do you think?'):
+            with self.subTest(question=question):
+                plan = parse_planning_request(question)
+                self.assertNotIn("risk_preference", plan["points"])
+
     def test_open_ended_baby_expenses_question_retains_the_stated_tradeoffs(self):
         question = (
             "My bank account holds $72,000, and inflation has been on my mind. "

@@ -8,6 +8,24 @@ from datathon.live_market_intake import interpret_live_market_request, local_liv
 
 
 class LiveMarketIntakeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_open_ended_investment_opinion_keeps_planning_when_model_disagrees(self):
+        question = "I have CAD 50,000 and want low-risk investments. Stock shares or Bitcoin, what's your opinion"
+        self.assertEqual(local_live_market_intake(question)["status"], "planning")
+        for model_status in ("planning", "needs_input", "unsupported"):
+            with self.subTest(model_status=model_status):
+                runtime = AsyncMock()
+
+                async def run(_role, _payload, *, tools, stop_after_tool):
+                    tools[0].handler(intent=model_status, scope="none", data_source="none", source="clause_1")
+                    return AgentRun("ok", {})
+
+                runtime.run.side_effect = run
+                result = await interpret_live_market_request(question, runtime)
+                self.assertEqual(result["status"], "planning")
+                self.assertEqual(result["origin"], "bedrock" if model_status == "planning" else "local")
+                self.assertIsNone(result["data_source"])
+                runtime.run.assert_awaited_once()
+
     async def test_model_selects_an_evidenced_lookup_for_a_naturally_worded_proposal(self):
         request = "I can see myself purchasing just 200 AMD shares this year."
         runtime = AsyncMock()

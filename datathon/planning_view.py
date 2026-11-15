@@ -14,7 +14,7 @@ _ASSET_ALLOCATION = "https://www.investor.gov/introduction-investing/getting-sta
 _POINT_LABELS = {
     "amount": "Stated amount", "currency": "Stated currency", "cash_position": "Cash or savings",
     "spending": "Planned spending", "inflation": "Purchasing power concern", "growth": "Growth or income goal",
-    "risk": "Concern about losses", "timing": "Stated timing",
+    "risk": "Concern about losses", "risk_preference": "Stated risk preference", "timing": "Stated timing",
     "beginner": "Investing experience", "concentration": "Concentration being considered",
     "peer_trading": "Other people's reported trades", "return_claim": "Return claim to check",
 }
@@ -45,6 +45,11 @@ _OPTIONS = {
         "Equity funds",
         "Check which companies and markets the fund holds. A fund can spread exposure across holdings and "
         f"still lose value when the market falls. [Diversification guidance]({_ASSET_ALLOCATION})",
+    ),
+    "stocks": (
+        "Stocks",
+        "Stocks can lose value. Owning shares of one company adds exposure to that company's performance. "
+        f"A diversified equity fund spreads that exposure across holdings. [Diversification guidance]({_ASSET_ALLOCATION})",
     ),
     **RISK_OPTIONS,
 }
@@ -94,7 +99,10 @@ def render_planning_answer(plan, *, allow_example=True):
             st.warning(guarantee_guidance())
             if set(points) == {"return_claim"} and not instruments:
                 return None
-        if "spending" in points:
+        low_risk = "risk_preference" in points
+        if low_risk:
+            st.write("Your stated priority is limiting losses.")
+        elif "spending" in points:
             st.write("List your planned withdrawals and when they are due. Compare investments for the money "
                      "you could leave invested through a downturn.")
         else:
@@ -109,13 +117,16 @@ def render_planning_answer(plan, *, allow_example=True):
         option_details = [_OPTIONS[instrument] for instrument in options
                           if instrument in _OPTIONS and (instrument != "equity_funds" or "sp500" not in options)]
         if option_details:
-            st.markdown("**What to compare**")
+            st.markdown("**Risks to compare**" if low_risk else "**What to compare**")
             for heading, details in option_details:
                 st.markdown(f"**{heading}.** {details}")
 
         with st.container(key="planning-next-step"):
             st.markdown("**What to add to your question**")
-            if "timing" in points:
+            if low_risk:
+                st.write("What loss could you tolerate before your first withdrawal?" if "timing" in points
+                         else "When do you expect to need this money?")
+            elif "timing" in points:
                 st.write("How much needs to stay available for planned expenses?")
             elif "spending" in points:
                 st.write("When will you first need to withdraw money, and roughly how much will you need then?")
@@ -134,5 +145,8 @@ def render_planning_answer(plan, *, allow_example=True):
         symbols = tuple(dict.fromkeys((*symbols, *(_CATEGORY_EXAMPLES[category] for category in instruments))))
     if len(symbols) == 2:
         return {symbol: {symbol: 1.0} for symbol in symbols}
-    st.caption("For a historical data comparison, ask about two supported ticker symbols or give two complete allocations.")
+    if "stocks" in instruments and "crypto" in instruments and symbols:
+        st.caption("For a historical comparison, add the specific stock or fund you want to compare with the cryptoasset you named.")
+    else:
+        st.caption("For a historical data comparison, ask about two supported ticker symbols or give two complete allocations.")
     return None

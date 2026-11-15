@@ -148,6 +148,31 @@ class InvestmentAssistantTests(unittest.TestCase):
         self.assertEqual({item.label: item.value for item in self.app.metric}["Indicative purchase cost"], "USD 25,000.00")
         self.assertFalse(any("9999" in item.value for item in self.app.markdown))
 
+    def test_live_entry_preserves_stated_facts_in_open_ended_low_risk_request(self):
+        question = ("i want to invest with a low risk investment, such as stock share or something like bitcoin, "
+                    "i have 50000 canadian dollar, what is your opinion")
+        intake = AsyncMock()
+        intake.run.return_value = AgentRun("error", {}, ({
+            "event": "agent_exception", "error_type": "ProxyConnectionError",
+        },))
+        workflow = partial(run_live_market_workflow, intake_runtime=intake)
+        self.app.text_area(key="assistant_question").set_value(question).run()
+        with patch("datathon.streamlit_assistant.run_live_market_workflow", workflow), patch(
+            "datathon.live_market_workflow.AlpacaMarketData.from_environment",
+            side_effect=AssertionError("A planning question looked up an unspecified ticker"),
+        ), patch("datathon.streamlit_assistant._market_bundle", side_effect=AssertionError("Unexpected archive load")):
+            self.click("Analyze with live data")
+
+        draft, route = self.app.session_state["assistant_question_draft"]
+        self.assertEqual(draft["status"], "planning")
+        self.assertEqual(route["status"], "unavailable")
+        self.assertTrue(any(item.value == "Stated amount · 50000 canadian dollar" for item in self.app.text))
+        self.assertTrue(any("Your stated priority is limiting losses" in item.value for item in self.app.markdown))
+        self.assertTrue(any("**Stocks.**" in item.value for item in self.app.markdown))
+        self.assertTrue(any("Cryptoassets such as Bitcoin" in item.value for item in self.app.markdown))
+        self.assertTrue(any(item.value == "When do you expect to need this money?" for item in self.app.markdown))
+        self.assertFalse(self.app.get("download_button"))
+
     def test_model_only_comparison_requires_full_scope_confirmation(self):
         proposal = {"status": "ready", "task": "compare_allocations", "trace": [], "usage": {}}
         self.app.text_area(key="assistant_question").set_value("Show me how AGG and GLD held up in past downturns.").run()

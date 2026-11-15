@@ -6,16 +6,16 @@ from typing import Literal
 
 from .agents import Role, StrandsAgents, ToolSpec
 from .model_settings import configured_bedrock_runtime
-from .planning_request import _OTHER_PERSON
+from .planning_request import _OTHER_PERSON, parse_planning_request, planning_context
 from .runtime_budget import PROFILE_MAX_REQUEST_BYTES, RuntimeBudgetExceeded, RuntimeLimits, run_bounded
 
 
-MarketIntent = Literal["quote", "share_purchase", "market_history", "not_applicable", "needs_input", "unsupported"]
+MarketIntent = Literal["quote", "share_purchase", "market_history", "planning", "not_applicable", "needs_input", "unsupported"]
 LookupScope = Literal["latest_quote", "quote_and_history", "none"]
 DataSource = Literal["alpaca", "none"]
 
 _SCOPES = {"quote": "latest_quote", "share_purchase": "quote_and_history", "market_history": "quote_and_history"}
-_UNROUTED = {"not_applicable", "needs_input", "unsupported"}
+_UNROUTED = {"planning", "not_applicable", "needs_input", "unsupported"}
 _LIMITS = RuntimeLimits(12, 2, 18000)
 _CLAUSE_BREAK = re.compile(r"\n+|(?<=[.!?;])\s+")
 _TICKER = r"(?:\$[A-Za-z][A-Za-z0-9]{0,7}(?:[.-][A-Za-z0-9]{1,5})?|[A-Z][A-Z0-9]{0,7}(?:[.-][A-Z0-9]{1,5})?)"
@@ -71,13 +71,15 @@ _TRACE_KEYS = {"event", "role", "status", "tool_name", "model_id", "region", "op
                "error_code", "stop_reason", "duration_ms", "total_tokens"}
 
 _ROLE = Role(
-    "Interpret the entire latest English request from a fictional investor. Select only a read-only market data lookup. "
+    "Interpret the entire latest English request from a fictional investor. Choose a task and whether it calls for a read-only lookup. "
     "Use quote/latest_quote for the latest observed per-share price of one explicitly supplied ticker. "
     "Use share_purchase/quote_and_history for a hypothetical single-ticker purchase with an explicit share count. "
     "Use market_history/quote_and_history for recent price behavior or unquantified purchase research on one explicitly supplied ticker. "
-    "Use not_applicable for unrelated requests, fixed stress-window replays, and other historical workflows. "
-    "Use unsupported for actual order execution and future price forecasts. Use needs_input for missing or ambiguous inputs. "
-    "Select data_source alpaca for a lookup. For the last three intents use scope none and data_source none and omit ticker and share_count. "
+    "Use planning for an investment goal or broad choices without an explicit request for a ticker-level lookup. "
+    "For planning, cite the clause with the stated goal or choices. Use not_applicable for unrelated requests, "
+    "fixed stress-window replays, and other historical workflows. Use unsupported for actual order execution "
+    "and future price forecasts. Use needs_input for missing or ambiguous inputs to an explicit lookup. "
+    "Select data_source alpaca for a lookup. For other tasks use scope none and data_source none and omit ticker and share_count. "
     "Use a candidate clause ID that contains the operative request. Copy the exact ticker spelling from that clause, including a dollar prefix if present. "
     "For share_purchase, copy the exact quantity that modifies shares of the ticker. Treat potential purchases as proposals, never holdings. "
     "Do not resolve a company name into a guessed ticker; ask for the ticker. "
@@ -158,6 +160,10 @@ def _result(status, *, intent=None, symbol=None, shares=None, wording=None, orig
 
 def _ground(intent, scope, data_source, clause, ticker, share_count):
     if intent in _UNROUTED and scope == data_source == "none" and not ticker and not share_count:
+        if intent == "planning":
+            if not _allowed_clause(clause) or not planning_context(clause)["financial"]:
+                raise ValueError("Use the clause containing the investment goal or choices.")
+            return _result(intent, intent=intent, wording=clause, origin="bedrock")
         return _result(intent, origin="bedrock")
     if (intent not in _SCOPES or scope != _SCOPES[intent] or data_source != "alpaca" or not ticker or _symbols(clause) != {ticker}
             or not _allowed_clause(clause) or _FROZEN_WINDOW.search(clause)):
@@ -203,6 +209,23 @@ def _local_intake(clauses):
     return _result("needs_input" if needs_ticker or choices else "not_applicable")
 
 
+def _select_request(question, clauses, model_result=None):
+    local = _local_intake(clauses)
+    if model_result and model_result["status"] == "ready" and (
+        local["status"] == "not_applicable"
+        or all(model_result[key] == local[key] for key in ("symbol", "intent", "shares"))
+    ):
+        local = model_result
+    if local["status"] == "not_applicable":
+        if model_result and model_result["status"] == "planning":
+            local = model_result
+        elif parse_planning_request(question) is not None:
+            local = _result("planning", intent="planning")
+        elif model_result:
+            local = model_result
+    return _validate_request_scope(local, clauses)
+
+
 def _validate_request_scope(result, clauses):
     candidates = {(ticker.lstrip("$").upper(), Decimal(shares.replace(",", "")))
                   for clause in clauses if _allowed_clause(clause) and not _FROZEN_WINDOW.search(clause)
@@ -237,7 +260,7 @@ def local_live_market_intake(question: str) -> dict:
         return _result("needs_input")
     if prohibited := _prohibited_request(clauses.values()):
         return _result(prohibited)
-    return _validate_request_scope(_local_intake(clauses.values()), clauses.values())
+    return _select_request(question, clauses.values())
 
 
 async def interpret_live_market_request(question: str, runtime: StrandsAgents | None) -> dict:
@@ -274,13 +297,9 @@ async def interpret_live_market_request(question: str, runtime: StrandsAgents | 
             tools=(tool,), stop_after_tool=tool.name,
         ), _LIMITS)
     except RuntimeBudgetExceeded as exc:
-        return {**_validate_request_scope(_local_intake(clauses.values()), clauses.values()), "usage": exc.usage}
+        return {**_select_request(question, clauses.values()), "usage": exc.usage}
 
-    fallback = _local_intake(clauses.values())
     verified = selected if run.status == "ok" and selected else None
-    if verified and (fallback["status"] == "not_applicable" or (verified["status"] == "ready"
-                     and all(verified[key] == fallback[key] for key in ("symbol", "intent", "shares")))):
-        fallback = verified
-    fallback = _validate_request_scope(fallback, clauses.values())
+    fallback = _select_request(question, clauses.values(), verified)
     safe = _result(fallback["status"], trace=run.trace, usage=usage)
     return {**fallback, "trace": safe["trace"], "usage": safe["usage"]}
