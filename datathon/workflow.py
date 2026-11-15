@@ -3,18 +3,21 @@
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
 from dataclasses import dataclass, replace
 from time import perf_counter
 from typing import Literal, Optional
 
 from .agents import AgentRun, ToolSpec
-from .data import issuer_evidence
+from .data import MarketProvenanceError, issuer_evidence, verify_cad_conversion
 from .evidence import DEFAULT_HOLDINGS_MAX_AGE_DAYS, add_issuer_disclosures, validate_issuer_snapshot
+from .exposure_review import review_issuer_change, review_sector_analysis
 from .finance import BASE_WEIGHTS, STRESS_WINDOWS, MarketEvidenceError, evaluate_portfolio, solve_funding
 from .governance import audit_decision
 from .requirement_status import apply_requirement_status, unassessed_codes
+from .review_snapshot import seal_audit_report
 from .scope import ReplayScope
-from .sector import sector_analysis, shared_exposure_change
+from .sector import load_sector_catalog, sector_analysis, shared_exposure_change
 
 
 @dataclass(frozen=True)
@@ -186,12 +189,17 @@ async def interpret_request(request, runtime, run_id, *, search_alternatives=Tru
 async def run_case(
     data, case, runtime=None, *, confirmed_profile: AgentRun | None = None,
     evidence_date: str = "2026-11-14", holdings_max_age_days: int = DEFAULT_HOLDINGS_MAX_AGE_DAYS,
-    single_runtime=None, include_agent_commentary=False, issuer_disclosure_ids=(),
+    single_runtime=None, issuer_disclosure_ids=(),
 ):
     """Audit the frozen market replay and qualify issuer data as of the evidence date."""
     started = perf_counter()
     trace = []
     outputs = {}
+    verified_sections = {}
+    input_versions = {
+        "issuer_evidence_date": evidence_date, "holdings_max_age_days": holdings_max_age_days,
+        "issuer_disclosure_ids": tuple(issuer_disclosure_ids),
+    }
 
     def checked_handoff(name, tool_name, invocation, started):
         retained = invocation.status != "ok"
@@ -451,7 +459,19 @@ async def run_case(
             if not stress or (include_issuer and not exposure):
                 raise ValueError("Complete replay and applicable exposure calculations before reviewing.")
             if review_result:
-                return review_result
+                return deepcopy(review_result)
+            try:
+                input_versions["market_data"] = verify_cad_conversion(
+                    data, tickers=set(starting_weights) | set(original), windows=replay_windows,
+                )
+            except MarketProvenanceError:
+                trace.append({"role": "review", "event": "market_conversion", "status": "invalid"})
+                review_result.update(
+                    status="invalid", decision_reason="market_conversion_invalid", verified={},
+                    findings=[{"metric_id": "input.market_conversion", "status": "invalid",
+                               "message": "Rebuilding the CAD valuations from source records disagreed with the replay."}],
+                )
+                return deepcopy(review_result)
             review_metrics = {label: evaluations[label] for label in ("baseline", "proposal")}
             if search_alternatives:
                 review_metrics.update(frontier=solution.get("frontier"), solver_status=solution["status"],
@@ -490,8 +510,29 @@ async def run_case(
                     if finding["metric_id"] == "frontier.diagnostic_max_total":
                         finding.pop("actual", None)
                         finding.pop("claimed", None)
+            verified = review_result["verified"]
+            if review_result["status"] != "invalid" and "baseline" in verified and "proposal" in verified:
+                before = verified["baseline"]["weights"]
+                after = verified["proposal"]["weights"]
+                if include_issuer:
+                    candidate = shared_exposure_change(before, after, issuer_weights)
+                    result["exposure_change"] = candidate
+                    verified_sections["exposure_change"] = review_issuer_change(
+                        candidate, before, after, raw_snapshot=raw_snapshot, issuer_context=issuer_context,
+                    )
+                if case.include_sector:
+                    try:
+                        catalog = load_sector_catalog()
+                        candidate = sector_analysis(before, after, reference_date=evidence_date, catalog=catalog)
+                        result["sector_analysis"] = candidate
+                        verified_sections["sector_analysis"] = review_sector_analysis(
+                            candidate, before, after, reference_date=evidence_date, catalog=catalog,
+                        )
+                    except (OSError, ValueError):
+                        result["sector_analysis"] = {"status": "unavailable", "reason": "sector_evidence_unusable"}
+                        verified_sections["sector_analysis"] = result["sector_analysis"]
             result["confirmed_to_reviewed_ms"] = round((perf_counter() - confirmed_at) * 1000, 2)
-            return review_result
+            return deepcopy(review_result)
 
         if not include_issuer:
             trace.append({"role": "exposure", "event": "role_skipped", "status": "not_applicable",
@@ -521,7 +562,6 @@ async def run_case(
                 raise RoleError(f"single: {reason}")
             checked_handoff("single", "recheck_decision", single_run, stage_started)
             alternatives = find_alternatives() if search_alternatives else None
-            stated = single_run.data
         else:
             await routed_role("evidence", evidence_payload, evidence_tool, evidence_args, get_evidence, evidence)
             if not evidence:
@@ -564,30 +604,6 @@ async def run_case(
             result["explanation"] = "The independent calculation detected an invalid claim and withheld the recommendation."
         else:
             result["explanation"] = explain_audit(review_result, alternatives, policy_view)
-            verified = review_result["verified"]
-            if "baseline" in verified and "proposal" in verified:
-                before, after = (verified[leg]["weights"] for leg in ("baseline", "proposal"))
-                if include_issuer:
-                    result["exposure_change"] = shared_exposure_change(before, after, issuer_weights)
-                if case.include_sector:
-                    try:
-                        result["sector_analysis"] = sector_analysis(before, after, reference_date=evidence_date)
-                    except (OSError, ValueError):
-                        result["sector_analysis"] = {"status": "unavailable", "reason": "sector_evidence_unusable"}
-            if include_agent_commentary and search_alternatives and not pending_smaller_authorization:
-                if runtime is not None:
-                    try:
-                        stated = await role("explanation", {"policy": policy_view, "audited_result": review_result,
-                                                             "reason": alternatives, "exposure": exposure,
-                                                             "evidence_ids": source_ids})
-                    except RoleError:
-                        stated = {}
-                if runtime is not None or single_runtime is not None:
-                    if stated.get("status") == "ok" and set(stated.get("evidence_ids", ())).issubset(source_ids):
-                        result["agent_commentary"] = stated["summary"]
-                    else:
-                        outputs.pop("explanation", None)
-                        trace.append({"role": "explanation", "event": "commentary_unavailable", "status": "unavailable"})
         return result
     except MarketEvidenceError as exc:
         message = f"Historical replay is unavailable. {exc}"
@@ -604,7 +620,16 @@ async def run_case(
         return result
     finally:
         result.update(agent_outputs=dict(outputs), trace=list(trace), elapsed_ms=round((perf_counter() - started) * 1000))
-        apply_requirement_status(result, unassessed)
+        sector_check = verified_sections.get("sector_analysis")
+        apply_requirement_status(result, unassessed, sector_verification=sector_check)
+        if "audit" in result:
+            if case.include_sector:
+                verified_sections.setdefault("sector_analysis",
+                                             {"status": "unavailable", "reason": "main_review_unavailable"})
+            if result.get("policy", {}).get("issuer_cap") is not None:
+                verified_sections.setdefault("exposure_change",
+                                             {"status": "unavailable", "reason": "main_review_unavailable"})
+            seal_audit_report(result, input_versions=input_versions, verified_sections=verified_sections)
 
 
 def explain_audit(review, alternatives, policy):

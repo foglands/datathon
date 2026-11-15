@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-15 · Formula-based risk and verified publication
+
+- Limit model roles to interpreting requests and selecting allowed tools or follow-up checks. Generate public risk numbers, rule verdicts and explanations in Python.
+- Rebuild CAD valuations from frozen adjusted closes and same-date exchange rates during Review. Record data fingerprints, method versions and the covered dates.
+- Independently recompute sector and issuer exposure changes. Display each section's verification status and preserve the verified main audit when an optional section fails.
+- Bind conclusions to their reviewed inputs. Reject altered or mismatched snapshots and apply the same publication checks to Streamlit, CLI reports and counterfactuals.
+- Refresh the Streamlit data cache when the source changes and require a new audit before reusing a result or authorizing a search.
+- Verified with the official ZIP using 195 local regression tests and six offline CLI scenarios. Tests included incorrect exchange-rate conversion, injected model commentary, tampered exposure values and outdated review data.
+
 ## 2026-11-14 · User-authorized audits and checked publication
 
 - Audit the submitted trade first, including in Streamlit reference cases. Preparing search inputs never starts the search. Run the funding solver after the original result and a separate user confirmation.

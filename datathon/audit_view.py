@@ -231,7 +231,7 @@ def render_comparison(report: dict) -> None:
     status = report.get("status")
     if status in ("execution_error", "invalid"):
         st.error(_STATUS[status])
-        st.write(report.get("error") or report.get("explanation") or "The independent review did not release a result.")
+        st.write(report.get("explanation") or "The independent review did not release a result.")
         return
     if status == "needs_input":
         st.warning(report.get("explanation") or _STATUS[status])
@@ -287,14 +287,23 @@ def _render_requirements(st: Any, report: dict) -> None:
 
 
 def _render_exposure_changes(st: Any, report: dict) -> None:
-    if bounds := report.get("exposure_change"):
-        if "lower" in bounds and "upper" in bounds:
-            st.caption(f"NVIDIA issuer exposure change · {_points(bounds['lower'])} to {_points(bounds['upper'])}. "
-                       "The same unknown holdings are used before and after the trade.")
-    if sector := report.get("sector_analysis"):
+    verification = report.get("publication", {}).get("section_verification", {})
+    for section, label in (("exposure_change", "NVIDIA issuer exposure change"), ("sector_analysis", "Sector exposure")):
+        status = verification.get(section)
+        if status == "invalid":
+            st.warning(f"{label} withheld because its verification failed.")
+        elif status == "unavailable":
+            st.caption(f"{label} is unavailable for independent verification.")
+
+    if verification.get("exposure_change") == "verified" and (bounds := report.get("exposure_change")):
+        st.caption(f"NVIDIA issuer exposure change · {_points(bounds['lower'])} to {_points(bounds['upper'])}."
+                   " Independently verified using the same unknown holdings before and after the trade.")
+    if verification.get("sector_analysis") == "verified" and (sector := report.get("sector_analysis")):
         sectors = sector.get("sectors", {})
+        taxonomy = sector["taxonomy"]
         with st.expander("Sector exposure · descriptive"):
-            st.caption(f"Classification: {sector.get('taxonomy', 'Unmapped')} · {sector.get('status', 'Unknown')} coverage.")
+            st.caption(f"Independently verified · {sector['status'].capitalize()} evidence coverage.")
+            st.caption(f"Classification · {taxonomy['name']} ({taxonomy['version']})")
             if sectors:
                 st.table([
                     {"Sector": name, "Starting": _interval(row["before"]), "Original proposal": _interval(row["after"]),

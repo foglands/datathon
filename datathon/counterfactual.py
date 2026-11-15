@@ -12,6 +12,11 @@ from uuid import uuid4
 
 from .agents import AgentRun, ToolSpec
 from .evidence import DEFAULT_HOLDINGS_MAX_AGE_DAYS, eligible_issuer_disclosures, load_issuer_catalog
+from .governance import _issuer_bounds
+from .review_snapshot import (
+    AUDIT_FIELDS, AUDIT_SNAPSHOT_KEY, OPTIONAL_SECTIONS, audit_snapshot, audit_snapshot_matches,
+    seal_counterfactual_check,
+)
 from .workflow import profile_policy, run_case
 
 
@@ -45,7 +50,8 @@ def _threshold_label(field, after):
 
 
 def _checked(report):
-    if report.get("status") not in {"pass", "fail", "insufficient_evidence"} or not report.get("policy"):
+    if (report.get("status") not in {"pass", "fail", "insufficient_evidence"}
+            or not report.get("policy") or not audit_snapshot_matches(report)):
         return False
     audit = report.get("audit", {})
     verified = audit.get("verified", {})
@@ -113,7 +119,12 @@ def _issuer_thresholds(report):
     if report.get("search_alternatives", True) and "QQQ" in policy["allowed_sources"] and target <= base["QQQ"]:
         weights = {**base, "QQQ": base["QQQ"] - target, "NVDA": base["NVDA"] + target}
         bounds, unknown = _bounds_for(weights, holdings)
-        thresholds["qqq_only"] = threshold(bounds, unknown, "derived_from_verified_baseline_and_qualified_disclosures")
+        coefficients = _evidence_snapshot(report)["issuer_weights"]
+        lower, upper = _issuer_bounds(weights, {ticker: coefficients.get(ticker) for ticker in weights})
+        if _same_value(lower, bounds["lower"]) and _same_value(upper, bounds["upper"]):
+            thresholds["qqq_only"] = threshold(
+                {"lower": lower, "upper": upper}, unknown, "derived_from_verified_baseline_and_qualified_disclosures"
+            )
     return thresholds
 
 
@@ -270,6 +281,9 @@ def _comparison(before, after):
 
 
 def _unchanged_replay_inputs(baseline, replay):
+    before_inputs, after_inputs = (audit_snapshot(report)["versions"]["inputs"] for report in (baseline, replay))
+    if before_inputs.get("market_data") != after_inputs.get("market_data"):
+        return False
     if baseline.get("confirmed_scope") != replay.get("confirmed_scope"):
         return False
     if baseline.get("search_alternatives", True) != replay.get("search_alternatives", True):
@@ -359,10 +373,8 @@ def _public_trace(trace):
 def _public_report(report):
     if report is None:
         return None
-    fields = {"case", "mode", "status", "decision_reason", "policy", "confirmed_scope", "evidence", "exposure",
-              "scenarios", "scenario_focus", "alternatives", "audit", "elapsed_ms", "search_alternatives",
-              "needs_smaller_authorization", "requirements", "assessment_scope", "unassessed_requirements",
-              "sector_analysis", "exposure_change"}
+    fields = AUDIT_FIELDS | {*OPTIONAL_SECTIONS, AUDIT_SNAPSHOT_KEY, "exposure", "scenarios",
+                             "scenario_focus", "alternatives", "elapsed_ms"}
     return {**{key: value for key, value in report.items() if key in fields},
             "trace": _public_trace(report.get("trace", ()))}
 
@@ -376,7 +388,7 @@ async def run_counterfactual(
     baseline = deepcopy(baseline_report)
     options = {option.id: option for option in counterfactual_options(baseline)}
     trace = []
-    before = _summary(baseline)
+    before = _summary(baseline if audit_snapshot_matches(baseline) else {})
     replay = None
     option = None
     accepted_value = None
@@ -384,7 +396,7 @@ async def run_counterfactual(
     run_id = f"{case.id}-challenge-{uuid4().hex[:12]}"
 
     def result(status, reason, statement, *, verified=False, action=None):
-        return {
+        return seal_counterfactual_check({
             "status": status, "reason": reason, "verified": verified, "statement": statement,
             "selection_mode": selection_mode, "baseline": _public_report(baseline),
             "replay": _public_report(replay) if verified else None,
@@ -394,7 +406,7 @@ async def run_counterfactual(
             "changed_fields": [option.field] if option and option.field and verified else [],
             "comparison": _comparison(before, _summary(replay)) if replay and verified else
                           {"baseline": before, "replay": None, "differences": {}, "material_differences": []},
-        }
+        })
 
     if not _checked(baseline):
         return result("invalid", "baseline_not_verified", "An independently reviewed starting audit is required.")

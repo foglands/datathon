@@ -4,6 +4,7 @@ import argparse
 import json
 from dataclasses import replace
 from pathlib import Path
+from uuid import uuid4
 
 from .agents import PROFILE_FIELDS, PROFILE_MODEL, AgentRun, StrandsAgents
 from .data import load_market_data
@@ -49,15 +50,18 @@ async def run_suite(args):
             result = await bound_audit(
                 run_case(data, case, runtime, confirmed_profile=preset), case.id, live=runtime is not None,
             )
-        result["passed"] = validate_case(result)
-        results.append(result)
-        alternative = result.get("alternatives", {}).get("status", "-")
+        decision = publish_report(result)
+        passed = validate_case(result) and result["status"] == decision["status"]
+        results.append({**decision, "passed": passed})
+        verified = decision.get("audit", {}).get("verified", {})
+        alternative = verified.get("solver_status", "-")
         completed = len(result.get("agent_outputs", {}))
-        tag = "PASS" if result["passed"] else "FAIL"
-        print(f"{tag} {case.id}: review={result['status']} solver={alternative} roles={completed} elapsed_ms={result['elapsed_ms']}", flush=True)
-        if "error" in result:
-            print(result["error"], flush=True)
-        for window, values in result.get("scenarios", {}).get("baseline", {}).get("windows", {}).items():
+        tag = "PASS" if passed else "FAIL"
+        print(f"{tag} {case.id}: review={decision['status']} solver={alternative} "
+              f"roles={completed} elapsed_ms={decision['elapsed_ms']}", flush=True)
+        if decision["status"] == "execution_error":
+            print(decision["explanation"], flush=True)
+        for window, values in verified.get("baseline", {}).get("windows", {}).items():
             print(f"  {window} baseline: terminal={values['terminal_loss']:.2%} drawdown={values['max_drawdown']:.2%}", flush=True)
     return results
 
@@ -98,10 +102,11 @@ def print_policy(policy, *, search_alternatives=True):
         print("  Preference: preserve ZST.TO")
 
 
-def print_audit(decision, heading, prefer_reserve):
+def print_audit(decision, heading):
     print(f"\n{heading}: {decision['status']}")
-    print(decision.get("explanation", decision.get("error", "")))
+    print(decision.get("explanation", ""))
     verified = decision.get("audit", {}).get("verified", {})
+    prefer_reserve = decision.get("policy", {}).get("prefer_reserve")
     example_label = "Verified alternative" if prefer_reserve is True else "Verified funding example"
     for label, description in (("baseline", "Starting portfolio"), ("proposal", "Original proposal"),
                                ("maximum", example_label)):
@@ -119,6 +124,10 @@ def print_audit(decision, heading, prefer_reserve):
         if frontier.get("full_possible"):
             bottom, top = frontier["full_zst_min"], frontier["full_zst_max"]
             print(f"  ZST.TO funding range: {bottom * 100:.2f} to {top * 100:.2f} percentage points.")
+    verification = decision.get("publication", {}).get("section_verification", {})
+    for section, label in (("exposure_change", "NVIDIA issuer exposure change"), ("sector_analysis", "Sector exposure")):
+        if (status := verification.get(section)) in {"verified", "unavailable", "invalid"}:
+            print(f"  {label} verification: {status}")
     for finding in decision.get("audit", {}).get("findings", []):
         if finding["metric_id"].startswith("proposal.") and finding["status"] in ("fail", "insufficient_evidence"):
             actual, limit = finding.get("actual"), finding.get("limit")
@@ -226,7 +235,7 @@ async def run_request(args):
 
     data = load_market_data(args.data)
     case = Case(
-        "interactive", "User-confirmed fictional request.", "terminal_loss", None, 0,
+        f"interactive-{uuid4().hex[:12]}", "User-confirmed fictional request.", "terminal_loss", None, 0,
         include_sector=include_sector,
     )
     confirmed = {field: draft.data.get(field) for field in PROFILE_FIELDS}
@@ -239,21 +248,22 @@ async def run_request(args):
         return await bound_audit(run_case(data, case, runtime, confirmed_profile=accepted), case.id, live=True)
 
     decision = publish_report(await execute_audit(case))
-    print_audit(decision, "Audit of original proposal", policy["prefer_reserve"])
-    if search_alternatives and decision.get("publication", {}).get("independent_review_verified") is True:
+    print_audit(decision, "Audit of original proposal")
+    if (search_alternatives and not decision.get("unassessed_requirements")
+            and decision.get("publication", {}).get("independent_review_verified") is True):
         choice = read_input("Type SEARCH to authorize an alternative funding search, or press Enter to end: ")
         if choice.casefold() == "search":
             parsing_trace.append({"role": "profile", "event": "alternative_search_authorized"})
-            search_case = replace(case, id="interactive-alternatives", search_alternatives=True)
-            result = await execute_audit(search_case)
-            if result.get("needs_smaller_authorization"):
+            search_case = replace(case, id=f"{case.id}-alternatives", search_alternatives=True)
+            decision = publish_report(await execute_audit(search_case))
+            if decision.get("needs_smaller_authorization"):
                 print("The requested size is infeasible. A smaller purchase could be checked if you authorize it.")
                 if read_input("Type YES to authorize a smaller purchase and re-audit, or press Enter to keep the size: ").casefold() == "yes":
                     confirmed = {**confirmed, "allow_smaller": True}
                     parsing_trace.append({"role": "profile", "event": "smaller_purchase_authorized"})
-                    result = await execute_audit(search_case)
-            decision = publish_report(result)
-            print_audit(decision, "Alternative funding search", policy["prefer_reserve"])
+                    resized_case = replace(search_case, id=f"{case.id}-resize")
+                    decision = publish_report(await execute_audit(resized_case))
+            print_audit(decision, "Alternative funding search")
     if unassessed:
         print("  Not assessed: " + ", ".join(requirement["code"] for requirement in unassessed))
     if args.report:
@@ -272,7 +282,7 @@ def main():
     parser.add_argument("--include-sector", action="store_true",
                         help="Include descriptive equity sector analysis in an interactive audit")
     parser.add_argument("--stress", action="store_true", help="Add ambiguity, missing evidence and tampered-result cases")
-    parser.add_argument("--report", type=Path, help="Write the test results and trace as JSON")
+    parser.add_argument("--report", type=Path, help="Write the publishable result and trace as JSON")
     args = parser.parse_args()
     if args.request is not None:
         if args.mode != "aws" or args.stress or args.case != "all":

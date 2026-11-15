@@ -6,6 +6,10 @@ from copy import deepcopy
 
 from .counterfactual import _comparison, _issuer_thresholds, _summary
 from .finance import STRESS_WINDOWS
+from .review_snapshot import (
+    AUDIT_SNAPSHOT_KEY, OPTIONAL_SECTIONS, audit_snapshot, counterfactual_snapshot_matches,
+    fingerprint, review_versions_match, reviewed_section,
+)
 from .scope import EXTRA_WINDOW
 
 
@@ -25,6 +29,25 @@ _FUNDING_FIELDS = {"maximum", "frontier", "solver_status", "no_feasible_confirme
 _WINDOWS = {window.id: window for window in (*STRESS_WINDOWS, EXTRA_WINDOW)}
 _REQUEST_FIELDS = {"code", "label", "task_status", "verdict", "evidence_ids"}
 _FINDING_FIELDS = {"metric_id", "status", "message", "actual", "limit", "covered_portfolio_weight", "evidence_ids"}
+
+
+class _PublicProjection(dict):
+    """Keep in-memory reprojection idempotent without trusting imported JSON."""
+
+    def __init__(self, fields, *, kind, sections=()):
+        super().__init__(fields)
+        self.kind = kind
+        self.section_digests = {name: fingerprint(_pick(self, (name,))) for name in sections}
+        self.main_digest = fingerprint({key: value for key, value in self.items() if key not in self.section_digests})
+
+
+def _projection_matches(report):
+    try:
+        return report.main_digest == fingerprint({
+            key: value for key, value in report.items() if key not in report.section_digests
+        })
+    except (TypeError, ValueError):
+        return False
 
 
 def _pick(row, fields):
@@ -52,6 +75,8 @@ def _explanation(report, verified):
     if status == "needs_input":
         return "Confirm the missing inputs before releasing an audit."
     if status == "invalid":
+        if report.get("decision_reason") == "market_conversion_invalid":
+            return "The independently reconstructed CAD prices did not verify the market inputs. The calculation was withheld."
         return "The publication check withheld the result after independent review could not verify the report."
     if status == "execution_error":
         return "The audit stopped before it reached a publishable independent review."
@@ -93,8 +118,64 @@ def _scenarios(verified):
     return result
 
 
+def _blocked_report(report, status, reason):
+    out = _pick(report, {"case", "mode", "elapsed_ms", "runtime_usage"})
+    out.update(
+        status=status,
+        decision_reason=reason,
+        assessment_scope="unavailable",
+        search_alternatives=report.get("search_alternatives") is True,
+        trace=_trace(report.get("trace", ())),
+        evidence={},
+        audit={"status": status, "decision_reason": reason, "verified": {}, "findings": []},
+        publication={
+            "status": "blocked",
+            "reason": reason,
+            "independent_review_verified": False,
+            "section_verification": {
+                "main_audit": "invalid" if status == "invalid" else "unavailable",
+                **{name: "unavailable" if name in report else "not_requested" for name in OPTIONAL_SECTIONS},
+            },
+        },
+    )
+    out["explanation"] = _explanation(out, {})
+    return _PublicProjection(out, kind="report", sections=OPTIONAL_SECTIONS)
+
+
+def _project_again(report):
+    if not _projection_matches(report):
+        return _blocked_report(report, "invalid", "review_snapshot_mismatch")
+    versions = report["publication"].get("versions")
+    if versions is not None and not review_versions_match(versions):
+        return _blocked_report(report, "invalid", "review_snapshot_mismatch")
+    out = deepcopy(dict(report))
+    for name, digest in report.section_digests.items():
+        try:
+            unchanged = digest == fingerprint(_pick(out, (name,)))
+        except (TypeError, ValueError):
+            unchanged = False
+        if not unchanged:
+            out.pop(name, None)
+            publication = out["publication"]
+            publication["section_verification"][name] = "invalid"
+            publication.setdefault("section_reasons", {})[name] = "reviewed_section_changed"
+            if publication["status"] == "released":
+                publication["status"] = "limited"
+    return _PublicProjection(out, kind="report", sections=OPTIONAL_SECTIONS)
+
+
 def publish_report(report):
-    """Project a raw report for the UI and JSON download. Never publish model prose."""
+    """Project an issued report for the UI and JSON download."""
+    if isinstance(report, _PublicProjection) and report.kind == "report":
+        return _project_again(report)
+    report = deepcopy(report)
+    snapshot = audit_snapshot(report)
+    if snapshot is None:
+        status = report.get("status")
+        if AUDIT_SNAPSHOT_KEY in report or status not in {"needs_input", "execution_error", "invalid"}:
+            reason = "review_snapshot_mismatch" if AUDIT_SNAPSHOT_KEY in report else "review_snapshot_missing"
+            return _blocked_report(report, "invalid", reason)
+        return _blocked_report(report, status, report.get("decision_reason"))
     audit = report.get("audit", {})
     status = report.get("status")
     reason = report.get("decision_reason")
@@ -130,13 +211,22 @@ def publish_report(report):
         out.update(status=status if status in {"needs_input", "execution_error", "invalid"} else "invalid",
                    decision_reason=reason if status in {"needs_input", "execution_error", "invalid"} else "publication_failed")
 
+    sections = {name: reviewed_section(report, snapshot, name) for name in OPTIONAL_SECTIONS}
+    sections_unavailable = any(section["status"] in {"unavailable", "invalid"} for section in sections.values())
     limited = evidence_hold or status == "insufficient_evidence" or reason == "issuer_evidence_insufficient" or (
-        assessment != "complete" or bool(unassessed)
+        assessment != "complete" or bool(unassessed) or sections_unavailable
     )
     out["publication"] = {
         "status": "limited" if (reviewed or evidence_hold) and limited else "released" if reviewed else "blocked",
         "reason": out["decision_reason"],
         "independent_review_verified": bool(reviewed),
+        "review_id": snapshot["review_id"],
+        "versions": snapshot["versions"],
+        "section_verification": {
+            "main_audit": "verified" if reviewed else "invalid" if status == "invalid" else "unavailable",
+            **{name: section["status"] for name, section in sections.items()},
+        },
+        "section_reasons": {name: section["reason"] for name, section in sections.items() if "reason" in section},
     }
     evidence = report.get("evidence", {})
     out["evidence"] = _pick(evidence, _EVIDENCE_FIELDS if not reviewed else _EVIDENCE_FIELDS | {"issuer_snapshot", "issuer_weights"})
@@ -153,7 +243,8 @@ def publish_report(report):
                 verified.pop("maximum", None)
     if reviewed:
         out["scenarios"] = _scenarios(verified)
-        out.update(_pick(report, {"sector_analysis", "exposure_change"}))
+        out.update({name: section["verified"] for name, section in sections.items()
+                    if section["status"] == "verified"})
         if can_show_funding and report.get("needs_smaller_authorization") is True:
             out["needs_smaller_authorization"] = True
         if can_show_funding and reason == "issuer_evidence_insufficient":
@@ -168,17 +259,48 @@ def publish_report(report):
     out["audit"] = {"status": out["status"], "decision_reason": out["decision_reason"], "verified": verified,
                     "findings": [_pick(row, fields) for row in findings]}
     out["explanation"] = _explanation(out, verified)
-    return out
+    return _PublicProjection(out, kind="report", sections=OPTIONAL_SECTIONS)
+
+
+def _blocked_check(check, baseline=None):
+    return _PublicProjection({
+        "status": "invalid",
+        "reason": "review_snapshot_mismatch",
+        "verified": False,
+        "statement": "The check's reviewed result no longer matches the published inputs.",
+        "baseline": baseline,
+        "replay": None,
+        "action": None,
+        "trace": _trace(check.get("trace", ())),
+        "comparison": {"baseline": None, "replay": None, "differences": {}, "material_differences": []},
+    }, kind="check")
 
 
 def publish_check(check):
     """Apply the same boundary to a challenge and its audited replays."""
+    if isinstance(check, _PublicProjection) and check.kind == "check":
+        if not _projection_matches(check):
+            return _blocked_check(check)
+        if check.get("verified") is True and any(
+            not review_versions_match(report["publication"]["versions"])
+            for name in ("baseline", "replay") if (report := check.get(name)) is not None
+        ):
+            return _blocked_check(check)
+        return deepcopy(check)
+    check = deepcopy(check)
+    if not counterfactual_snapshot_matches(check):
+        return _blocked_check(check)
     out = _pick(check, {"status", "reason", "verified", "statement", "selection_mode", "option",
                         "confirmed_threshold", "elapsed_ms", "changed_fields", "runtime_usage"})
     out["trace"] = _trace(check.get("trace", ()))
     out["baseline"] = publish_report(check["baseline"]) if check.get("baseline") else None
     out["replay"] = publish_report(check["replay"]) if check.get("replay") and check.get("verified") is True else None
     baseline = out["baseline"] or {}
+    if check.get("verified") is True and (
+        not baseline.get("publication", {}).get("independent_review_verified")
+        or (check.get("replay") and not out["replay"]["publication"]["independent_review_verified"])
+    ):
+        return _blocked_check(check, out["baseline"])
     audit_only = not baseline.get("search_alternatives", True)
     hide_funding = audit_only or bool(baseline.get("unassessed_requirements"))
     hidden = {"diagnostic_max_total"}
@@ -199,4 +321,4 @@ def publish_check(check):
             out["comparison"][leg] = _pick(summary, summary.keys() - hidden)
     if out["comparison"]["baseline"] and out["comparison"]["replay"]:
         out["comparison"] = _comparison(out["comparison"]["baseline"], out["comparison"]["replay"])
-    return out
+    return _PublicProjection(out, kind="check")

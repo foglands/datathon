@@ -1,7 +1,9 @@
 """Exercise the Streamlit confirmation and comparison flow on the official snapshot."""
 
 import os
+from copy import deepcopy
 from pathlib import Path
+from shutil import copyfile, copytree
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
@@ -14,6 +16,7 @@ except ModuleNotFoundError as exc:
     AppTest = None
 
 from datathon.agents import AgentRun, StrandsAgents
+from datathon.data import market_data_source
 from datathon.finance import MarketEvidenceError, solve_funding
 from datathon.workflow import examples, preset_profile
 from tests.test_issuer_reaudit import configured_catalog, synthetic_disclosure
@@ -162,6 +165,48 @@ class PortfolioAppTests(unittest.TestCase):
         self.assertTrue(any(item.value == "Alternative remains unresolved" for item in self.app.warning))
         self.assertTrue(any("13.39%" in item.value for item in self.app.markdown))
         self.assertTrue(any("Maximum drawdown" in table.value.columns for table in self.app.table))
+
+    def test_market_snapshot_change_discards_prior_review_and_search_permission(self):
+        with TemporaryDirectory() as folder:
+            original, _ = market_data_source()
+            source = Path(folder) / original.name
+            if original.is_dir():
+                copytree(original, source)
+                tracked_file = source / "prices_daily.csv"
+            else:
+                copyfile(original, source)
+                tracked_file = source
+            with patch.dict(os.environ, {"DATATHON_STARTER_PATH": str(source)}):
+                self.app.run()
+                self.select("checkbox", SEARCH, True)
+                self.click(CONFIRM)
+                self.click(CONFIRM_SEARCH)
+                self.assertTrue(self.app.session_state["preset_result"]["search_alternatives"])
+
+                version = tracked_file.stat()
+                os.utime(tracked_file, ns=(version.st_atime_ns, version.st_mtime_ns + 1_000_000_000))
+                self.app.run()
+                self.assertFalse(self.app.exception)
+                self.assertNotIn("preset_result", self.app.session_state)
+                self.assertFalse(self.has_button(CONFIRM_SEARCH))
+                self.assertTrue(any("Market data changed" in item.value for item in self.app.info))
+
+                self.assertTrue(self.widget("checkbox", SEARCH).value)
+                self.click(CONFIRM)
+                self.assertFalse(self.app.session_state["preset_result"]["search_alternatives"])
+                self.assertTrue(self.has_button(CONFIRM_SEARCH))
+
+    def test_comparison_withholds_policy_changed_after_review(self):
+        _, changed = self.compare("Robert · loss definition")
+        changed = deepcopy(changed)
+        changed["policy"]["loss_limit"] = .9832
+        changed["explanation"] = "Fabricated model claim: risk is 0%."
+        self.app.session_state["comparison_result"] = changed
+        self.app.run()
+        self.assertFalse(self.app.exception)
+        text = [element.value for kind in (self.app.markdown, self.app.caption) for element in kind]
+        self.assertFalse(any("98.32%" in value or "Fabricated model claim" in value for value in text))
+        self.assertTrue(self.app.error)
 
     def test_counterfactual_keeps_the_original_audited_policy(self):
         self.select("checkbox", SEARCH, True)
@@ -514,6 +559,28 @@ class PortfolioAppTests(unittest.TestCase):
         self.assertEqual(check["replay"]["confirmed_scope"], scope)
         self.select("checkbox", "Include the fixed 2023 replay", False)
         self.assertNotIn("request_confirmed", self.app.session_state)
+
+    def test_sector_review_status_is_separate_from_coverage_and_tampering_is_hidden(self):
+        self.select("radio", "Input", "Write a request")
+        self.select("radio", "Audit execution", "Offline")
+        self.fill_manual_profile()
+        self.select("checkbox", "Include equity sector analysis", True)
+        self.select("checkbox", MANUAL_SCOPE, True)
+        self.click(CONFIRM)
+
+        key = self.app.session_state["request_confirmed"]
+        results = deepcopy(self.app.session_state["request_results"])
+        coverage = results[key]["sector_analysis"]["status"].capitalize()
+        self.assertTrue(any(item.value == f"Independently verified · {coverage} evidence coverage."
+                            for item in self.app.caption))
+        results[key]["sector_analysis"]["sectors"]["Information Technology"]["after"]["lower"] = .9832
+        self.app.session_state["request_results"] = results
+        self.app.run()
+        self.assertFalse(self.app.exception)
+        self.assertTrue(any(item.label == "Terminal loss" for item in self.app.metric))
+        self.assertTrue(any(item.value == "Sector exposure withheld because its verification failed."
+                            for item in self.app.warning))
+        self.assertFalse(any("Sector" in table.value.columns for table in self.app.table))
 
     def test_bedrock_failure_can_recover_through_manual_entry(self):
         with patch.object(StrandsAgents, "run", return_value=AgentRun("error", {}, stop_reason="unavailable")) as run:

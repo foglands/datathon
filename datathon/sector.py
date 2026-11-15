@@ -10,6 +10,7 @@ from datetime import date
 from hashlib import sha256
 from math import fsum
 from pathlib import Path
+from types import MappingProxyType
 from urllib.parse import urlsplit
 
 
@@ -102,6 +103,7 @@ class _SectorEvidence:
                 raise ValueError("A direct classification must cover one complete equity position.")
         else:
             raise ValueError("Unsupported sector evidence denominator.")
+        object.__setattr__(self, "weights", MappingProxyType(dict(self.weights)))
 
     def nav_weights(self):
         scale = self.equity_fraction if self.denominator == "equity_sleeve" else 1.0
@@ -137,7 +139,8 @@ def _unique_object(pairs):
     return result
 
 
-def _load_catalog():
+def load_sector_catalog():
+    """Load one immutable snapshot of the pinned evidence records."""
     location = os.environ.get("DATATHON_SECTOR_CATALOG")
     expected_hash = os.environ.get("DATATHON_SECTOR_CATALOG_SHA256")
     if location is None and expected_hash is None:
@@ -187,7 +190,9 @@ def _eligible_records(records, taxonomy, tickers, reference, cutoff, max_age_day
     return eligible, {ticker: ignored.get(ticker, "unavailable") for ticker in sorted(tickers - eligible.keys())}
 
 
-def sector_analysis(before, after, *, reference_date=REFERENCE_DATE, publication_cutoff=None, max_age_days=180):
+def sector_analysis(
+    before, after, *, reference_date=REFERENCE_DATE, publication_cutoff=None, max_age_days=180, catalog=None,
+):
     """Describe sector ranges using a shared, bounded, long-only evidence snapshot."""
     for weights in (before, after):
         if (not all(_fraction(weight) for weight in weights.values())
@@ -198,7 +203,7 @@ def sector_analysis(before, after, *, reference_date=REFERENCE_DATE, publication
     reference = _date(reference_date)
     cutoff = min(reference, _date(publication_cutoff)) if publication_cutoff is not None else reference
     tickers = {ticker for weights in (before, after) for ticker, weight in weights.items() if weight}
-    taxonomy, records, catalog_hash = _load_catalog()
+    taxonomy, records, catalog_hash = load_sector_catalog() if catalog is None else catalog
     evidence, ignored = _eligible_records(records, taxonomy, tickers, reference, cutoff, max_age_days)
     disclosed = {ticker: row.nav_weights() for ticker, row in evidence.items()}
     non_equity = {ticker: row.non_equity() for ticker, row in evidence.items()}

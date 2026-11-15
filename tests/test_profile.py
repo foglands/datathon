@@ -40,6 +40,24 @@ class ProfileHandoffTests(unittest.TestCase):
         })
         self.assertIsNone(draft["issuer_cap_bps"])
 
+    def test_optional_numeric_excerpts_must_match_the_request_number_and_unit(self):
+        floor = "Gardez au moins 15,25 % dans ZST.TO."
+        issuer = "The total NVIDIA issuer cap is thirteen percent."
+        cap = "Limit start-to-end loss to 1400 basis points."
+        unadopted = "My historical loss cap is 95%."
+        request = f'Buy 5 percentage points of NVDA from QQQ. {floor} {issuer} {cap} A sample reads "{unadopted}"'
+        fields = {**FIELDS, "reserve_floor_bps": 1525, "issuer_cap_bps": 1300}
+        draft = _profile_handoff(request, **fields, loss_excerpt=cap,
+                                 reserve_floor_excerpt=floor, issuer_cap_excerpt=issuer)
+        for key, excerpt in (("limit_bps", cap), ("reserve_floor_bps", floor), ("issuer_cap_bps", issuer)):
+            self.assertEqual(draft["source_excerpts"][key], excerpt)
+
+        mismatch = _profile_handoff(request, **{**fields, "limit_bps": 9500, "reserve_floor_bps": 1500},
+                                    loss_excerpt=unadopted, reserve_floor_excerpt=floor,
+                                    issuer_cap_excerpt="The total NVIDIA issuer cap is 13%.")
+        self.assertTrue(all(key not in mismatch["source_excerpts"] for key in (
+            "limit_bps", "reserve_floor_bps", "issuer_cap_bps")))
+
     def test_recovers_only_explicit_purchase_size_and_grounded_excerpt(self):
         fields = {**FIELDS, "target_bps": -1}
         cases = (

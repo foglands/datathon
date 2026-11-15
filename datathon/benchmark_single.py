@@ -20,9 +20,9 @@ _SINGLE_ROLE = Role(
     "evidence ID and add every listed issuer evidence ID for 'market_and_issuer'. Use an empty "
     "holdings_as_of for 'market_replay'. For stress_replay, use exactly policy.metric when "
     "loss_limit is a number, or 'comparison' otherwise. Include every required window. "
-    "After the review, summarize only its "
-    "verified conclusions and relevant evidence IDs. The review result controls the decision. "
-    + " ".join(ROLES[role].instructions for role in ("exposure", "alternatives", "review", "explanation"))
+    "After the review, acknowledge completion and report relevant evidence IDs. "
+    "The Python review result controls the outcome. "
+    + " ".join(ROLES[role].instructions for role in ("exposure", "alternatives", "review"))
 )
 
 

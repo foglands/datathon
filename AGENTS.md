@@ -16,6 +16,7 @@ The official release contains the English and French 19-page case briefs, the En
 - Tests for an original-proposal request should verify that Profile does not require approval for a smaller purchase and no funding solver runs. Any alternative search requires independent confirmation of the search scope.
 - Exercise the same trade with an explicit search request, an unsupported binding condition and an injected calculation error. Compare checked findings and release status across the runs.
 - Keep estimates separate from verified facts. Sector analysis should expose its source classification, coverage and unknown weight. Enforcing a sector cap also requires solver support and independent verification.
+- Keep model output limited to intake and authorized tool decisions. Compute all derived financial values and binding verdicts in Python. Build reports from independently reviewed results tied to the same inputs, rules and method versions.
 
 ## Challenge and constraints
 

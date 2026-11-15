@@ -10,7 +10,7 @@ import streamlit as st
 from datathon.agents import PROFILE_FIELDS, PROFILE_MODEL, AgentRun, StrandsAgents
 from datathon.audit_view import render_comparison, render_evidence, result_label
 from datathon.counterfactual import counterfactual_options, issuer_disclosure_options, run_counterfactual
-from datathon.data import load_market_data
+from datathon.data import load_market_data, market_data_source
 from datathon.finance import BASE_WEIGHTS
 from datathon.publication import publish_check, publish_report
 from datathon.runtime_budget import (
@@ -43,8 +43,32 @@ ROBERT_REQUEST = next(case.user_request for case in examples("robert", stress=Tr
 
 
 @st.cache_data(show_spinner=False)
+def _cached_market_data(source_key):
+    return load_market_data(source_key[0])
+
+
 def market_data():
-    return load_market_data()
+    source_key = st.session_state.get("market_source")
+    return _cached_market_data(source_key) if source_key is not None else load_market_data()
+
+
+def refresh_market_source():
+    try:
+        source_key = market_data_source()
+    except OSError:
+        source_key = None
+    if source_key == st.session_state.get("market_source"):
+        return
+
+    st.session_state.market_source = source_key
+    had_report = "preset_result" in st.session_state or bool(st.session_state.get("request_results"))
+    for key in ("preset_result", "comparison_result", "active_challenge", "request_confirmed",
+                "request_resize_choice", "request_declined_resize"):
+        st.session_state.pop(key, None)
+    if "request_results" in st.session_state:
+        st.session_state.request_results = {}
+    if had_report:
+        st.info("Market data changed. Confirm and rerun the audit to use the current snapshot.")
 
 
 def show_policy(policy, *, search_alternatives=True):
@@ -80,7 +104,7 @@ def audit(case, profile, runtime):
 
 
 def show_report(report):
-    report = publish_report(report)
+    """Render and export the same public projection."""
     render_comparison(report)
     render_evidence(report)
     if report.get("runtime_usage"):
@@ -93,7 +117,9 @@ def show_report(report):
     )
 
 
-def show_counterfactual(case, report, runtime):
+def show_counterfactual(case, report, published, runtime):
+    if not published["publication"]["independent_review_verified"]:
+        return
     if not (options := counterfactual_options(report)):
         return
     st.subheader("What could change this decision?")
@@ -166,7 +192,7 @@ def show_counterfactual(case, report, runtime):
         st.caption(option["label"])
     if comparison := check["replay"]:
         left, right = st.columns(2)
-        left.markdown(f"**Original audit**  \n{result_label(publish_report(report))}")
+        left.markdown(f"**Original audit**  \n{result_label(published)}")
         label = "Independent re-audit with reviewed disclosures" if reviewed_ids else "One hypothetical change"
         right.markdown(f"**{label}**  \n{result_label(comparison)}")
         with st.expander("Independent rerun evidence"):
@@ -206,7 +232,7 @@ def new_case(case):
 
 def can_confirm_search(report):
     return (report.get("search_alternatives") is False and not report.get("unassessed_requirements")
-            and publish_report(report)["publication"]["independent_review_verified"])
+            and report["publication"]["independent_review_verified"])
 
 
 def preset_audit(mode):
@@ -237,9 +263,10 @@ def preset_audit(mode):
     report = st.session_state.get("preset_result")
     if report is None:
         return
-    reviewed_search = report.get("search_alternatives", False)
+    published = publish_report(report)
+    reviewed_search = published.get("search_alternatives", False)
     can_compare = field is not None and (field != "allow_smaller" or reviewed_search)
-    if can_compare and report["status"] not in {"invalid", "execution_error"} and report.get("audit"):
+    if can_compare and published["publication"]["independent_review_verified"]:
         st.subheader("Change one rule")
         st.caption(comparison_label)
         if st.button("Confirm this change and compare"):
@@ -253,17 +280,19 @@ def preset_audit(mode):
 
     comparison = st.session_state.get("comparison_result")
     if comparison is not None:
+        published_comparison = publish_report(comparison)
         left, right = st.columns(2)
-        left.markdown(f"**Original policy**  \n{result_label(publish_report(report))}")
-        right.markdown(f"**With the confirmed change**  \n{result_label(publish_report(comparison))}")
-        for panel, result in zip(st.tabs(("Original policy audit", "Changed policy audit")), (report, comparison)):
+        left.markdown(f"**Original policy**  \n{result_label(published)}")
+        right.markdown(f"**With the confirmed change**  \n{result_label(published_comparison)}")
+        for panel, result in zip(st.tabs(("Original policy audit", "Changed policy audit")),
+                                 (published, published_comparison)):
             with panel:
-                if result.get("policy"):
+                if result["publication"]["independent_review_verified"] and result.get("policy"):
                     show_policy(result["policy"], search_alternatives=reviewed_search)
                 show_report(result)
     else:
-        show_report(report)
-    if search and can_confirm_search(report):
+        show_report(published)
+    if search and can_confirm_search(published):
         if st.button(CONFIRM_SEARCH, key="preset-confirm-alternatives"):
             search_case = replace(new_case(case), search_alternatives=True)
             confirmed = AgentRun("ok", profile_data, ({"role": "profile", "event": "alternative_search_authorized"},))
@@ -271,7 +300,7 @@ def preset_audit(mode):
                 st.session_state.preset_result = updated
                 st.session_state.pop("comparison_result", None)
                 st.rerun()
-    show_counterfactual(replace(case, search_alternatives=reviewed_search), report, runtime)
+    show_counterfactual(replace(case, search_alternatives=reviewed_search), report, published, runtime)
 
 
 def edit_profile(draft, run_id, *, manual=False, search_alternatives):
@@ -562,11 +591,12 @@ def live_request():
             for column, (metric, variant) in zip(st.columns(2), comparison_keys.items()):
                 column.markdown(f"**{METRICS[metric]}**  \n{result_label(publish_report(reports[variant]))}")
     report = reports[key]
-    show_report(report)
-    if search_alternatives and can_confirm_search(report):
+    published = publish_report(report)
+    show_report(published)
+    if search_alternatives and can_confirm_search(published):
         if st.button(CONFIRM_SEARCH, key="request-confirm-alternatives") and run_confirmed(body, key, search=True):
             st.rerun()
-    if report.get("needs_smaller_authorization") and st.session_state.get("request_declined_resize") != basis:
+    if published.get("needs_smaller_authorization") and st.session_state.get("request_declined_resize") != basis:
         st.caption("The full purchase is infeasible. A smaller purchase could be checked if you authorize it.")
         if st.button("Authorize a smaller purchase and rerun"):
             resized_key = tuple((field, True if field == "allow_smaller" else value) for field, value in key)
@@ -576,13 +606,14 @@ def live_request():
         if st.button("Keep the requested size"):
             st.session_state.request_declined_resize = basis
             st.rerun()
-    show_counterfactual(replace(request_case, id=report["case"]), report, runtime)
+    show_counterfactual(replace(request_case, id=published["case"]), report, published, runtime)
 
 
 def main():
     st.set_page_config(page_title="AlphaForge · Portfolio Decision Audit", page_icon="◈", layout="wide")
     st.title("Portfolio Decision Audit")
     st.caption("AlphaForge AI · Fictional portfolio simulation · Historical results apply to the tested windows.")
+    refresh_market_source()
     st.radio("Input", ("Reference case", "Write a request"), horizontal=True, key="audit_input")
     if st.session_state.audit_input != st.session_state.get("active_input"):
         st.session_state.active_input = st.session_state.audit_input

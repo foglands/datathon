@@ -47,7 +47,7 @@ def select_tool_arguments(role, payload):
 
 class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
     async def run_fixture(self, case, *, changes=None, omit_roles=(), false_tool_success=(),
-                          fail_after_tool=(), delay_scenario=False, include_agent_commentary=False,
+                          fail_after_tool=(), delay_scenario=False,
                           profile_overrides=None):
         """Inject model choices, then execute the production handlers with those choices."""
         called_roles = []
@@ -77,8 +77,7 @@ class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
                     "evidence_ids": ["model:made-up-source"]}, "end_turn"
 
         profile = AgentRun("ok", {**preset_profile(case), **(profile_overrides or {})})
-        report = await run_case(MARKET, case, StrandsAgents(invoker=invoke), confirmed_profile=profile,
-                                include_agent_commentary=include_agent_commentary)
+        report = await run_case(MARKET, case, StrandsAgents(invoker=invoke), confirmed_profile=profile)
         return report, called_roles
 
     def routing(self, report, role, status):
@@ -243,8 +242,7 @@ class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
     async def test_checked_results_survive_the_models_post_tool_failure(self):
         robert, _ = examples("robert")
         checked_roles = {"evidence", "scenario", "alternatives", "review"}
-        report, _ = await self.run_fixture(robert, fail_after_tool=checked_roles | {"explanation"},
-                                           include_agent_commentary=True)
+        report, roles = await self.run_fixture(robert, fail_after_tool=checked_roles)
         self.assertEqual(report["status"], "fail")
         self.assertEqual(report["decision_reason"], "feasible_full")
         self.assertTrue(report["explanation"])
@@ -252,7 +250,7 @@ class ToolRoutingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual({row["role"] for row in report["trace"]
                           if row.get("status") == "checked_tool_result_retained"}, checked_roles)
         self.assertFalse(any(row.get("status") == "deterministic_fallback" for row in report["trace"]))
-        self.assertTrue(any(row["event"] == "commentary_unavailable" for row in report["trace"]))
+        self.assertEqual(set(roles), checked_roles)
 
     async def test_parallel_branches_settle_before_the_report_is_returned(self):
         amira, = examples("amira")

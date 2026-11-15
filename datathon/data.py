@@ -8,9 +8,15 @@ import math
 import os
 import zipfile
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
+from decimal import Decimal, DecimalException, localcontext
+from hashlib import sha256
 from pathlib import Path, PurePosixPath
+from typing import TYPE_CHECKING, Iterable
+
+if TYPE_CHECKING:
+    from .finance import StressWindow
 
 
 DATA_CSVS = ("prices_daily.csv", "fx_usdcad_daily.csv", "sources_metadata.csv")
@@ -68,6 +74,11 @@ class MarketData:
     metadata: tuple[dict[str, str], ...] = ()
     source_path: str = ""
     official_starter: bool = False
+    source_csvs: tuple[tuple[str, str], ...] = field(default=(), repr=False)
+
+
+class MarketProvenanceError(ValueError):
+    """A CAD price or its source cannot be reconciled with the frozen input."""
 
 
 def issuer_evidence() -> dict:
@@ -105,13 +116,34 @@ def _starter_path(path: str | Path | None) -> Path:
     )
 
 
+def _starter_csv_directory(path: Path) -> Path:
+    directories = (path, path / "alphaforge_starter", path / "Datathon2026" / "alphaforge_starter")
+    for directory in directories:
+        if all((directory / file).is_file() for file in DATA_CSVS):
+            return directory
+    raise FileNotFoundError(f"Missing starter CSVs in {path}")
+
+
+def market_data_source(path: str | Path | None = None) -> tuple[Path, tuple[tuple[str, int, int, int, int, int], ...]]:
+    """Resolve the source and detect replacement for local caching."""
+    source = _starter_path(path).resolve()
+    if source.is_dir():
+        source = _starter_csv_directory(source).resolve()
+        files = [source / name for name in DATA_CSVS]
+    else:
+        files = [source]
+    versions = []
+    for file in files:
+        observed = file.stat()
+        versions.append((file.name, observed.st_dev, observed.st_ino, observed.st_size,
+                         observed.st_mtime_ns, observed.st_ctime_ns))
+    return source, tuple(versions)
+
+
 def _csv_texts(path: Path) -> dict[str, str]:
     if path.is_dir():
-        directories = (path, path / "alphaforge_starter", path / "Datathon2026" / "alphaforge_starter")
-        for directory in directories:
-            if all((directory / file).is_file() for file in DATA_CSVS):
-                return {file: (directory / file).read_text(encoding="utf-8-sig") for file in DATA_CSVS}
-        raise FileNotFoundError(f"Missing starter CSVs in {path}")
+        directory = _starter_csv_directory(path)
+        return {file: (directory / file).read_text(encoding="utf-8-sig") for file in DATA_CSVS}
 
     with zipfile.ZipFile(path) as archive:
         paths = [PurePosixPath(member) for member in archive.namelist()]
@@ -125,10 +157,19 @@ def _csv_texts(path: Path) -> dict[str, str]:
 
 
 def _csv_rows(text: str, expected: set[str]):
-    rows = csv.DictReader(io.StringIO(text))
-    if not rows.fieldnames or not expected.issubset(rows.fieldnames):
-        raise ValueError(f"Missing required CSV columns: {', '.join(sorted(expected - set(rows.fieldnames or ())))}")
-    return rows
+    rows = csv.DictReader(io.StringIO(text), strict=True)
+    try:
+        columns = rows.fieldnames or []
+        if missing := expected - set(columns):
+            raise ValueError(f"Missing required CSV columns: {', '.join(sorted(missing))}")
+        if len(columns) != len(set(columns)):
+            raise ValueError("Duplicate CSV columns.")
+        for row in rows:
+            if None in row or any(value is None for value in row.values()):
+                raise ValueError(f"Malformed CSV row {rows.line_num}.")
+            yield row
+    except csv.Error as exc:
+        raise ValueError(f"Malformed CSV record at line {rows.line_num}.") from exc
 
 
 def _positive(value: str, name: str) -> float:
@@ -169,7 +210,93 @@ def load_market_data(path: str | Path | None = None) -> MarketData:
         price = _positive(row["adj_close"], f"{ticker} adjusted close")
         if currency == "USD" and day not in fx:
             continue
-        prices.setdefault(ticker, {})[day] = price * fx[day] if currency == "USD" else price
+        cad_price = price * fx[day] if currency == "USD" else price
+        if not math.isfinite(cad_price) or cad_price <= 0:
+            raise ValueError(f"Invalid CAD adjusted close for {ticker} on {day}.")
+        prices.setdefault(ticker, {})[day] = cad_price
 
     metadata_rows = _csv_rows(texts["sources_metadata.csv"], {"file", "source", "source_url", "retrieved_on"})
-    return MarketData(prices, fx, tuple(metadata_rows), str(source.resolve()), official_starter=True)
+    return MarketData(prices, fx, tuple(metadata_rows), str(source.resolve()),
+                      official_starter=True, source_csvs=tuple(texts.items()))
+
+
+def _matches_reference(value, reference):
+    # The loader rounds source decimals to binary floats before multiplication.
+    expected = float(reference)
+    return (type(value) in (int, float) and math.isfinite(value) and value > 0
+            and math.isfinite(expected) and expected > 0 and abs(value - expected) <= 4 * math.ulp(expected))
+
+
+def verify_cad_conversion(data: MarketData, *, tickers: Iterable[str], windows: Iterable[StressWindow]) -> dict:
+    """Independently rebuild the selected CAD closes from the frozen source CSVs."""
+    if not data.source_csvs:
+        if data.source_path or data.official_starter:
+            raise MarketProvenanceError("The loaded market data have no frozen price and FX records.")
+        return {"status": "not_applicable", "reason": "no_raw_price_snapshot"}
+
+    source = dict(data.source_csvs)
+    if set(source) != set(DATA_CSVS) or len(source) != len(data.source_csvs):
+        raise MarketProvenanceError("The frozen market snapshot does not contain its expected CSVs.")
+    tickers = tuple(sorted(set(tickers)))
+    windows = tuple(windows)
+    if not tickers or not windows:
+        raise MarketProvenanceError("Select assets and replay windows before checking CAD conversion.")
+
+    first = min(window.start for window in windows)
+    last = max(window.end for window in windows)
+    raw_fx = {}
+    raw_prices = {ticker: {} for ticker in tickers}
+    try:
+        for row in _csv_rows(source["fx_usdcad_daily.csv"], {"date", "usdcad"}):
+            day = date.fromisoformat(row["date"]).isoformat()
+            if first <= day <= last:
+                raw_fx[day] = Decimal(row["usdcad"])
+        for row in _csv_rows(source["prices_daily.csv"], {"ticker", "date", "adj_close", "currency"}):
+            ticker = row["ticker"]
+            if ticker in raw_prices:
+                day = date.fromisoformat(row["date"]).isoformat()
+                if first <= day <= last:
+                    raw_prices[ticker][day] = (Decimal(row["adj_close"]), row["currency"])
+        recorded_sources = tuple(_csv_rows(source["sources_metadata.csv"], {"file", "source", "source_url", "retrieved_on"}))
+    except (ValueError, TypeError, DecimalException) as exc:
+        raise MarketProvenanceError("The frozen price or FX records could not be read for checking.") from exc
+
+    if data.metadata != recorded_sources:
+        raise MarketProvenanceError("The market source metadata do not match the frozen snapshot.")
+
+    raw_price_days = set.intersection(*(set(raw_prices[ticker]) for ticker in tickers))
+    source_days = raw_price_days.intersection(raw_fx)
+    missing_fx = raw_price_days - raw_fx.keys()
+    converted_days = set(data.fx).intersection(*(data.prices.get(ticker, {}) for ticker in tickers))
+    checked_windows = {}
+    with localcontext() as context:
+        context.prec = 40
+        for window in windows:
+            source_window = {day for day in source_days if window.start <= day <= window.end}
+            converted_window = {day for day in converted_days if window.start <= day <= window.end}
+            if not {window.start, window.end}.issubset(source_window) or source_window != converted_window:
+                raise MarketProvenanceError(f"The replay dates for {window.id} do not match the frozen price and FX records.")
+
+            for day in sorted(source_window):
+                rate = raw_fx[day]
+                if not _matches_reference(data.fx[day], rate):
+                    raise MarketProvenanceError(f"The USD/CAD fixing for {day} differs from its frozen source.")
+                for ticker in tickers:
+                    close, currency = raw_prices[ticker][day]
+                    if currency not in ("CAD", "USD"):
+                        raise MarketProvenanceError(f"The source currency for {ticker} on {day} is unsupported.")
+                    expected = close * rate if currency == "USD" else close
+                    if not _matches_reference(data.prices[ticker][day], expected):
+                        raise MarketProvenanceError(f"The CAD adjusted close for {ticker} on {day} differs from its source.")
+            checked_windows[window.id] = {
+                "observations": len(source_window),
+                "price_observations": len(source_window) * len(tickers),
+                "missing_fx_dates": sorted(day for day in missing_fx if window.start <= day <= window.end),
+            }
+
+    return {
+        "status": "verified", "formula_id": "cad_adjusted_close", "formula_version": "1",
+        "price_field": "adj_close", "fx_field": "usdcad", "basis": "CAD",
+        "source_sha256": {name: sha256(source[name].encode("utf-8")).hexdigest() for name in DATA_CSVS},
+        "windows": checked_windows,
+    }

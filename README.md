@@ -50,7 +50,7 @@ python -m datathon.resilience_benchmark --data "$DATA" --repeats 2 --report outp
 ```
 
 
-## Seven agents and their handoffs
+## Agents and their handoffs
 
 | Agent | Its role in the decision |
 | --- | --- |
@@ -59,10 +59,11 @@ python -m datathon.resilience_benchmark --data "$DATA" --repeats 2 --report outp
 | Exposure | Measures direct and indirect NVIDIA exposure and bounds disclosure gaps for policies with an issuer cap. |
 | Scenario | Selects how to report historical loss from the confirmed policy. It uses both required windows, and Python retains terminal loss and drawdown for independent review. |
 | Alternatives | Calls the funding solver to check feasible purchase sizes, funding mixes and binding limits. |
-| Review | Calls an independent recomputation to verify candidate metrics, rules, feasible ranges and infeasibility evidence. |
-| Explanation | Renders the checked findings and source references. The default summary runs in Python, with an optional model commentary path. |
+| Review | Calls independent Python checks for metrics, limits, funding and exposure, or selects a supported follow-up check when the user delegates that choice. |
 
-The profile establishes the simulation rules before Evidence runs. Exposure, when required, runs alongside Scenario, followed by Alternatives, Review and Explanation. In AWS mode Strands on Amazon Bedrock selects typed tool arguments from the confirmed rules and the frozen catalog. Python validates the exact evidence set, snapshot date, loss metric and windows. If either routed agent fails to produce a usable result, Python applies the confirmed policy and the report identifies the fallback. An independent review is still required for a verdict. Use **Agent activity and AWS trace** to see accepted arguments, rejections, skipped roles and fallbacks. [Routing and verification](https://github.com/WindsTrace/datathon-prep/issues/2)
+The profile establishes the simulation rules before Evidence runs. Exposure, when required, runs alongside Scenario. Alternatives runs after separate search authorization. Review runs before publication. In AWS mode Strands on Amazon Bedrock interprets requests and selects typed tools and arguments. Python validates the evidence set, snapshot date, loss metric and windows. If either routed agent fails to produce a usable result, Python applies the confirmed policy and the report identifies the fallback. Use **Agent activity and AWS trace** to see accepted arguments, rejections, skipped roles and fallbacks. [Routing and verification](https://github.com/WindsTrace/datathon-prep/issues/2)
+
+Python owns derived values, rule verdicts and published explanations. Review rebuilds CAD prices from frozen closes and same-date USD/CAD observations before verifying risk metrics. Sector and issuer exposure changes have their own independent checks and publication status. The report binds verified values to the audit inputs, method versions and a review identifier. Reported risk is conditional on the historical paths used in the audit.
 
 ## Data and scope
 

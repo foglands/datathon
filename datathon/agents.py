@@ -1,4 +1,4 @@
-"""Seven role-specific Strands agents for the simulated portfolio audit."""
+"""Role-specific Strands agents for the simulated portfolio audit."""
 
 from __future__ import annotations
 
@@ -61,8 +61,7 @@ ROLES = {
         "IDs from the catalog and use its holdings observation date only for the issuer scope. "
         "Keep disclosure availability separate from a holdings observation date and from the historical "
         "price window. Identify unavailable coverage, conflicts, stale records, and incompatible units "
-        "or currencies. Cite only source IDs returned by the tool. Distinguish gaps in partial issuer "
-        "holdings from missing historical price evidence. A holdings gap does not prevent a price replay."
+        "or currencies by selecting the tool's applicable evidence. A holdings gap does not prevent a price replay."
     ),
     "profile": Role(
         "Extract the current fictional investor request into submit_profile. Never audit or give a verdict. "
@@ -98,8 +97,9 @@ ROLES = {
         "a mandatory ESG screen, or a minimum return. Do not use these labels for missing details. "
         "For missing fields, leave their arguments unset. For an ordinary 14% loss limit with no metric, "
         "submit limit_bps=1400 with an empty metric and no issue label. "
-        "5. Submit promptly. If available, copy short literal excerpts that support the loss rule, funding "
-        "authorization, and any other binding issue. Excerpts are optional evidence; no JSON or commentary. "
+        "5. Submit promptly. If available, copy short literal excerpts that support the loss rule, reserve floor, "
+        "issuer cap, funding authorization, and any other binding issue. Copy the number and its unit for "
+        "numeric rules. Excerpts are optional evidence; no JSON or commentary. "
         "Examples: if the investor says to apply a quoted rule setting a 10.5% start-to-finish loss cap "
         "and gives no competing rule, submit terminal_loss, 1050, and no binding_issue. If cited only as a "
         "third-party example, the quoted cap provides no loss rule. 'Fund from ZST.TO; QQQ may also be used' means additive, "
@@ -107,32 +107,22 @@ ROLES = {
         requires_tool=False,
     ),
     "exposure": Role(
-        "Use the exposure tool to investigate direct and indirect issuer exposure from the portfolio "
-        "and available holdings. Look for overlapping issuer exposure and separate security identifiers "
-        "from issuer identifiers. Distinguish unknown coverage from verified zero exposure. Do not "
-        "use current holdings as if investors could observe them in the historical price window. "
-        "Keep supported exposures and their uncertainty available when other exposures lack evidence."
+        "Call the exposure tool to check direct and indirect issuer exposure. The tool computes "
+        "the exposure and retains uncertainty for holdings without verified coverage."
     ),
     "scenario": Role(
         "Use the scenario tool to compare the frozen original portfolio and funding choices. "
         "For a parameterized replay, select the confirmed historical loss metric if a cap applies "
         "and comparison if the policy has no historical loss cap. Include every required window ID. "
-        "Explain "
-        "historical terminal return and within-period drawdown as separate metrics. Identify which "
-        "assumption changes a result. Treat scenario outputs as conditional demonstrations, not "
-        "forecasts or probabilities of future losses."
+        "The tool computes the historical metrics and records the applicable windows."
     ),
     "alternatives": Role(
-        "Use the alternatives tool to find the allowed funding range and candidate portfolios. "
-        "Respect the requested buy size, allowed funding assets, and fixed constraints. Distinguish an "
-        "infeasible request from a failing baseline and from unavailable evidence. Do not select a unique "
-        "best trade without a stated priority. Report material trade-offs and narrow margins."
+        "Call the alternatives tool only for the authorized funding search. The tool applies the confirmed "
+        "buy size, funding assets, and constraints, then computes the feasible range."
     ),
     "review": Role(
-        "Independently review the candidate using the supplied review tool and the frozen source inputs. "
-        "Do not rely on the proposal's narrative as evidence. Flag unsupported or contradictory claims, "
-        "recalculation discrepancies, missing data and very small safety margins. A candidate correctly "
-        "identified as violating a constraint can still be an ok result for this audit stage."
+        "Call the supplied review tool to independently check the frozen source inputs and candidate. "
+        "The review tool computes findings and determines which confirmed constraints are satisfied."
     ),
     "review_challenge": Role(
         "Use select_audit_challenge to select one option from the supplied catalog based on the "
@@ -143,13 +133,6 @@ ROLES = {
         "authorize a trade. Use only the catalog option identifiers. The tool will "
         "record your selection. Do not claim that a hypothetical result was calculated or advise a trade."
     ),
-    "explanation": Role(
-        "Summarize the verified audit in clear language. Identify the tested rule, its result, the funding "
-        "trade-off, the evidence and what changes the result. Report both verified and unresolved findings. "
-        "Use only the passed-in numbers, verification statuses, and evidence IDs. Do not perform a new "
-        "calculation, change a verdict, or suggest real trading.",
-        requires_tool=False,
-    ),
 }
 
 _COMMON_PROMPT = (
@@ -158,13 +141,11 @@ _COMMON_PROMPT = (
     "with your role. When required_tool names a tool, call that tool before producing your structured "
     "output. Use the required argument names and types in the tool schema, choosing values from the "
     "options provided for this run when a choice is required. Call a tool with no parameters with an "
-    "empty object. Complete the tool call even "
-    "if data may be missing. Distinguish unsupported conclusions from calculations the data supports. "
-    "Python tools are authoritative for financial metrics, feasible ranges, and rule decisions. "
-    "Never supply missing values yourself, cite a fabricated source ID, or publish personalized financial advice. "
-    "Use ok when your stage completed, even if its verified financial result is a failing proposal. "
-    "Use needs_input for missing or ambiguous required user input and insufficient_evidence for missing "
-    "or unusable source data. Return a concise summary and a list of applicable evidence IDs. "
+    "empty object. Complete the tool call even if data may be missing. "
+    "Python tools compute financial metrics, feasible ranges, and decisions under the confirmed rules. "
+    "Choose only the approved tool and its allowed arguments. Do not calculate, restate, or fill in "
+    "financial numbers, and do not supply a verdict or a trade recommendation. If an output schema "
+    "requests a summary, state only the tool completion status and its applicable evidence IDs. "
 )
 
 _PROFILE_TOOL_PROMPT = (
@@ -197,6 +178,15 @@ _TARGET_NUMBER = (
 )
 _TARGET_UNIT = (r"(?:\s+(?:percentage\s+points?|points?\s+of\s+portfolio\s+weight|"
                 r"points?\s+de\s+pourcentage)|[-–]percentage[-–]points?)")
+_PROFILE_PERCENT = re.compile(
+    r"(?<![\w.,+−-])(?P<amount>" + _TARGET_NUMBER + r")"
+    r"(?:\s*%|\s+(?:percent|pour\s+cent)\b|" + _TARGET_UNIT + r")",
+    re.IGNORECASE,
+)
+_PROFILE_BASIS_POINTS = re.compile(
+    r"(?<![\w.,+−-])(?P<amount>\d{1,5})\s+(?:basis\s+points?|bps|points?\s+de\s+base)\b",
+    re.IGNORECASE,
+)
 _TARGET_AMOUNT = r"(?P<quantity>(?P<amount>" + _TARGET_NUMBER + r")" + _TARGET_UNIT + r")"
 _TARGET_NAME = r"(?:NVDA|Nvidia)\b"
 _TARGET_ACTION = r"(?:add(?:s|ing)?|increase(?:s|d)?|increasing|raise(?:s|d)?|raising|shift(?:s|ing)?|move(?:s|d)?|moving)"
@@ -264,6 +254,28 @@ def _previous_target_sentence(text, *, truncated=False):
     return text[previous_stop + 1:] if previous_stop >= 0 or not truncated else ""
 
 
+def _percent_to_basis_points(token):
+    token = token.lower()
+    if token[0].isdigit():
+        whole, _, decimals = token.replace(",", ".").partition(".")
+        return int(whole) * 100 + int(decimals.ljust(2, "0"))
+    if token == "one hundred":
+        return 10000
+    if token in _TARGET_WORDS:
+        return _TARGET_WORDS[token] * 100
+    if token in _TARGET_FR_WORDS:
+        return _TARGET_FR_WORDS[token] * 100
+    tens, _, ones = token.replace("-", " ").partition(" ")
+    return (_TARGET_TENS[tens] + _TARGET_WORDS.get(ones, 0)) * 100
+
+
+def _numeric_excerpt_matches(excerpt, basis_points):
+    """Check that a quoted amount and unit agree with the editable draft."""
+    amounts = {_percent_to_basis_points(match["amount"]) for match in _PROFILE_PERCENT.finditer(excerpt)}
+    amounts.update(int(match["amount"]) for match in _PROFILE_BASIS_POINTS.finditer(excerpt))
+    return amounts == {basis_points}
+
+
 def _grounded_purchase_size(request, excerpt, model_size):
     """Check one operative NVDA increase against the original request."""
     adopted = []
@@ -309,19 +321,7 @@ def _grounded_purchase_size(request, excerpt, model_size):
         excerpt_start = request.find(excerpt, max(0, amount_end - len(excerpt)), amount_start + len(excerpt))
         if excerpt_start == -1 or excerpt_start > amount_start:
             return None
-    token = match["amount"].lower()
-    if token[0].isdigit():
-        whole, _, decimals = token.replace(",", ".").partition(".")
-        basis_points = int(whole) * 100 + int(decimals.ljust(2, "0"))
-    elif token == "one hundred":
-        basis_points = 10000
-    elif token in _TARGET_WORDS:
-        basis_points = _TARGET_WORDS[token] * 100
-    elif token in _TARGET_FR_WORDS:
-        basis_points = _TARGET_FR_WORDS[token] * 100
-    else:
-        tens, _, ones = token.replace("-", " ").partition(" ")
-        basis_points = (_TARGET_TENS[tens] + _TARGET_WORDS.get(ones, 0)) * 100
+    basis_points = _percent_to_basis_points(match["amount"])
     if not 0 < basis_points <= 10000:
         return None
     if model_size <= 0 and any(left <= start < right for left, right in adopted):
@@ -425,7 +425,8 @@ def _profile_handoff(request, *, status, summary, metric="", limit_bps=-1, targe
                      reserve_floor_bps=-1, issuer_cap_bps=-1, allowed_sources="", allow_smaller=-1,
                      prefer_reserve=-1, initial_source="", clarification_field="",
                      additional_loss_limit_bps=-1, unsupported_excerpt="", funding_rule="",
-                     loss_excerpt="", initial_source_excerpt="", funding_excerpt="", target_excerpt="",
+                     loss_excerpt="", reserve_floor_excerpt="", issuer_cap_excerpt="",
+                     initial_source_excerpt="", funding_excerpt="", target_excerpt="",
                      search_alternatives=True, defer_smaller_authorization=False):
     """Validate the model draft and normalize explicit, unambiguous purchase size."""
     if status not in {"ok", "needs_input"} or (clarification_field and clarification_field not in _PROFILE_QUESTIONS):
@@ -522,13 +523,16 @@ def _profile_handoff(request, *, status, summary, metric="", limit_bps=-1, targe
 
     excerpts = {
         "target_bps": target_excerpt, "metric": loss_excerpt, "limit_bps": loss_excerpt,
+        "reserve_floor_bps": reserve_floor_excerpt, "issuer_cap_bps": issuer_cap_excerpt,
         "initial_source": initial_source_excerpt, "allowed_sources": funding_excerpt or initial_source_excerpt,
     }
+    numeric_rules = {"limit_bps", "reserve_floor_bps", "issuer_cap_bps"}
     grounded = {
         key: excerpt for key, excerpt in excerpts.items()
         if key in PROFILE_FIELDS and fields[key] is not None
         and (key != "target_bps" or target_grounded)
         and isinstance(excerpt, str) and excerpt.strip() and excerpt in request
+        and (key not in numeric_rules or excerpt in clause_text and _numeric_excerpt_matches(excerpt, fields[key]))
     }
     if field:
         summary = _PROFILE_QUESTIONS[field]
@@ -945,6 +949,8 @@ class StrandsAgents:
                 additional_loss_limit_bps: int = -1,
                 target_excerpt: str = "",
                 loss_excerpt: str = "",
+                reserve_floor_excerpt: str = "",
+                issuer_cap_excerpt: str = "",
                 initial_source_excerpt: str = "",
                 funding_excerpt: str = "",
                 issue_excerpt: str = "",
@@ -958,6 +964,7 @@ class StrandsAgents:
                     issuer_cap_bps=issuer_cap_bps, allowed_sources=allowed_sources, allow_smaller=allow_smaller,
                     prefer_reserve=prefer_reserve, initial_source=initial_source, clarification_field=binding_issue,
                     additional_loss_limit_bps=additional_loss_limit_bps, loss_excerpt=loss_excerpt,
+                    reserve_floor_excerpt=reserve_floor_excerpt, issuer_cap_excerpt=issuer_cap_excerpt,
                     initial_source_excerpt=initial_source_excerpt, funding_excerpt=funding_excerpt,
                     funding_rule=funding_rule, unsupported_excerpt=issue_excerpt, target_excerpt=target_excerpt,
                     search_alternatives=profile_input.get("search_alternatives", True),

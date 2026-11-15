@@ -55,8 +55,7 @@ class AuditIntentTests(unittest.IsolatedAsyncioTestCase):
                 called.clear()
                 with (patch("datathon.workflow.solve_funding", side_effect=AssertionError("unexpected search")),
                       patch("datathon.governance._frontier", side_effect=AssertionError("unexpected candidate review"))):
-                    report = await run_case(self.market, case, confirmed_profile=AgentRun("ok", self.profile),
-                                            include_agent_commentary=True, **runtime)
+                    report = await run_case(self.market, case, confirmed_profile=AgentRun("ok", self.profile), **runtime)
                 if runtime:
                     self.assertEqual(called, ["lookup_evidence", "stress_replay", "recheck_decision"])
                 self.assertEqual(report["status"], "fail")

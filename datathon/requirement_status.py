@@ -24,7 +24,7 @@ def unassessed_codes(records):
     return tuple(dict.fromkeys(codes))
 
 
-def apply_requirement_status(report, unassessed=()):
+def apply_requirement_status(report, unassessed=(), *, sector_verification=None):
     """Report task completion separately from each checked rule and verdict."""
     audit = report.get("audit", {})
     verified = audit.get("verified", {})
@@ -75,9 +75,10 @@ def apply_requirement_status(report, unassessed=()):
         add("alternatives", "Alternative funding search",
             "skipped_outside_scope" if unassessed else "skipped_not_requested")
     if sector := report.get("sector_analysis"):
+        verified_sector = sector if sector_verification is None else sector_verification.get("verified", {})
         add("sector_analysis", "Descriptive equity sector analysis",
-            "completed" if sector.get("status") == "complete" else "insufficient_evidence",
-            evidence_ids=[f"sector:{ticker}:{row['as_of']}" for ticker, row in sector.get("evidence", {}).items()])
+            "completed" if verified_sector.get("status") == "complete" else "insufficient_evidence",
+            evidence_ids=[f"sector:{ticker}:{row['as_of']}" for ticker, row in verified_sector.get("evidence", {}).items()])
     for code in unassessed:
         add(code, UNASSESSED_LABELS[code], "unsupported", "unknown")
 
