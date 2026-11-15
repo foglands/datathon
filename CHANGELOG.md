@@ -7,6 +7,7 @@
 - Export the covered historical dates, documented exclusions, missing observations and consecutive gaps. Separate formula verification, historical scope and unanswered future risk questions.
 - Derive the ZST.TO non-equity lower bound from disclosed fair value and NAV with a conservative display-precision adjustment. Leave unsupported exposure unmapped.
 - Add independently expected path, scale, signed-contribution and strict-threshold cases, plus intake, provenance and coverage regressions.
+- Verified 219 regression tests and six offline CLI cases on both local macOS and competition CloudShell. Eleven live Bedrock checks passed. [Verification record](submission/verification.md#risk-reliability-completion-on-local-and-competition-aws)
 
 ## 2026-11-15 · Formula-based risk and verified publication
 

@@ -2,6 +2,39 @@
 
 PolyFinances Datathon 2026 · Montréal
 
+## Risk reliability completion on local and competition AWS
+
+Application commit [`98661fe`](https://github.com/WindsTrace/datathon-prep/commit/98661fe71f880139d51d2361624193adc8db7c82) was verified on November 15, 2026. Local macOS Python 3.10 and competition CloudShell Python 3.13 used the organizer's full starter tables.
+
+| Check | Local | AWS CloudShell `us-east-1` |
+| --- | ---: | ---: |
+| Full Python regression suite, including Streamlit AppTest | 219 / 219 | 219 / 219 |
+| Offline CLI reference and stress cases | 6 / 6 | 6 / 6 |
+| Live Bedrock CLI reference and stress cases | | 6 / 6 |
+| Additional live checks for this change | | 5 / 5 |
+
+The eleven live checks collected **36 successful Bedrock Converse HTTP 200 responses**, each with an AWS request ID. The additional cases verify the following behavior.
+
+| Additional live check | Observed result | Successful Converse calls | Sample request ID hash prefix |
+| --- | --- | ---: | --- |
+| English Profile | Correctly grounded purchase, loss, reserve and issuer values in the applicable request clauses. | 1 | `9d03cd835567` |
+| French Profile | Correctly grounded purchase, loss and reserve values in the applicable request clauses. | 1 | `54b252c69d01` |
+| Robert, original trade | Skipped Alternatives and exposed a verified drawdown reference and complete date coverage for both reference windows. | 3 | `489ce3946ebc` |
+| Amira, sector evidence | Recomputed the ZST.TO disclosure bound. A modified bound withheld the sector section and preserved the verified main report. | 4 | `22dee134ac33` |
+| Delegated Review | Selected the requested loss-metric change and published verified replay metric references under the original search scope. | 4 | `5404b0854de7` |
+
+The full suite covered deterministic price paths, scaling, contribution conservation, missing dates, unresolved intake, and tampered publication. Observation coverage is independently checked for the three registered competition windows. Unregistered windows are explicitly marked as unverified. Reported risk is conditional on the historical scenarios.
+
+Reproduce the standard local or CloudShell checks from the application commit using the full starter data.
+
+```bash
+DATATHON_STARTER_PATH="$DATA" DATATHON_FULL_STARTER_PATH="$DATA" python -m unittest discover -q
+python -m datathon --data "$DATA" --mode offline --stress
+python -m datathon --data "$DATA" --mode aws --stress --report /tmp/alphaforge-live.json
+```
+
+This CloudShell session saved the full suite output and CLI reports under `/tmp/alphaforge-98661fe-full-aws/`, with request ID hashes in `live-proof.json`.
+
 ## Formula-based publication on competition AWS
 
 Application commit [`afe2036`](https://github.com/WindsTrace/datathon-prep/commit/afe2036c79ed87865bac885c6f3024bb018a2ecb) ran in the competition AWS CloudShell in `us-east-1` using the organizer starter dataset. The run was recorded on November 15, 2026 at 01:04 Toronto time. The CLI passed all six reference cases. Two additional original-only cases passed the publication checks. Across the eight cases, the observed Bedrock Converse responses included 30 HTTP 200 results with AWS request IDs.
