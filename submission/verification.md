@@ -2,6 +2,33 @@
 
 PolyFinances Datathon 2026 · Montréal
 
+## Generated-input and cross-model verification
+
+The November 15, 2026 comparison used the same official starter data for the [baseline `6d1fb52`](https://github.com/WindsTrace/datathon-prep/commit/6d1fb52a29f932dceaec94970d72a0820d1c79ad) and [application candidate `957b441`](https://github.com/WindsTrace/datathon-prep/commit/957b4416e6a93d558124a9122f05001f17dcb312). The paired runner generates supported portfolio weights, constraints, funding permissions, historical windows, disclosure gaps, and English or French requests from a seed. Both revisions receive the same generated inputs. The runner alternates execution order, compares financial outputs with an independently checked offline reference, and checks solver authorization separately.
+
+| CloudShell cohort | Seed | Profile model | Audit model | Baseline | Candidate | Candidate request ID hash |
+| --- | ---: | --- | --- | ---: | ---: | --- |
+| Initial generated cohort | 20261115 | Claude Sonnet 4.5 | Nova 2 Lite | 6/8 | 8/8 | `f404f3eff1e4` |
+| Independently seeded holdout | 142106706 | Claude Sonnet 4.5 | Nova 2 Lite | 6/8 | 8/8 | `0259db74d595` |
+| Model roles swapped | 56558902 | Nova 2 Lite | Claude Sonnet 4.5 | 1/3 | 3/3 | `b606a9d82a05` |
+| Custom manifest with authorized Review | 585936471 | Claude Sonnet 4.5 | Nova 2 Lite | 1/1 | 1/1 | `4d9e0a5bc129` |
+
+The baseline passed 14/20 checks and the candidate passed 20/20. The baseline requested clarification in all six explicit English and French exact-quantity checks. The candidate grounded all six quantities and advanced to confirmation. The genuinely ambiguous and conflicting requests still required clarification. Both revisions agreed with the independently reviewed offline financial results for every generated audit and follow-up in the table, including the supplied manifest.
+
+Each revision recorded 60 successful Converse responses across these cohorts. The median candidate-minus-baseline latency among pairs that passed on both revisions was −79.15 ms for the first cohort, +72.87 ms for the holdout, and −1,109.07 ms for the single comparable pair after swapping models. The authorized Review pair ran in 7,243.02 ms for the baseline and 6,798.78 ms for the candidate, with nine successful Converse responses each. These timings are individual experimental observations. The scripted rejected-route benchmark separately reduced tool attempts from five to four for the staged recovery path, with zero unsafe releases on either revision.
+
+[Revision `77b9d0c`](https://github.com/WindsTrace/datathon-prep/commit/77b9d0c072a66a8269c373dfe910d108554f06e9) extends the benchmark checker to cover custom Review manifests with either search authorization state. The final revision passed 230/230 regressions on local macOS and competition CloudShell. The application passed 6/6 offline CLI checks on each environment. The custom-manifest replay used the updated checker and the same application runtime. Its manifest fingerprint starts with `0a27918bc8bf`.
+
+Reproduce the independently seeded live comparison from the candidate checkout using a baseline checkout and the official dataset.
+
+```bash
+python -m datathon.paired_benchmark --data "$DATA" --mode aws \
+  --baseline /path/to/baseline-checkout --candidate . --seed 142106706 \
+  --report outputs/paired-holdout.json
+```
+
+The competition session stored the paired reports and final regression output under `/tmp/alphaforge-iteration/results/`.
+
 ## Risk reliability completion on local and competition AWS
 
 Application commit [`98661fe`](https://github.com/WindsTrace/datathon-prep/commit/98661fe71f880139d51d2361624193adc8db7c82) was verified on November 15, 2026. Local macOS Python 3.10 and competition CloudShell Python 3.13 used the organizer's full starter tables.

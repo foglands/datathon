@@ -4,7 +4,7 @@ PolyFinances Datathon 2026 · Banque Nationale · AWS
 
 AlphaForge AI shows how the funding source for a proposed trade changes a portfolio's risk and its fit with an investor's stated constraints. The prototype compares the original portfolio, the requested trade and feasible alternatives. It reports which rule drove the decision and which conclusions still depend on missing evidence.
 
-[Quick start](#run-it) · [Latest local and AWS verification](submission/verification.md#risk-reliability-completion-on-local-and-competition-aws) · [Risk model reliability implementation](RISK_RELIABILITY_IMPLEMENTATION.md)
+[Quick start](#run-it) · [Latest local and AWS verification](submission/verification.md#generated-input-and-cross-model-verification) · [Risk model reliability implementation](RISK_RELIABILITY_IMPLEMENTATION.md)
 
 ## Choose the scope of the audit
 
@@ -22,7 +22,7 @@ The command-line demo uses a fictional CAD portfolio holding 35% SPY, 25% XIU.TO
 
 [Release verification](submission/verification.md) · [One-page summary](submission/one-pager.pdf) · [Technical summary](submission/technical-summary.pdf) · [Demo video recorded at `13ccc42`](submission/alphaforge-demo.mp4) · [Demo visuals](submission/visual-handout.pdf)
 
-Application revision [`98661fe`](https://github.com/WindsTrace/datathon-prep/commit/98661fe71f880139d51d2361624193adc8db7c82) passed 219 regression tests on local macOS and the same 219 tests on competition AWS CloudShell. Both environments passed all six offline CLI cases. The competition account also passed 11 live Bedrock checks with 36 successful Converse responses. The [verification record](submission/verification.md#risk-reliability-completion-on-local-and-competition-aws) identifies the evidence and reproduction steps for each revision.
+The latest application and benchmark revision [`77b9d0c`](https://github.com/WindsTrace/datathon-prep/commit/77b9d0c072a66a8269c373dfe910d108554f06e9) passed 230 regression tests on local macOS and competition AWS CloudShell. Both environments passed all six offline CLI cases. The candidate passed 20/20 paired live Bedrock checks across generated inputs, swapped model roles, and a supplied manifest. The [verification record](submission/verification.md#generated-input-and-cross-model-verification) lists the comparison results and reproduction steps.
 
 ## What the prototype found
 
@@ -128,7 +128,7 @@ python -m datathon.runtime_benchmark --data "$DATA" --mode aws --jobs 1 3 --repe
   --report outputs/runtime.json
 ```
 
-Use `--case robert` or `--case amira` to run one persona. Offline mode simulates role handoffs and runs the financial calculations locally. [Latest test results](submission/verification.md#risk-reliability-completion-on-local-and-competition-aws) · [Earlier reproduction and AWS notes](PROTOTYPE.md)
+Use `--case robert` or `--case amira` to run one persona. Offline mode simulates role handoffs and runs the financial calculations locally. [Latest test results](submission/verification.md#generated-input-and-cross-model-verification) · [Earlier reproduction and AWS notes](PROTOTYPE.md)
 
 To try the interactive audit, start with a fictional request. Select `1` for terminal loss when the clarification menu appears, then type `YES` once the interpreted terms match your intent.
 

@@ -6,6 +6,7 @@
 - Ground explicitly qualified purchase quantities in English and French while retaining clarification for ambiguous amounts and incompatible units.
 - Resolve a rejected Evidence or Scenario route using the confirmed arguments in the same stage. Hold unavailable market evidence immediately and require the checked Review handoff for publication.
 - Add a paired benchmark with seed-generated inputs, custom manifests, and selectable model configurations. Report authorization, numerical agreement, model calls, and timing for both revisions.
+- Verify 230 regressions on local macOS and competition CloudShell. The candidate passed 20/20 paired Bedrock checks with both model assignments and a custom Review manifest. [Verification record](submission/verification.md#generated-input-and-cross-model-verification)
 
 ## 2026-11-15 · Complete the risk reliability acceptance checks
 
