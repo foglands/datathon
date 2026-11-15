@@ -2,7 +2,7 @@
 
 ## 2026-11-14 · User-authorized audits and checked publication
 
-- Audit the submitted trade by default. Run the funding solver, candidate tools and independent frontier checks only for a separately authorized search.
+- Audit the submitted trade first, including in Streamlit reference cases. Preparing search inputs never starts the search. Run the funding solver after the original result and a separate user confirmation.
 - Defer a smaller-size question until the full-size search and independent review establish that a positive smaller trade can help.
 - Preserve unassessed binding terms and show them alongside checked results. A limited review stops at the original trade.
 - Publish independently reviewed numbers, deterministic explanations and safe trace identifiers. Withhold injected or unverified conclusions.

@@ -26,6 +26,7 @@ BLOCKING_PROFILE_FIELDS = {"unsupported_scope", "multiple_loss_limits", "conflic
 PROFILE_INPUT = ("Enter inputs directly", "Interpret text with Bedrock")
 MANUAL_SCOPE = "These inputs include every binding rule for this simulation."
 SEARCH_ALTERNATIVES = "Search alternative funding"
+CONFIRM_SEARCH = "Confirm and search alternative funding"
 INCLUDE_SECTOR = "Include equity sector analysis"
 LIMITED_SCOPE = "Audit only supported rules and mark the other requirements as not assessed."
 ROBERT, _ = examples("robert")
@@ -203,14 +204,24 @@ def new_case(case):
     return replace(case, id=f"{case.id}-{uuid4().hex[:12]}")
 
 
+def can_confirm_search(report):
+    return (report.get("search_alternatives") is False and not report.get("unassessed_requirements")
+            and publish_report(report)["publication"]["independent_review_verified"])
+
+
 def preset_audit(mode):
     name = st.selectbox("Scenario", tuple(PRESETS))
     case, overrides, field, alternative, comparison_label = PRESETS[name]
+    search = st.checkbox(
+        SEARCH_ALTERNATIVES, key=f"preset_search_alternatives-{name}",
+        help="Prepare the funding search settings. Confirm the search after reviewing the original trade.",
+    )
+    case = replace(case, search_alternatives=False)
     profile_data = {**preset_profile(case), **overrides}
-    show_policy(profile_policy(profile_data))
+    show_policy(profile_policy(profile_data, search_alternatives=search), search_alternatives=search)
     if field == "metric":
         st.caption("Terminal loss compares the start and end. Maximum drawdown measures the largest fall from a prior peak.")
-    key = (mode, name)
+    key = (mode, name, search)
     if st.session_state.get("preset_key") != key:
         st.session_state.preset_key = key
         st.session_state.pop("preset_result", None)
@@ -226,12 +237,14 @@ def preset_audit(mode):
     report = st.session_state.get("preset_result")
     if report is None:
         return
-    if field is not None and report["status"] not in {"invalid", "execution_error"} and report.get("audit"):
+    reviewed_search = report.get("search_alternatives", False)
+    can_compare = field is not None and (field != "allow_smaller" or reviewed_search)
+    if can_compare and report["status"] not in {"invalid", "execution_error"} and report.get("audit"):
         st.subheader("Change one rule")
         st.caption(comparison_label)
         if st.button("Confirm this change and compare"):
             changed_data = {**profile_data, field: alternative}
-            changed_case = replace(new_case(case), user_request=(
+            changed_case = replace(new_case(case), search_alternatives=reviewed_search, user_request=(
                 f"{case.user_request}\nThe reviewer changed {field}. Use the confirmed review inputs."
             ))
             trace = ({"role": "profile", "event": "one_rule_changed", "field": field,
@@ -246,11 +259,19 @@ def preset_audit(mode):
         for panel, result in zip(st.tabs(("Original policy audit", "Changed policy audit")), (report, comparison)):
             with panel:
                 if result.get("policy"):
-                    show_policy(result["policy"])
+                    show_policy(result["policy"], search_alternatives=reviewed_search)
                 show_report(result)
     else:
         show_report(report)
-    show_counterfactual(case, report, runtime)
+    if search and can_confirm_search(report):
+        if st.button(CONFIRM_SEARCH, key="preset-confirm-alternatives"):
+            search_case = replace(new_case(case), search_alternatives=True)
+            confirmed = AgentRun("ok", profile_data, ({"role": "profile", "event": "alternative_search_authorized"},))
+            if updated := audit(search_case, confirmed, runtime):
+                st.session_state.preset_result = updated
+                st.session_state.pop("comparison_result", None)
+                st.rerun()
+    show_counterfactual(replace(case, search_alternatives=reviewed_search), report, runtime)
 
 
 def edit_profile(draft, run_id, *, manual=False, search_alternatives):
@@ -376,7 +397,7 @@ def live_request():
     manual = intake == PROFILE_INPUT[0]
     requested_search = st.checkbox(
         SEARCH_ALTERNATIVES, key="request_search_alternatives",
-        help="Compare funding choices only after you authorize the search.",
+        help="Prepare the funding search settings. Confirm the search after reviewing the original trade.",
     )
     include_sector = st.checkbox(INCLUDE_SECTOR, key="request_include_sector")
     unassessed = []
@@ -505,18 +526,21 @@ def live_request():
             st.session_state.pop("request_confirmed", None)
     request_case = Case(
         run_id, "User-confirmed fictional request.", "terminal_loss", None, 0, scope=scope,
-        search_alternatives=search_alternatives, include_sector=include_sector,
+        include_sector=include_sector,
     )
     reports = st.session_state.request_results
 
-    def run_confirmed(fields, result_key, *, allow_resize=False):
+    def run_confirmed(fields, result_key, *, search=False, allow_resize=False):
         trace = draft.trace
         if changes and not manual:
             trace = (*trace, {"role": "profile", "event": "draft_edited", "changes": changes})
+        if search:
+            trace = (*trace, {"role": "profile", "event": "alternative_search_authorized"})
         if allow_resize:
             trace = (*trace, {"role": "profile", "event": "smaller_purchase_authorized"})
         confirmed = replace(draft, status="ok", data=fields, trace=trace)
-        report = audit(new_case(request_case), confirmed, runtime)
+        case = replace(new_case(request_case), search_alternatives=search)
+        report = audit(case, confirmed, runtime)
         if report is not None:
             reports[result_key] = report
             st.session_state.request_confirmed = result_key
@@ -539,11 +563,14 @@ def live_request():
                 column.markdown(f"**{METRICS[metric]}**  \n{result_label(publish_report(reports[variant]))}")
     report = reports[key]
     show_report(report)
+    if search_alternatives and can_confirm_search(report):
+        if st.button(CONFIRM_SEARCH, key="request-confirm-alternatives") and run_confirmed(body, key, search=True):
+            st.rerun()
     if report.get("needs_smaller_authorization") and st.session_state.get("request_declined_resize") != basis:
         st.caption("The full purchase is infeasible. A smaller purchase could be checked if you authorize it.")
         if st.button("Authorize a smaller purchase and rerun"):
             resized_key = tuple((field, True if field == "allow_smaller" else value) for field, value in key)
-            if run_confirmed({**body, "allow_smaller": True}, resized_key, allow_resize=True) is not None:
+            if run_confirmed({**body, "allow_smaller": True}, resized_key, search=True, allow_resize=True) is not None:
                 st.session_state.request_resize_choice = basis
                 st.rerun()
         if st.button("Keep the requested size"):

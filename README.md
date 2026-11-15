@@ -6,15 +6,15 @@ AlphaForge AI shows how the funding source for a proposed trade changes a portfo
 
 ## Choose the scope of the audit
 
-- **Original proposal.** The interactive flow checks the proposed trade and confirmed limits. Alternative funding search requires a separate opt-in.
-- **Alternative funding.** An explicit search checks whether an authorized funding mix can support the full requested purchase. When a positive smaller purchase may help, the application asks before expanding an undecided size scope.
+- **Original proposal.** Streamlit and interactive CLI requests first return an independently reviewed result for the submitted trade.
+- **Alternative funding.** Prepare the search settings, then authorize search separately after seeing the original result. The search checks whether an authorized funding mix can support the full requested purchase. When a positive smaller purchase may help, the application asks before expanding an undecided size scope.
 - **Limited review.** When a binding condition is unsupported, the investor can confirm a review of the supported parts of the original proposal. The report records which condition remains unassessed and limits the conclusion to the work performed.
 
 Both flows use independent numerical review. The published report distinguishes completed checks, proven violations, unresolved evidence, and steps skipped outside the confirmed scope.
 
 Select **Include equity sector analysis** to describe the potential change based on the approved GICS sector evidence. The view shows unmapped weight and the effect of using the same unknown holdings on both sides of the transaction. [Sector evidence and limitations](SECTOR_EVIDENCE.md)
 
-The command-line demo uses a fictional CAD portfolio holding 35% SPY, 25% XIU.TO, 20% QQQ and 20% ZST.TO. The presets add **10 percentage points of NVDA**. An interactive AWS run accepts a new simulated NVDA purchase, confirms the proposed sale and constraints with the user, then searches within the confirmed funding sources and purchase-size rules. [Changelog](CHANGELOG.md)
+The command-line demo uses a fictional CAD portfolio holding 35% SPY, 25% XIU.TO, 20% QQQ and 20% ZST.TO. The presets add **10 percentage points of NVDA**. In an interactive AWS request, `--search-alternatives` enables a separate confirmation prompt after the original audit. Enter `SEARCH` to authorize the solver within confirmed funding and size limits. [Changelog](CHANGELOG.md)
 
 ## Competition package
 
@@ -92,7 +92,7 @@ export DATATHON_STARTER_PATH=/path/to/Datathon2026.zip
 python -m streamlit run app.py
 ```
 
-Open **Robert · loss definition**, confirm the inputs, then compare the change to maximum drawdown. The app replays both policies and shows the starting portfolio, proposed trade and verified outcome. The other Robert cases isolate the reserve floor and permission for a smaller purchase. **Amira · issuer exposure** shows a proven breach for the proposal and an alternative that remains unresolved. Expand the evidence and review section or download the JSON audit record to inspect the calculations and role events.
+Open **Robert · loss definition** and enable **Search alternative funding** to prepare the settings. Run the audit, then choose **Confirm and search alternative funding** to reproduce the funding frontier from the demo. The other Robert cases isolate the reserve floor and permission for a smaller purchase. **Amira · issuer exposure** shows a proven breach for the proposal and, if search is authorized, an unresolved alternative. Expand the evidence and review section or download the JSON audit record to inspect the calculations and role events.
 
 Enter the supported constraints directly to bypass language interpretation, then choose Bedrock or Offline for the audit. Optional free-text intake uses the competition's Sonnet 4.5 inference profile. The staged audit and Review selector use Nova 2 Lite. Free-text inputs are editable before confirmation. Source excerpts, when available, point to the wording the model used. Flagged unsupported binding conditions or contradictions require explicit resolution. Reference cases can run offline with deterministic calculations and simulated agent events. With competition AWS credentials, choose **Write a request** to have Bedrock interpret a fictional request, ask for a missing risk definition, and audit the confirmed inputs. Running a reference case in **Bedrock** mode uses its displayed structured inputs and calls the downstream agents live. Both routes use the same Python solver and independent review as the CLI.
 

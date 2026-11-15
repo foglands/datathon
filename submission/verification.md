@@ -26,7 +26,11 @@ python -m unittest tests.test_audit_intent tests.test_request_entry \
   tests.test_app tests.test_publication tests.test_requirement_status tests.test_sector -q
 ```
 
-In Streamlit choose **Write a request** for the new flow. Leave **Search alternative funding** off for an original-only audit. Turn it on to authorize a search, confirm the allowed sources and leave the smaller-size choice undecided to test the deferred question. Choose the limited review option to preserve a binding requirement that cannot currently be assessed. The existing video shows the earlier reference comparison.
+In Streamlit choose **Write a request** for the new flow. **Search alternative funding** prepares the search inputs. Run the original audit, then choose **Confirm and search alternative funding** to authorize the search. Leave the smaller-size choice undecided to test the deferred question. Choose the limited review option to preserve a binding requirement that cannot currently be assessed. The existing video shows the earlier reference comparison.
+
+In the current Streamlit reference cases, prepare and confirm search separately to reproduce the financing comparison from the recording. Interactive CLI requests use a separate `SEARCH` prompt when `--search-alternatives` is supplied. The command-line reference suite exercises predefined comparison fixtures.
+
+The follow-up confirmation regression passed **171/171** local tests and the six offline reference scenarios. An issuer-exposure audit with an independently checked proposal remained inconclusive with zero solver calls until the user confirmed a separate search. The missing-price case withheld the search action because the required market series could not be reviewed.
 
 ## Optimized application
 
