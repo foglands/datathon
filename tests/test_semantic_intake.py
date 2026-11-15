@@ -23,6 +23,7 @@ class SemanticIntakeTests(unittest.IsolatedAsyncioTestCase):
             ({**route, "points": {"amount": "clause_1"}},),
             ({**route, "task": "trade_audit", "points": {"risk": "clause_1"}},),
             (route, route),
+            (route, route, route),
             (),
         )
         for invocations in attempts:
@@ -131,3 +132,36 @@ class SemanticIntakeTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(any(row.get("tool_name") == _TOOL for row in result["trace"]))
         self.assertNotIn(spending, trace)
         self.assertNotIn(decision, trace)
+
+
+    @unittest.skipIf(find_spec("strands") is None, "Install the pinned Strands SDK to exercise the Bedrock tool.")
+    async def test_sdk_can_recover_from_a_rejected_source_clause(self):
+        import boto3
+        from botocore.stub import Stubber
+        from strands.models import BedrockModel
+
+        session = boto3.Session(aws_access_key_id="test", aws_secret_access_key="test", region_name=DEFAULT_REGION)
+        model = BedrockModel(model_id=DEFAULT_MODEL, streaming=False, boto_session=session)
+        with Stubber(model.client) as stub, patch("strands.models.BedrockModel", return_value=model):
+            for index, source in enumerate(("clause_99", "clause_1"), start=1):
+                stub.add_response("converse", {
+                    "output": {"message": {"role": "assistant", "content": [{"toolUse": {
+                        "toolUseId": f"semantic-recovery-{index}", "name": _TOOL,
+                        "input": {"task": "compare_allocations", "task_source": source},
+                    }}]}},
+                    "stopReason": "tool_use",
+                    "usage": {"inputTokens": 120, "outputTokens": 30, "totalTokens": 150},
+                    "metrics": {"latencyMs": 2},
+                    "ResponseMetadata": {"RequestId": f"semantic-recovery-{index}", "HTTPStatusCode": 200},
+                })
+            result = await interpret_semantic_request(
+                "Compare AGG and GLD. Maximum drawdown must not exceed 12%.", StrandsAgents()
+            )
+            stub.assert_no_pending_responses()
+
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["task"], "compare_allocations")
+        self.assertIsNone(result["plan"])
+        self.assertEqual(result["usage"]["responses_observed"], 2)
+        self.assertEqual(result["usage"]["http_attempt_limit"], 2)
+        self.assertEqual([row["status"] for row in result["trace"] if row["event"] == "tool"], ["error", "success"])

@@ -30,7 +30,7 @@ _RISK_DENIAL = re.compile(
     r"|\b(?:fine|comfortable)\s+with\b|\b(?:pas|jamais)\s+(?:peur|inquiet(?:s|es?)?|pr[ée]occup[ée]e?)\b"
     r"|(?:不|并不|並不)(?:担心|擔心|介意|怕|害怕)", re.I,
 )
-_LIMITS = RuntimeLimits(timeout_seconds=12, max_http_attempts=1, observed_token_threshold=18000)
+_LIMITS = RuntimeLimits(timeout_seconds=12, max_http_attempts=2, observed_token_threshold=18000)
 _TRACE_FIELDS = frozenset({
     "event", "role", "run_id", "status", "tool_name", "model_id", "region", "operation", "request_id", "http_status", "error_type", "stop_reason",
     "retry_attempts", "duration_ms", "throttled", "input_tokens", "output_tokens", "total_tokens", "error_code",
@@ -86,18 +86,17 @@ async def interpret_semantic_request(question: str, runtime: StrandsAgents | Non
     excerpts = dict.fromkeys(part.strip() for part in _CLAUSE_BREAK.split(question, maxsplit=_MAX_CLAUSES - 1) if part.strip())
     clauses = {f"clause_{index}": clause for index, clause in enumerate(excerpts, start=1)}
     selected = None
-    called = False
+    accepted = False
 
     def classify_investment_question(
         task: TaskChoice, task_source: str,
         points: dict[PlanningPoint, str] | None = None, instruments: dict[InstrumentChoice, str] | None = None,
     ) -> dict:
         """Choose a task and map optional planning labels to exact candidate clause IDs."""
-        nonlocal selected, called
-        if called:
+        nonlocal selected, accepted
+        if accepted:
             selected = None
             raise ValueError("Submit exactly one task classification.")
-        called = True
         if type(task) is not str or task not in _TASK_CHOICES or type(task_source) is not str or task_source not in clauses:
             raise ValueError("Choose one supported task with a supplied source clause.")
         if task != "planning" and (points or instruments):
@@ -118,6 +117,7 @@ async def interpret_semantic_request(question: str, runtime: StrandsAgents | Non
             plan = {"points": topic_sources, "instruments": tuple(instrument_sources),
                     "instrument_sources": instrument_sources, "examples": ()}
         selected = task, plan
+        accepted = True
         return {"status": "ok", "task": task}
 
     tool = ToolSpec("classify_investment_question", classify_investment_question.__doc__, classify_investment_question,
