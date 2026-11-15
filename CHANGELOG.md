@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-15 · Recover trade drafts when Bedrock is unavailable
+
+- Open an editable, source-grounded offline draft for a trade entered through the assistant. Require review of the full request and confirmation before replay.
+- Report AWS credential, permission, network, and service failures separately. Continue offline with the submitted text after a failed cloud interpretation.
+- Default direct-entry audits to offline execution. Keep live Bedrock execution and alternative funding search explicitly authorized.
+
 ## 2026-11-15 · Rebuild question intake and require English input
 
 - Route the full question to planning, grounded historical comparison, trade audit, or a scope explanation. Planning can answer before accessing market files.

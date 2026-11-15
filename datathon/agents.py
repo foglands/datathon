@@ -212,15 +212,21 @@ _TARGET_PURCHASE_ACTION = rf"(?:{_TARGET_ACTION}|fund(?:s|ing)?|buy(?:s|ing)?)"
 _TARGET_FR_ACTION = r"(?:ajout(?:e|er|ez)|augment(?:e|er|ez)|achet(?:er|ez)|déplac(?:e|er|ez))"
 _TARGET_EN_EXACT = r"(?:(?:exactly|precisely)\s+)?"
 _TARGET_FR_EXACT = r"(?:(?:exactement|précisément)\s+)?"
-_TARGET_CLAUSES = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
-    rf"\b{_TARGET_PURCHASE_ACTION}\s+{_TARGET_EN_EXACT}{_TARGET_AMOUNT}\s+(?:of|to|in|into)\s+{_TARGET_NAME}",
-    rf"\b{_TARGET_ACTION}\s+{_TARGET_NAME}(?:\s+(?:position|weight|allocation))?\s+by\s+{_TARGET_EN_EXACT}{_TARGET_AMOUNT}\b",
-    rf"\b{_TARGET_NAME}\s+increase\s+of\s+{_TARGET_EN_EXACT}{_TARGET_AMOUNT}\b",
-    rf"(?<![\w.,-]){_TARGET_AMOUNT}\s+increase\s+in\s+{_TARGET_NAME}",
-    rf"\b{_TARGET_FR_ACTION}\s+{_TARGET_FR_EXACT}{_TARGET_AMOUNT}\s+(?:à|de|en|dans)\s+{_TARGET_NAME}",
-    rf"\b{_TARGET_FR_ACTION}\s+(?:le\s+poids\s+de\s+)?{_TARGET_NAME}\s+"
-    rf"(?:de\s+{_TARGET_FR_EXACT}|d['’]exactement\s+){_TARGET_AMOUNT}\b",
-))
+
+
+def _purchase_patterns(asset: str):
+    return tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+        rf"\b{_TARGET_PURCHASE_ACTION}\s+{_TARGET_EN_EXACT}{_TARGET_AMOUNT}\s+(?:of|to|in|into)\s+{asset}",
+        rf"\b{_TARGET_ACTION}\s+{asset}(?:\s+(?:position|weight|allocation))?\s+by\s+{_TARGET_EN_EXACT}{_TARGET_AMOUNT}\b",
+        rf"\b{asset}\s+increase\s+of\s+{_TARGET_EN_EXACT}{_TARGET_AMOUNT}\b",
+        rf"(?<![\w.,-]){_TARGET_AMOUNT}\s+increase\s+in\s+{asset}",
+        rf"\b{_TARGET_FR_ACTION}\s+{_TARGET_FR_EXACT}{_TARGET_AMOUNT}\s+(?:à|de|en|dans)\s+{asset}",
+        rf"\b{_TARGET_FR_ACTION}\s+(?:le\s+poids\s+de\s+)?{asset}\s+"
+        rf"(?:de\s+{_TARGET_FR_EXACT}|d['’]exactement\s+){_TARGET_AMOUNT}\b",
+    ))
+
+
+_TARGET_CLAUSES = _purchase_patterns(_TARGET_NAME)
 _QUOTED_TARGET_TEXT = re.compile(r'"[^"\n]*"|“[^”\n]*”|‘[^’\n]*’|«[^»\n]*»|(?<!\w)\'[^\'\n]*\'(?!\w)')
 _ADOPTED_TARGET_QUOTE = re.compile(
     r"(?:please\s+)?(?:apply|use|adopt)\s+my\s+(?:exact\s+)?(?:instruction|rule)\s*:\s*"
@@ -241,8 +247,10 @@ _TARGET_CONTEXT_UNCLEAR = re.compile(
 
 
 _TARGET_SCOPE_PREFIX = re.compile(
-    r"^\s*(?:(?:in|for) th(?:is|e) fictional (?:example|portfolio)|"
-    r"(?:dans|pour) ce(?:t)? (?:exemple|portefeuille) fictif),\s*", re.IGNORECASE,
+    r"^\s*(?:(?:in|for) th(?:is|e) (?:fictional|hypothetical|simulated) (?:example|portfolio|trade|scenario),|"
+    r"(?:please\s+)?(?:audit|simulate|assess|replay) (?:the following|this|my|a|the) "
+    r"(?:(?:hypothetical|fictional|simulated) )?(?:trade|proposal|purchase|change)\s*[:,]|"
+    r"(?:dans|pour) ce(?:t)? (?:exemple|portefeuille) fictif,)\s*", re.IGNORECASE,
 )
 _OTHER_TARGET_UNIT = re.compile(r"\b(?:" + _TARGET_NUMBER + r")" + _TARGET_UNIT, re.IGNORECASE)
 _RESERVE_POINT_PREFIX = re.compile(
@@ -262,13 +270,26 @@ _OTHER_NVDA_SIZE = re.compile(
     re.IGNORECASE,
 )
 
-_FUNDING_AFTER_TARGET = re.compile(
-    r"[ \t]+(?:(?:exclusively|solely|only)[ \t]+)?from[ \t]+(?P<source>QQQ|ZST\.TO|ZST)"
-    r"(?![\w-]|\.\w)(?:[ \t]+(?:alone|only|exclusively|solely))?"
+_FUNDING_QUALIFIER = r"(?:exclusively|solely|only)"
+_FUNDING_CONNECTOR = (
+    rf",?[ \t]+(?:funded[ \t]+)?(?:{_FUNDING_QUALIFIER}[ \t]+)?"
+    rf"(?:from|by[ \t]+selling)[ \t]+(?:{_FUNDING_QUALIFIER}[ \t]+)?"
+)
+_FUNDING_SUFFIX = (
+    rf"(?![\w-]|\.\w)(?:[ \t]+(?:alone|{_FUNDING_QUALIFIER}))?"
     r"(?:[ \t]+and[ \t]+(?:keep|use)[ \t]+(?:the[ \t]+)?(?:purchase|buy)[ \t]+at[ \t]+that[ \t]+exact[ \t]+size)?"
-    r"(?=[ \t]*(?:[.!]|\n|\Z))",
+    r"(?=[ \t]*(?:[.!]|\n|\Z))"
+)
+_FUNDING_AFTER_TARGET = re.compile(
+    rf"{_FUNDING_CONNECTOR}(?P<source>QQQ|ZST\.TO|ZST){_FUNDING_SUFFIX}", re.IGNORECASE,
+)
+_EXPLICIT_TICKER = r"(?-i:\$?[A-Z][A-Z0-9]{1,8}(?:[.-][A-Z0-9]{1,5})?)(?![\w-]|\.\w)"
+_OFFLINE_TICKER_PURCHASES = _purchase_patterns(rf"(?P<asset>{_TARGET_NAME}(?![\w-]|\.\w)|{_EXPLICIT_TICKER})")
+_OFFLINE_TICKER_FUNDING = re.compile(
+    rf"{_FUNDING_CONNECTOR}(?P<source>QQQ|ZST\.TO|ZST|cash|{_EXPLICIT_TICKER}){_FUNDING_SUFFIX}",
     re.IGNORECASE,
 )
+_OFFLINE_PURCHASE_END = re.compile(r"[ \t]*(?:[.!]|\n|\Z)")
 _FUNDING_MENTION = re.compile(r"\b(?:QQQ|ZST\.TO|ZST)\b", re.IGNORECASE)
 _FUNDING_CORRECTION = re.compile(
     r"\b(?:instead|correction|replace|substitute|switch|change|actually|alternativ(?:e|ely)|"
@@ -354,12 +375,17 @@ _MATERIAL_TERMS = {
     "sector": r"\b(?:sector(?:al|s|ielle)?|industry|secteur(?:s)?)\b",
     "direct_issuer_cap": r"\b(?:direct (?:NVDA|NVIDIA)\b|(?:NVDA|NVIDIA) (?:position|shares?) (?:held )?directly\b|(?:NVDA|NVIDIA)\b.+\bdirect(?:ly)? (?:holdings?|shares?|exposure)\b)",
     "return_floor": r"\b(?:(?:minimum|guaranteed) (?:rate of )?return|(?:return|rendement) (?:floor|minimum|guarantee|minimal)|(?:return|rendement)\b.{0,32}\b(?:at least|au moins))\b",
-    "other_binding": r"\b(?:board|investment committee|portfolio) (?:policy|mandate)\b",
+    "other_binding": (
+        r"\b(?:board|investment committee|portfolio) (?:policy|mandate)\b"
+        r"|\b(?:use|include|compare|replay|test) (?:only|just) (?:the )?"
+        r"(?:days|weeks|months|quarters|years|dates|sessions|windows|periods)\b"
+    ),
 }
 _MATERIAL_PATTERNS = {code: re.compile(pattern, re.IGNORECASE) for code, pattern in _MATERIAL_TERMS.items()}
 _MATERIAL_REQUIRED = re.compile(
     r"\b(?:must|required?|requires|requirement|mandatory|enforce|satisfy|comply with|ensure|exclude|"
-    r"minimum|guarantee|cap|hard limit|upper limit|floor|obligatoire|exig(?:e|ez|ence)|"
+    r"minimum|guarantee|cap|hard limit|upper limit|floor|never (?:hold|allow|own)|no more than|"
+    r"(?:use|include|compare|replay|test) (?:only|just)|obligatoire|exig(?:e|ez|ence)|"
     r"doit|doivent|respect(?:er|ez)|plafond|minimal)\b", re.IGNORECASE,
 )
 _MATERIAL_BACKGROUND = re.compile(
@@ -601,6 +627,51 @@ class AgentRun:
             "trace": list(self.trace),
             "stop_reason": self.stop_reason,
         }
+
+
+def _unsupported_offline_trade(request: str) -> tuple[str, str] | None:
+    """Recognize an explicit unsupported purchase or funding symbol without proposing a substitute."""
+    visible = _profile_clause_text(request)
+    purchases = (match for pattern in _OFFLINE_TICKER_PURCHASES for match in pattern.finditer(visible))
+    for match in purchases:
+        before = _TARGET_SCOPE_PREFIX.sub("", _previous_target_sentence(visible[:match.start()]))
+        funding = _OFFLINE_TICKER_FUNDING.match(visible, match.end())
+        end = funding.end() if funding else match.end()
+        if _TARGET_CONTEXT_UNCLEAR.search(before) or not _OFFLINE_PURCHASE_END.match(visible, end):
+            continue
+        excerpt = request[match.start():end]
+        if match["asset"].lstrip("$").upper() not in {"NVDA", "NVIDIA"}:
+            return "This trade audit only supports simulated purchases of NVDA.", excerpt
+        if funding and funding["source"].lstrip("$").upper() not in _PROFILE_FUNDING_ASSETS | {"ZST"}:
+            return "This trade audit only supports QQQ or ZST.TO as funding for the original purchase.", excerpt
+    return None
+
+
+def ground_profile_request(request: str, run_id: str, *, search_alternatives: bool = False) -> AgentRun:
+    """Draft checked fields offline. The caller must review the full original request before auditing."""
+    valid_input = isinstance(request, str) and bool(request.strip())
+    if valid_input:
+        try:
+            valid_input = len(request) <= PROFILE_MAX_REQUEST_BYTES and len(request.encode("utf-8")) <= PROFILE_MAX_REQUEST_BYTES
+        except UnicodeEncodeError:
+            valid_input = False
+    if not valid_input:
+        summary = "Enter a short simulated trade request or use direct entry for the supported inputs."
+        return AgentRun("error", {"status": "error", "summary": summary, "evidence_ids": []}, stop_reason="invalid_input")
+
+    trace = ({"role": "profile", "event": "local_profile_draft", "run_id": run_id},)
+    if issue := _unsupported_offline_trade(request):
+        summary, excerpt = issue
+        return AgentRun("needs_input", {
+            "status": "needs_input", "summary": summary, "evidence_ids": [],
+            "clarification_field": "unsupported_scope", "unsupported_excerpt": excerpt[:_MAX_REQUIREMENT_EXCERPT],
+        }, trace)
+
+    draft = _profile_handoff(
+        request, status="ok", summary="Review the simulation inputs grounded in your request.",
+        search_alternatives=search_alternatives, defer_smaller_authorization=True,
+    )
+    return AgentRun(draft["status"], draft, trace)
 
 
 AgentTool = Union[ToolSpec, Callable[..., Any]]

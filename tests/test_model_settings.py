@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from datathon.agents import DEFAULT_MODEL, DEFAULT_REGION, PROFILE_MODEL
-from datathon.model_settings import configured_bedrock_runtime
+from datathon.model_settings import bedrock_failure_message, configured_bedrock_runtime
 
 
 class BedrockModelSettingsTests(unittest.TestCase):
@@ -34,3 +34,20 @@ class BedrockModelSettingsTests(unittest.TestCase):
             self.assertEqual(configured_bedrock_runtime().model_id, "example.audit-v3:0")
             self.assertEqual(configured_bedrock_runtime(profile=True).model_id, PROFILE_MODEL)
             self.assertEqual(configured_bedrock_runtime().region, DEFAULT_REGION)
+
+
+    def test_failure_message_distinguishes_credentials_permissions_and_timeouts(self):
+        for kind, code, expected in (
+            ("NoCredentialsError", None, "No usable AWS credentials"),
+            ("ClientError", "ExpiredTokenException", "Refresh the AWS session"),
+            ("ClientError", "AccessDeniedException", "does not have access"),
+            ("EndpointConnectionError", None, "did not complete in time"),
+        ):
+            with self.subTest(kind=kind, code=code):
+                trace = (
+                    {"event": "agent_exception", "error_type": kind, "error_code": code, "message": "sensitive metadata"},
+                    {"event": "agent_end", "stop_reason": "invocation_error"},
+                )
+                message = bedrock_failure_message(trace)
+                self.assertIn(expected, message)
+                self.assertNotIn("sensitive metadata", message)

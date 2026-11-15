@@ -15,6 +15,7 @@ from .evidence import DEFAULT_HOLDINGS_MAX_AGE_DAYS, add_issuer_disclosures, val
 from .exposure_review import review_issuer_change, review_sector_analysis
 from .finance import BASE_WEIGHTS, STRESS_WINDOWS, MarketEvidenceError, evaluate_portfolio, solve_funding
 from .governance import audit_decision
+from .model_settings import bedrock_failure_message
 from .requirement_status import apply_requirement_status, unassessed_codes
 from .review_snapshot import seal_audit_report
 from .scope import ReplayScope
@@ -208,7 +209,7 @@ async def interpret_request(request, runtime, run_id, *, search_alternatives=Tru
         payload["defer_smaller_authorization"] = True
     parsed = await runtime.run("profile", payload, run_id=run_id)
     if parsed.status == "error":
-        return parsed, None, f"Profile interpretation failed: {parsed.stop_reason}."
+        return parsed, None, bedrock_failure_message(parsed.trace, stop_reason=parsed.stop_reason)
     if parsed.status != "ok":
         return parsed, None, parsed.data.get("summary") or "Please clarify the simulated request."
     try:

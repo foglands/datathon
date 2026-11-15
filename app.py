@@ -8,7 +8,7 @@ from zipfile import BadZipFile
 
 import streamlit as st
 
-from datathon.agents import PROFILE_FIELDS, AgentRun
+from datathon.agents import PROFILE_FIELDS, AgentRun, ground_profile_request
 from datathon.audit_view import render_comparison, result_label
 from datathon.counterfactual import counterfactual_options, issuer_disclosure_options, run_counterfactual
 from datathon.data import load_market_data, market_data_source
@@ -31,8 +31,12 @@ from datathon.workflow import (
 METRICS = {"terminal_loss": "Terminal loss", "max_drawdown": "Maximum drawdown"}
 FUNDING = ("QQQ", "ZST.TO")
 BLOCKING_PROFILE_FIELDS = {"unsupported_scope", "multiple_loss_limits", "conflict"}
-PROFILE_INPUT = ("Enter inputs directly", "Interpret text with Bedrock")
+DIRECT_PROFILE = "Enter inputs directly"
+OFFLINE_PROFILE = "Interpret text offline"
+BEDROCK_PROFILE = "Interpret text with Bedrock"
+PROFILE_INPUT = (DIRECT_PROFILE, OFFLINE_PROFILE, BEDROCK_PROFILE)
 MANUAL_SCOPE = "These inputs include every binding rule for this simulation."
+OFFLINE_PROFILE_SCOPE = "I checked this draft against my request and confirmed every binding rule for this audit."
 SEARCH_ALTERNATIVES = "Search alternative funding"
 CONFIRM_SEARCH = "Confirm and search alternative funding"
 INCLUDE_SECTOR = "Include equity sector analysis"
@@ -460,14 +464,16 @@ def edit_scope(run_id, investor=None):
 
 
 def live_request(setup, *, investor=None, assistant_question="", intent=None):
+    intake_key = "assistant_trade_intake" if investor or assistant_question else "request_intake"
     with setup:
         intake = st.radio("Profile input", PROFILE_INPUT, index=1 if assistant_question else 0, horizontal=True,
-                          key="assistant_trade_intake" if investor or assistant_question else "request_intake")
+                          key=intake_key)
     for key in ("request_draft", "request_results", "request_confirmed", "manual_draft_id"):
         if st.session_state.get("active_intake") != intake:
             st.session_state.pop(key, None)
     st.session_state.active_intake = intake
-    manual = intake == PROFILE_INPUT[0]
+    manual = intake == DIRECT_PROFILE
+    offline = intake == OFFLINE_PROFILE
     esg_required = bool(investor and investor.require_esg)
     with setup:
         search_column, sector_column = st.columns(2)
@@ -488,7 +494,7 @@ def live_request(setup, *, investor=None, assistant_question="", intent=None):
     scope_error = None
     if manual:
         with setup:
-            mode = st.radio("Audit execution", ("Bedrock", "Offline"), horizontal=True, key="manual_execution")
+            mode = st.radio("Audit execution", ("Offline", "Bedrock"), horizontal=True, key="manual_execution")
             st.caption("Direct entry skips model interpretation. Bedrock execution uses live audit tools.")
         if "manual_draft_id" not in st.session_state:
             st.session_state.manual_draft_id = f"manual-{uuid4().hex[:12]}"
@@ -502,36 +508,46 @@ def live_request(setup, *, investor=None, assistant_question="", intent=None):
         except ValueError as exc:
             scope_error = str(exc)
     else:
-        runtime = configured_bedrock_runtime()
+        runtime = None if offline else configured_bedrock_runtime()
         if investor:
             scope = ReplayScope(objective=investor.objective, withdrawal_time=investor.withdrawal_time)
-        if investor or assistant_question:
-            request = st.text_area("Fictional investment request", value=assistant_question, height=145,
-                                   key="assistant_trade_question", help="Write in English.")
-        else:
-            request = st.text_area("Fictional investment request", value=ROBERT_REQUEST, height=145, help="Write in English.")
+        with setup, st.form(f"{intake_key}-question"):
+            request = st.text_area(
+                "Fictional investment request", value=assistant_question if investor or assistant_question else ROBERT_REQUEST,
+                height=145, max_chars=2000,
+                key="assistant_trade_question" if investor or assistant_question else "reference_trade_question",
+                help="Write in English.",
+            )
+            submitted = st.form_submit_button(
+                "Interpret request offline" if offline else "Interpret request with Bedrock", type="primary",
+            )
         previous = st.session_state.get("request_draft")
         if previous and previous[:2] != (request, requested_search):
             for key in ("request_draft", "request_results", "request_confirmed"):
                 st.session_state.pop(key, None)
-        if st.button("Interpret request with Bedrock", type="primary", disabled=not request.strip()):
+            previous = None
+        recover_offline = st.session_state.pop("request_offline_recovery", False)
+        initial_offline = bool(assistant_question and request == assistant_question and previous is None)
+        if submitted or (offline and (recover_offline or initial_offline)):
             if not is_english_question(request):
                 st.warning(ENGLISH_QUESTION_MESSAGE)
                 return
-            with st.spinner("Identifying the trade and rules that need confirmation"):
-                run_id = f"request-{uuid4().hex[:12]}"
-                try:
-                    (draft, _, question), usage = run_sync_action(run_bounded(
-                        interpret_request(request.strip(), configured_bedrock_runtime(profile=True), run_id,
-                                          search_alternatives=requested_search, defer_smaller_authorization=True),
-                        PROFILE_LIMITS,
-                    ))
-                    draft = replace(draft, trace=(*draft.trace, {"role": "profile", "event": "runtime_usage", **usage}))
-                except RuntimeBudgetExceeded:
-                    for key in ("request_draft", "request_results", "request_confirmed"):
-                        st.session_state.pop(key, None)
-                    st.warning("Interpretation reached its time budget. You can enter the simulation inputs directly.")
-                    return
+            run_id = f"request-{uuid4().hex[:12]}"
+            if offline:
+                draft = ground_profile_request(request.strip(), run_id, search_alternatives=requested_search)
+                question = draft.data.get("summary") if draft.status != "ok" else None
+            else:
+                with st.spinner("Identifying the trade and rules that need confirmation"):
+                    try:
+                        (draft, _, question), usage = run_sync_action(run_bounded(
+                            interpret_request(request.strip(), configured_bedrock_runtime(profile=True), run_id,
+                                              search_alternatives=requested_search, defer_smaller_authorization=True),
+                            PROFILE_LIMITS,
+                        ))
+                        draft = replace(draft, trace=(*draft.trace, {"role": "profile", "event": "runtime_usage", **usage}))
+                    except RuntimeBudgetExceeded:
+                        draft = AgentRun("error", {}, (), "timeout")
+                        question = "Amazon Bedrock interpretation reached its time budget."
             st.session_state.request_draft = (request, requested_search, run_id, draft, question)
             st.session_state.request_results = {}
             st.session_state.pop("request_confirmed", None)
@@ -540,9 +556,16 @@ def live_request(setup, *, investor=None, assistant_question="", intent=None):
             return
         _, _, run_id, draft, question = saved
         if draft.status == "error":
-            st.error(question)
-            st.caption("Switch to Enter inputs directly to audit a complete set of supported rules without Bedrock intake.")
+            st.error(question or "The trade request could not be interpreted.")
+            if not offline:
+                def continue_offline():
+                    st.session_state[intake_key] = OFFLINE_PROFILE
+                    st.session_state.request_offline_recovery = True
+
+                st.button("Continue offline", key=f"{intake_key}-recover", on_click=continue_offline)
             return
+        if offline:
+            st.caption("Offline interpretation proposes inputs from the request. Check the draft before running the historical audit.")
         field = draft.data.get("clarification_field")
         if field in BLOCKING_PROFILE_FIELDS:
             if question:
@@ -628,8 +651,11 @@ def live_request(setup, *, investor=None, assistant_question="", intent=None):
         if context := " · ".join(label for label in (scope.objective, scope.withdrawal_time) if label):
             st.caption(f"Planning context · {context}")
     complete = True
-    if manual:
-        complete = st.checkbox(MANUAL_SCOPE, key=scope_widget_key)
+    if manual or offline:
+        scope_label = MANUAL_SCOPE if manual else OFFLINE_PROFILE_SCOPE
+        if unassessed:
+            scope_label = "I checked the audit inputs and the requirements marked as not assessed."
+        complete = st.checkbox(scope_label, key=scope_widget_key)
         if not complete:
             st.session_state.pop("request_confirmed", None)
     request_case = Case(

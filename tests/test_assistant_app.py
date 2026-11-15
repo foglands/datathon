@@ -61,8 +61,10 @@ class InvestmentAssistantTests(unittest.TestCase):
             self.click("Interpret with Amazon Bedrock")
             self.assertEqual(suggest.await_args.args[0], question)
             self.assertEqual(self.app.text_area(key="assistant_trade_question").value, question)
-            self.assertNotIn("request_results", self.app.session_state)
-            self.assertFalse(any(item.label == "Confirm inputs and compare" for item in self.app.button))
+            self.assertFalse(self.app.session_state["request_results"])
+            self.assertNotIn("request_confirmed", self.app.session_state)
+            confirm = next(item for item in self.app.button if item.label == "Confirm inputs and run audit")
+            self.assertTrue(confirm.disabled)
 
     def test_non_english_question_is_blocked_before_cloud_or_market_data(self):
         self.app.text_area(key="assistant_question").set_value("¿Cómo debería invertir mis ahorros?").run()

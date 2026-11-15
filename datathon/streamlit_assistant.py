@@ -7,7 +7,7 @@ import streamlit as st
 from .allocation_compare import compare_allocations, comparison_assets
 from .allocation_view import render_allocation_result
 from .investor_profile import InvestorProfile, PRIORITIES, RISK_TOLERANCES, suggest_priority
-from .model_settings import configured_bedrock_runtime
+from .model_settings import bedrock_failure_message, configured_bedrock_runtime
 from .planning_view import render_planning_answer
 from .question_intake import analyze_question
 from .question_language import ENGLISH_QUESTION_MESSAGE, is_english_question
@@ -22,7 +22,7 @@ TASKS = {
 }
 _TRADE_STATE = ("request_draft", "request_results", "request_confirmed", "manual_draft_id",
                 "request_resize_choice", "request_declined_resize", "active_intake", "active_challenge",
-                "assistant_trade_question")
+                "assistant_trade_question", "assistant_trade_intake", "request_offline_recovery")
 
 
 def clear_assistant_result():
@@ -90,7 +90,7 @@ def _render_question_answer(question, saved, data_loader, trade_entry):
                 with st.expander("Question interpretation activity"):
                     st.json(route["trace"], expanded=False)
         else:
-            st.caption("Amazon Bedrock was unavailable for this question. The application used local interpretation.")
+            st.caption(f"{bedrock_failure_message(route.get('trace', ()))} The application used local interpretation.")
     if draft["status"] == "planning":
         if limitation := draft.get("limitation"):
             st.warning(limitation)
@@ -107,7 +107,7 @@ def _render_question_answer(question, saved, data_loader, trade_entry):
         panel = st.container(key="assistant-trade", border=True)
         with panel:
             st.subheader(TASKS["trade_audit"])
-            st.caption("Review the trade extracted from your question with the audit tool.")
+            st.caption("Review the trade and its constraints before running an audit.")
         trade_entry(panel, assistant_question=question, intent=route)
         return
 

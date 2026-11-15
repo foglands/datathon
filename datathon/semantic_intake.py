@@ -32,7 +32,7 @@ _RISK_DENIAL = re.compile(
 )
 _LIMITS = RuntimeLimits(timeout_seconds=12, max_http_attempts=1, observed_token_threshold=18000)
 _TRACE_FIELDS = frozenset({
-    "event", "role", "run_id", "status", "tool_name", "model_id", "region", "operation", "request_id", "http_status",
+    "event", "role", "run_id", "status", "tool_name", "model_id", "region", "operation", "request_id", "http_status", "error_type", "stop_reason",
     "retry_attempts", "duration_ms", "throttled", "input_tokens", "output_tokens", "total_tokens", "error_code",
 })
 

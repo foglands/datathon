@@ -2,6 +2,14 @@
 
 PolyFinances Datathon 2026 · Montréal
 
+## Offline trade intake and Bedrock recovery
+
+The previous assistant opened Bedrock profile interpretation after recognizing a trade locally. A diagnostic run with the actual local SDK had no credential provider, stopped with `NoCredentialsError`, and started zero Bedrock HTTP attempts. The application previously displayed the generic `invocation_error`.
+
+Local trade intake now drafts supported fields from the original text and requires the user to check the full scope. A missing or ambiguous field remains unresolved. Explicitly unsupported purchase or funding symbols are held. The confirmed offline audit uses the organizer data and the same independent review.
+
+All 298 local regressions and six standard and stress CLI cases passed with the organizer data. The Streamlit regressions cover local drafts, credential guidance, recovery with the submitted text intact, direct-entry defaults, invalidation after changes, and separate funding-search authorization. A macOS browser check also completed the offline audit after a failed cloud attempt. It produced a downloadable audit after the user confirmed the original proposal. No successful competition AWS invocation was verified for this revision.
+
 ## Question intake verification
 
 The previous local entry routed wording through a planning phrase gate and then a two-choice comparison parser. Its Bedrock task list did not include planning. On 72 independently assembled planning prompts, 63 missed the planning route and 4 preserved all checked amounts, goals, risk statements, and choices. The baseline was `fec73c7`.

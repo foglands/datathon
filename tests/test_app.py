@@ -429,8 +429,7 @@ class PortfolioAppTests(unittest.TestCase):
         with patch.object(StrandsAgents, "run", side_effect=AssertionError("Manual workflow must not call Bedrock")) as run:
             self.select("radio", "Input", "Write a request")
             self.assertEqual(self.widget("radio", "Profile input").value, "Enter inputs directly")
-            self.assertEqual(self.widget("radio", "Audit execution").value, "Bedrock")
-            self.select("radio", "Audit execution", "Offline")
+            self.assertEqual(self.widget("radio", "Audit execution").value, "Offline")
             self.assertFalse(self.has_button(INTERPRET))
             self.assertFalse(self.has_button(CONFIRM))
             self.assertFalse(any(item.label == "Funding allowed for alternatives" for item in self.app.multiselect))
