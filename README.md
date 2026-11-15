@@ -4,7 +4,7 @@ PolyFinances Datathon 2026 · Banque Nationale · AWS
 
 AlphaForge AI helps learners reason through an investment question, replay one proposed allocation, compare two assets or allocations, or audit a proposed trade in a fictional scenario. Quantitative results identify the historical measure or rule that drove the outcome and the evidence needed to verify it.
 
-[Quick start](#run-it) · [Verification and AWS results](submission/verification.md#question-intake-verification) · [Risk model reliability implementation](RISK_RELIABILITY_IMPLEMENTATION.md)
+[Quick start](#run-it) · [Verification and AWS results](submission/verification.md#competition-aws-acceptance) · [Risk model reliability implementation](RISK_RELIABILITY_IMPLEMENTATION.md)
 
 ## Use the investment assistant
 
@@ -35,7 +35,7 @@ The command-line demo uses a fictional CAD portfolio holding 35% SPY, 25% XIU.TO
 
 [Release verification](submission/verification.md) · [One-page summary](submission/one-pager.pdf) · [Technical summary](submission/technical-summary.pdf) · [Demo video recorded at `13ccc42`](submission/alphaforge-demo.mp4) · [Demo visuals](submission/visual-handout.pdf)
 
-The Bedrock iteration at [`77b9d0c`](https://github.com/foglands/datathon/commit/77b9d0c072a66a8269c373dfe910d108554f06e9) passed 230 regression tests on local macOS and competition AWS CloudShell. Both environments passed all six offline CLI cases. The candidate passed 20/20 paired live Bedrock checks across generated inputs, swapped model roles, and a supplied manifest. The [verification record](submission/verification.md#generated-input-and-cross-model-verification) lists the comparison results and reproduction steps.
+The [competition AWS acceptance record](submission/verification.md#competition-aws-acceptance) covers the tested application revision, the organizer data fingerprint, actual Bedrock requests, user confirmation, failure handling, and measured runtime.
 
 ## What the prototype found
 
@@ -143,7 +143,7 @@ python -m datathon.runtime_benchmark --data "$DATA" --mode aws --jobs 1 3 --repe
   --report outputs/runtime.json
 ```
 
-Use `--case robert` or `--case amira` to run one persona. Offline mode simulates role handoffs and runs the financial calculations locally. [Latest test results](submission/verification.md#generated-input-and-cross-model-verification) · [Earlier reproduction and AWS notes](PROTOTYPE.md)
+Use `--case robert` or `--case amira` to run one persona. Offline mode simulates role handoffs and runs the financial calculations locally. [Latest test results](submission/verification.md#competition-aws-acceptance) · [Earlier reproduction and AWS notes](PROTOTYPE.md)
 
 To try the interactive audit, start with a fictional request. Select `1` for terminal loss when the clarification menu appears, then type `YES` once the interpreted terms match your intent.
 

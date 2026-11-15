@@ -2,6 +2,67 @@
 
 PolyFinances Datathon 2026 · Montréal
 
+## Competition AWS acceptance
+
+The November 15, 2026 acceptance run tested application commit [`298e9b0`](https://github.com/foglands/datathon/commit/298e9b0f8b4b7d4049790cd9a423d97ee34d04b5) on macOS and in the authenticated competition AWS CloudShell in `us-east-1`. The application archive and organizer starter archive were checked against the local SHA-256 digests before the AWS run. The test used fictional questions and the organizer's frozen market data. The [participant deck](https://chatgpt.com/library?file_id=libfile_9d3dbce691dc8191993a39be5f3b9381&account_id=personal) identifies demonstrable AWS integration as an eligibility condition and recommends contrasting cases and a controlled change to one assumption.
+
+| Test group | Result |
+| --- | --- |
+| Full regression suite | 319/319 on macOS and 319/319 in CloudShell, with no skips on either environment |
+| Reference and stress CLI | 6/6 in each offline environment and 6/6 with live Bedrock in CloudShell. The reviewed terminal losses, maximum drawdowns, and decision and publication statuses matched the CloudShell offline run. |
+| Streamlit end to end | 6/6, including four live Bedrock workflows and two local guards. Comparison and single allocation each passed two additional live runs. |
+| Authorization and sensitivity | Original audit, authorized alternative search, and delegated one-assumption Review all passed. |
+| Scripted faults | 36/36 expected outcomes, zero unsafe releases and zero unexpected holds |
+| Live runtime | 16/16 audits passed across cold and warm runs with concurrency limits of one and three. |
+
+The CLI, UI, additional UI reruns, and authorization checks recorded 43 distinct successful Bedrock Converse responses in total, with each request ID represented by a hash in the [sanitized AWS proof](aws-proof-298e9b0.json). The four main question-intake calls took 5.82–9.43 seconds and used one Converse request each. The runtime cohort measures the numerical audit after the inputs are established.
+
+| Audit data cache | Concurrent audit limit | Passed | Median | P95 |
+| --- | ---: | ---: | ---: | ---: |
+| Cold | 1 | 4/4 | 3.14 s | 3.32 s |
+| Warm | 1 | 4/4 | 2.79 s | 2.99 s |
+| Cold | 3 | 4/4 | 3.40 s | 3.53 s |
+| Warm | 3 | 4/4 | 3.03 s | 3.25 s |
+
+### Acceptance coverage
+
+| Check | Verified behavior |
+| --- | --- |
+| Planning | The English question supplied a spending goal, horizon, market-loss concern and instruments. A separate historical replay used the verified CAD data. |
+| Fund comparison and single allocation | The named funds, stated limit or starting weights, and historical windows crossed the confirmation step into independently reviewed results and downloads. |
+| Original trade and search consent | The trade audit reviewed the original proposal without running Alternatives. A separate authorization enabled a verified alternative. |
+| One-assumption sensitivity | Bedrock Review selected one risk-definition change. The reviewed follow-up preserved the original report and other confirmed inputs. |
+| Provenance and publication | Tests covered missing prices and FX, explicit approval of indicative substitutes, incorrect valuation and risk values, tampered outputs, and version mismatches. |
+| Input and transport faults | Non-English submissions stayed outside the Bedrock path. Scripted faults exercised invalid routes, failed model calls and missing evidence. |
+
+### Intake reliability findings
+
+The initial `7c6a3a7` run passed five of six UI cases. Bedrock returned HTTP 200 for the fund question, but the single-attempt limit prevented the SDK from completing the handoff. `72c329e` allowed a second attempt within the existing 12-second deadline and token budget. The six-case UI matrix passed once. Two additional comparison runs returned a planning label and a deadline, respectively. Both had a usable locally grounded comparison draft.
+
+In a model-role experiment, Nova 2 Lite completed the three comparison probes in approximately two seconds each. It did not complete the single-allocation handoff in the same first batch. Candidate `b7ccfd7`, which put Nova 2 Lite in the UI question-routing role, passed four of six UI cases. Its trade classification was out of scope and its single-allocation handoff failed. The release keeps Sonnet 4.5 for question and trade-profile interpretation and Nova 2 Lite for the audit tools and delegated Review selection.
+
+The release prompt distinguishes a two-option comparison from one weighted proposal. The application preserves comparisons grounded in the submitted text when a model suggestion disagrees, labels that fallback in the interface, and keeps order, forecast, and binding-rule checks in force. Python computes the risk values and decisions from confirmed inputs. Independent Python review controls what the report and download can show.
+
+### Reproduction
+
+Set `DATA` to the official archive containing the six starter CSVs, install the pinned dependencies, then run the following with authenticated Bedrock access. The AWS CLI test uses both the profile and audit models. The runtime command exercises the numerical audit workflow with fresh and preloaded data and up to three simultaneous audits. UI checks used Streamlit AppTest with actual Bedrock calls from CloudShell. The two local UI guards assert that prohibited calls or unapproved substitutions are blocked.
+
+```bash
+export DATATHON_STARTER_PATH="$DATA"
+export DATATHON_FULL_STARTER_PATH="$DATA"
+export DATATHON_AWS_REGION=us-east-1
+mkdir -p outputs
+python -m unittest discover -q
+python -m datathon --data "$DATA" --case all --mode offline --stress --report outputs/offline.json
+python -m datathon --data "$DATA" --case all --mode aws --stress --report outputs/aws.json
+python -m datathon.resilience_benchmark --data "$DATA" --mode scripted --jobs 1 --repeats 2 \
+  --report outputs/resilience.json
+python -m datathon.runtime_benchmark --data "$DATA" --mode aws --jobs 1 3 --repeats 2 \
+  --report outputs/runtime.json
+```
+
+The evidence describes a fixed set of simulations and a small load sample. The current checks exercised the revised application in CloudShell. The [demo recording](alphaforge-demo.mp4) still shows commit `13ccc42`.
+
 ## Assistant interface refresh
 
 The home screen has one question composer, editable starter questions, and separate controls for model use and direct entry. The comparison, portfolio replay, and trade audit emphasize the decision, key figures, and historical chart. Input review, evidence, and agent activity remain available from the result.

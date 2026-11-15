@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-15 · Verify Bedrock intake and preserve grounded analysis
+
+- Allow a second Bedrock request when the first tool call does not produce a checked question handoff. Retain the 12-second deadline and existing token budget. A valid handoff finishes the stage immediately.
+- Clarify the difference between comparing two assets or portfolios and evaluating one portfolio with explicit weights. Preserve a locally grounded comparison when the classification differs, and surface the disagreement in the assistant.
+- Keep the default Sonnet interpretation model after the Nova 2 Lite intake experiment missed the single-allocation handoff and mislabeled the audit. Record the trial and the competition CloudShell checks in the [verification record](submission/verification.md#competition-aws-acceptance).
+
 ## 2026-11-15 · Streamline the investment assistant interface
 
 - Put one question composer and three reusable examples on the home screen. Group model settings and manual entry behind explicit controls.

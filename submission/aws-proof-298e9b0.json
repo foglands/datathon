@@ -1,0 +1,903 @@
+{
+  "application_commit": "298e9b0f8b4b7d4049790cd9a423d97ee34d04b5",
+  "environment": {
+    "service": "Competition AWS CloudShell",
+    "aws_region": "us-east-1",
+    "python": "3.13.18"
+  },
+  "generated_at_utc": "2026-11-15T18:46:10+00:00",
+  "application_archive_sha256": "e3a1e1ee837e19b6532aaa3d482af1a9c7372b51f7ce70f598c2b28a4f545afc",
+  "organizer_starter_archive_sha256": "f0c7948a4bea4f10c621125d7b085d6781e61387368064fada6fd59596426ff2",
+  "regression": {
+    "exit_code": 0,
+    "count": 319,
+    "elapsed_seconds": 84.261,
+    "outcome": "OK"
+  },
+  "offline_cli": {
+    "exit_code": 0,
+    "passed": 6,
+    "total": 6
+  },
+  "live_cli": {
+    "exit_code": 0,
+    "passed": 6,
+    "total": 6,
+    "all_match_offline": true,
+    "http_200": 23,
+    "cases": [
+      {
+        "case": "robert_terminal",
+        "passed": true,
+        "review_status": "fail",
+        "publication_status": "released",
+        "independent_review_verified": true,
+        "matches_offline": true,
+        "runtime_ms": 3263,
+        "http_200": 4,
+        "roles": {
+          "alternatives": 1,
+          "evidence": 1,
+          "review": 1,
+          "scenario": 1
+        },
+        "model_ids": [
+          "us.amazon.nova-2-lite-v1:0"
+        ],
+        "request_id_sha256_16": [
+          "b0edb8d87e3dd541",
+          "ce5c9715d2bbddd4",
+          "d1789e842124a466",
+          "addf1b29e1e80216"
+        ],
+        "routing_fallbacks": 0
+      },
+      {
+        "case": "robert_drawdown",
+        "passed": true,
+        "review_status": "fail",
+        "publication_status": "released",
+        "independent_review_verified": true,
+        "matches_offline": true,
+        "runtime_ms": 2736,
+        "http_200": 4,
+        "roles": {
+          "alternatives": 1,
+          "evidence": 1,
+          "review": 1,
+          "scenario": 1
+        },
+        "model_ids": [
+          "us.amazon.nova-2-lite-v1:0"
+        ],
+        "request_id_sha256_16": [
+          "194129f6b2beb50d",
+          "63b2448e142444ec",
+          "778a3b6fdfbfa6e1",
+          "bee064066708caad"
+        ],
+        "routing_fallbacks": 0
+      },
+      {
+        "case": "robert_tampered",
+        "passed": true,
+        "review_status": "invalid",
+        "publication_status": "blocked",
+        "independent_review_verified": false,
+        "matches_offline": true,
+        "runtime_ms": 2809,
+        "http_200": 4,
+        "roles": {
+          "alternatives": 1,
+          "evidence": 1,
+          "review": 1,
+          "scenario": 1
+        },
+        "model_ids": [
+          "us.amazon.nova-2-lite-v1:0"
+        ],
+        "request_id_sha256_16": [
+          "42b2a56b89c5c085",
+          "ecebfeffe4238228",
+          "eb9fcd6bf24b473f",
+          "d46651cd62482525"
+        ],
+        "routing_fallbacks": 0
+      },
+      {
+        "case": "robert_ambiguous",
+        "passed": true,
+        "review_status": "needs_input",
+        "publication_status": "blocked",
+        "independent_review_verified": false,
+        "matches_offline": true,
+        "runtime_ms": 4373,
+        "http_200": 1,
+        "roles": {
+          "profile": 1
+        },
+        "model_ids": [
+          "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+        ],
+        "request_id_sha256_16": [
+          "71852522e33180a3"
+        ],
+        "routing_fallbacks": 0
+      },
+      {
+        "case": "amira_concentration",
+        "passed": true,
+        "review_status": "fail",
+        "publication_status": "limited",
+        "independent_review_verified": true,
+        "matches_offline": true,
+        "runtime_ms": 2715,
+        "http_200": 5,
+        "roles": {
+          "alternatives": 1,
+          "evidence": 1,
+          "exposure": 1,
+          "review": 1,
+          "scenario": 1
+        },
+        "model_ids": [
+          "us.amazon.nova-2-lite-v1:0"
+        ],
+        "request_id_sha256_16": [
+          "4a85f52c8c6afb4a",
+          "53072670546c6078",
+          "3c5ebdc476bf2a1b",
+          "d67fdd4c937150f9",
+          "0fcd3e5f7db845f9"
+        ],
+        "routing_fallbacks": 0
+      },
+      {
+        "case": "amira_missing_qqq",
+        "passed": true,
+        "review_status": "insufficient_evidence",
+        "publication_status": "limited",
+        "independent_review_verified": true,
+        "matches_offline": true,
+        "runtime_ms": 2685,
+        "http_200": 5,
+        "roles": {
+          "alternatives": 1,
+          "evidence": 1,
+          "exposure": 1,
+          "review": 1,
+          "scenario": 1
+        },
+        "model_ids": [
+          "us.amazon.nova-2-lite-v1:0"
+        ],
+        "request_id_sha256_16": [
+          "0b6c04e6de1c25d8",
+          "c79d31abe27dbed8",
+          "0e9b22be31cbd0da",
+          "a08f21186dfe8ae0",
+          "cb34f27b6e37acc8"
+        ],
+        "routing_fallbacks": 0
+      }
+    ]
+  },
+  "streamlit_apptest": {
+    "exit_code": 0,
+    "commit": "298e9b0f8b4b7d4049790cd9a423d97ee34d04b5",
+    "cases": [
+      {
+        "name": "live_planning",
+        "intake": {
+          "status": "ready",
+          "task": "planning",
+          "draft_status": "planning",
+          "calls": [
+            {
+              "role": "semantic_intake",
+              "region": "us-east-1",
+              "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+              "operation": "Converse",
+              "http_status": 200,
+              "status": "success",
+              "error_code": null,
+              "retry_attempts": 0,
+              "total_tokens": 1946,
+              "request_id_sha256_16": "045407d8a5816911"
+            }
+          ],
+          "usage": {
+            "elapsed_ms": 9425.75,
+            "http_attempts_started": 1,
+            "responses_observed": 1,
+            "reported_total_tokens": 1946,
+            "limit_reached": null
+          },
+          "tool": true,
+          "failures": []
+        },
+        "replay": {
+          "status": "verified",
+          "basis": "CAD",
+          "conversion": "verified",
+          "review_id_sha256_16": "93ff5d7acb5cea84",
+          "options": [
+            "GLD",
+            "SPY"
+          ],
+          "decision": "neutral",
+          "windows": {
+            "2022": 244,
+            "2025": 67
+          },
+          "download_present": true
+        },
+        "pass": true,
+        "elapsed_ms": 20396
+      },
+      {
+        "name": "live_comparison",
+        "intake": {
+          "status": "ready",
+          "task": "compare_allocations",
+          "draft_status": "ready",
+          "calls": [
+            {
+              "role": "semantic_intake",
+              "region": "us-east-1",
+              "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+              "operation": "Converse",
+              "http_status": 200,
+              "status": "success",
+              "error_code": null,
+              "retry_attempts": 0,
+              "total_tokens": 1741,
+              "request_id_sha256_16": "4dad5cbfbd83b777"
+            }
+          ],
+          "usage": {
+            "elapsed_ms": 6377.91,
+            "http_attempts_started": 1,
+            "responses_observed": 1,
+            "reported_total_tokens": 1741,
+            "limit_reached": null
+          },
+          "tool": true,
+          "failures": []
+        },
+        "replay": {
+          "status": "verified",
+          "basis": "CAD",
+          "conversion": "verified",
+          "review_id_sha256_16": "674315702837b951",
+          "options": [
+            "AGG",
+            "GLD"
+          ],
+          "decision": "difference",
+          "windows": {
+            "2022": 244,
+            "2025": 67
+          },
+          "download_present": true
+        },
+        "pass": true,
+        "elapsed_ms": 7777
+      },
+      {
+        "name": "live_allocation",
+        "intake": {
+          "status": "ready",
+          "task": "analyze_allocation",
+          "draft_status": "allocation",
+          "calls": [
+            {
+              "role": "semantic_intake",
+              "region": "us-east-1",
+              "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+              "operation": "Converse",
+              "http_status": 200,
+              "status": "success",
+              "error_code": null,
+              "retry_attempts": 0,
+              "total_tokens": 1719,
+              "request_id_sha256_16": "6d2eba951c29d243"
+            }
+          ],
+          "usage": {
+            "elapsed_ms": 5822.4,
+            "http_attempts_started": 1,
+            "responses_observed": 1,
+            "reported_total_tokens": 1719,
+            "limit_reached": null
+          },
+          "tool": true,
+          "failures": []
+        },
+        "replay": {
+          "status": "verified",
+          "basis": "CAD",
+          "conversion": "verified",
+          "review_id_sha256_16": "a98eb5918cdb46dd",
+          "options": [
+            "Proposed allocation"
+          ],
+          "decision": "neutral",
+          "windows": {
+            "2022": 244,
+            "2025": 67
+          },
+          "download_present": true
+        },
+        "pass": true,
+        "elapsed_ms": 6879
+      },
+      {
+        "name": "live_trade",
+        "intake": {
+          "status": "ready",
+          "task": "trade_audit",
+          "draft_status": "trade_audit",
+          "calls": [
+            {
+              "role": "semantic_intake",
+              "region": "us-east-1",
+              "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+              "operation": "Converse",
+              "http_status": 200,
+              "status": "success",
+              "error_code": null,
+              "retry_attempts": 0,
+              "total_tokens": 1779,
+              "request_id_sha256_16": "f46a06c8a379299a"
+            }
+          ],
+          "usage": {
+            "elapsed_ms": 7361.41,
+            "http_attempts_started": 1,
+            "responses_observed": 1,
+            "reported_total_tokens": 1779,
+            "limit_reached": null
+          },
+          "tool": true,
+          "failures": []
+        },
+        "profile": {
+          "status": "ok",
+          "calls": [
+            {
+              "role": "profile",
+              "region": "us-east-1",
+              "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+              "operation": "Converse",
+              "http_status": 200,
+              "status": "success",
+              "error_code": null,
+              "retry_attempts": 0,
+              "total_tokens": 2481,
+              "request_id_sha256_16": "eb6ed26c88773296"
+            }
+          ],
+          "metric": "max_drawdown",
+          "limit_bps": 2000,
+          "target_bps": 500,
+          "initial_source": "QQQ",
+          "usage": {
+            "elapsed_ms": 3065.2,
+            "http_attempts_started": 1,
+            "responses_observed": 1,
+            "reported_total_tokens": 2481,
+            "limit_reached": null
+          },
+          "failures": []
+        },
+        "audit": {
+          "status": "pass",
+          "independent_review_verified": true,
+          "review_id_sha256_16": "4d41d60ace9a4268",
+          "observed_roles": [
+            "evidence",
+            "profile",
+            "review",
+            "scenario",
+            "semantic_intake"
+          ],
+          "calls": [
+            {
+              "role": "semantic_intake",
+              "region": "us-east-1",
+              "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+              "operation": "Converse",
+              "http_status": 200,
+              "status": "success",
+              "error_code": null,
+              "retry_attempts": 0,
+              "total_tokens": 1779,
+              "request_id_sha256_16": "f46a06c8a379299a"
+            },
+            {
+              "role": "profile",
+              "region": "us-east-1",
+              "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+              "operation": "Converse",
+              "http_status": 200,
+              "status": "success",
+              "error_code": null,
+              "retry_attempts": 0,
+              "total_tokens": 2481,
+              "request_id_sha256_16": "eb6ed26c88773296"
+            },
+            {
+              "role": "evidence",
+              "region": "us-east-1",
+              "model_id": "us.amazon.nova-2-lite-v1:0",
+              "operation": "Converse",
+              "http_status": 200,
+              "status": "success",
+              "error_code": null,
+              "retry_attempts": 0,
+              "total_tokens": 1513,
+              "request_id_sha256_16": "c07dd3531abd0829"
+            },
+            {
+              "role": "scenario",
+              "region": "us-east-1",
+              "model_id": "us.amazon.nova-2-lite-v1:0",
+              "operation": "Converse",
+              "http_status": 200,
+              "status": "success",
+              "error_code": null,
+              "retry_attempts": 0,
+              "total_tokens": 1336,
+              "request_id_sha256_16": "0f6759e77cd72dba"
+            },
+            {
+              "role": "review",
+              "region": "us-east-1",
+              "model_id": "us.amazon.nova-2-lite-v1:0",
+              "operation": "Converse",
+              "http_status": 200,
+              "status": "success",
+              "error_code": null,
+              "retry_attempts": 0,
+              "total_tokens": 1290,
+              "request_id_sha256_16": "d6cfde3634c0d710"
+            }
+          ],
+          "usage": {
+            "elapsed_ms": 3017.69,
+            "http_attempts_started": 3,
+            "responses_observed": 3,
+            "reported_total_tokens": 4139,
+            "limit_reached": null
+          },
+          "alternatives_skipped": true,
+          "search_authorized": false,
+          "download_present": true,
+          "failures": []
+        },
+        "pass": true,
+        "elapsed_ms": 14621
+      },
+      {
+        "name": "language_gate",
+        "aws_runtime_invoked": false,
+        "market_bundle_invoked": false,
+        "warning": true,
+        "pass": true,
+        "elapsed_ms": 579
+      },
+      {
+        "name": "proxy_approval",
+        "replay": {
+          "status": "verified",
+          "basis": "CAD",
+          "conversion": "verified",
+          "review_id_sha256_16": "47ddc0e2d14b706f",
+          "options": [
+            "Proposed allocation"
+          ],
+          "decision": "neutral",
+          "windows": {
+            "2022": 244,
+            "2025": 67
+          },
+          "download_present": true
+        },
+        "pass": true,
+        "elapsed_ms": 1429
+      }
+    ],
+    "passed": 6,
+    "total": 6,
+    "distinct_http_200_request_ids": 8
+  },
+  "runtime": {
+    "exit_code": 0,
+    "measurement_scope": "controller only, excluding human and browser rendering time",
+    "measurements": [
+      {
+        "cache": "cold",
+        "max_concurrent_audits": 1,
+        "summary": {
+          "requests": 4,
+          "passed": 4,
+          "p50_ms": 3135.84,
+          "p95_ms": 3320.12,
+          "http_attempts_started": 18,
+          "responses_with_usage": 18,
+          "reported_response_retries": 0,
+          "reported_total_tokens": 27354,
+          "routing_fallbacks": 0
+        }
+      },
+      {
+        "cache": "warm",
+        "max_concurrent_audits": 1,
+        "summary": {
+          "requests": 4,
+          "passed": 4,
+          "p50_ms": 2785.2,
+          "p95_ms": 2990.95,
+          "http_attempts_started": 18,
+          "responses_with_usage": 18,
+          "reported_response_retries": 0,
+          "reported_total_tokens": 27354,
+          "routing_fallbacks": 0
+        }
+      },
+      {
+        "cache": "cold",
+        "max_concurrent_audits": 3,
+        "summary": {
+          "requests": 4,
+          "passed": 4,
+          "p50_ms": 3396.48,
+          "p95_ms": 3528.52,
+          "http_attempts_started": 18,
+          "responses_with_usage": 18,
+          "reported_response_retries": 0,
+          "reported_total_tokens": 27354,
+          "routing_fallbacks": 0
+        }
+      },
+      {
+        "cache": "warm",
+        "max_concurrent_audits": 3,
+        "summary": {
+          "requests": 4,
+          "passed": 4,
+          "p50_ms": 3029.14,
+          "p95_ms": 3252.16,
+          "http_attempts_started": 18,
+          "responses_with_usage": 18,
+          "reported_response_retries": 0,
+          "reported_total_tokens": 27354,
+          "routing_fallbacks": 0
+        }
+      }
+    ]
+  },
+  "scripted_resilience": {
+    "exit_code": 0,
+    "runs": 36,
+    "matched_expected_outcome": 36,
+    "unsafe_releases": 0,
+    "unexpected_holds": 0
+  },
+  "initial_ui_observation": {
+    "application_commit": "7c6a3a72bcec71035266010f26f2c8884a183a24",
+    "passed": 5,
+    "total": 6,
+    "nonpassing_cases": [
+      {
+        "name": "live_comparison",
+        "intake": {
+          "status": "unavailable",
+          "task": null,
+          "draft_status": "ready",
+          "calls": [
+            {
+              "role": "semantic_intake",
+              "region": "us-east-1",
+              "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+              "operation": "Converse",
+              "http_status": 200,
+              "status": "success",
+              "error_code": null,
+              "retry_attempts": 0,
+              "total_tokens": 1768,
+              "request_id_sha256_16": "8aa47f3dc6e3e94d"
+            }
+          ],
+          "usage": {
+            "elapsed_ms": 6511.88,
+            "http_attempts_started": 1,
+            "responses_observed": 1,
+            "reported_total_tokens": 1768,
+            "limit_reached": "http_attempts"
+          },
+          "tool": false,
+          "failures": [
+            {
+              "event": "agent_exception",
+              "role": "semantic_intake",
+              "error_type": "EventLoopException",
+              "error_code": null
+            },
+            {
+              "event": "agent_end",
+              "role": "semantic_intake",
+              "stop_reason": "invocation_error"
+            }
+          ]
+        },
+        "pass": false,
+        "failure": "bedrock_handoff_not_ready",
+        "elapsed_ms": 6840
+      }
+    ]
+  },
+  "comparison_rechecks": [
+    {
+      "commit": "298e9b0f8b4b7d4049790cd9a423d97ee34d04b5",
+      "cases": [
+        {
+          "name": "live_comparison",
+          "intake": {
+            "status": "ready",
+            "task": "compare_allocations",
+            "draft_status": "ready",
+            "calls": [
+              {
+                "role": "semantic_intake",
+                "region": "us-east-1",
+                "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "operation": "Converse",
+                "http_status": 200,
+                "status": "success",
+                "error_code": null,
+                "retry_attempts": 0,
+                "total_tokens": 1731,
+                "request_id_sha256_16": "33203653adec6154"
+              }
+            ],
+            "usage": {
+              "elapsed_ms": 7228.64,
+              "http_attempts_started": 1,
+              "responses_observed": 1,
+              "reported_total_tokens": 1731,
+              "limit_reached": null
+            },
+            "tool": true,
+            "failures": []
+          },
+          "replay": {
+            "status": "verified",
+            "basis": "CAD",
+            "conversion": "verified",
+            "review_id_sha256_16": "674315702837b951",
+            "options": [
+              "AGG",
+              "GLD"
+            ],
+            "decision": "difference",
+            "windows": {
+              "2022": 244,
+              "2025": 67
+            },
+            "download_present": true
+          },
+          "pass": true,
+          "elapsed_ms": 14923
+        },
+        {
+          "name": "live_allocation",
+          "intake": {
+            "status": "ready",
+            "task": "analyze_allocation",
+            "draft_status": "allocation",
+            "calls": [
+              {
+                "role": "semantic_intake",
+                "region": "us-east-1",
+                "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "operation": "Converse",
+                "http_status": 200,
+                "status": "success",
+                "error_code": null,
+                "retry_attempts": 0,
+                "total_tokens": 1668,
+                "request_id_sha256_16": "8b6c0971ef4a62c6"
+              }
+            ],
+            "usage": {
+              "elapsed_ms": 4661.87,
+              "http_attempts_started": 1,
+              "responses_observed": 1,
+              "reported_total_tokens": 1668,
+              "limit_reached": null
+            },
+            "tool": true,
+            "failures": []
+          },
+          "replay": {
+            "status": "verified",
+            "basis": "CAD",
+            "conversion": "verified",
+            "review_id_sha256_16": "a98eb5918cdb46dd",
+            "options": [
+              "Proposed allocation"
+            ],
+            "decision": "neutral",
+            "windows": {
+              "2022": 244,
+              "2025": 67
+            },
+            "download_present": true
+          },
+          "pass": true,
+          "elapsed_ms": 5863
+        }
+      ],
+      "passed": 2,
+      "total": 2,
+      "distinct_http_200_request_ids": 2
+    },
+    {
+      "commit": "298e9b0f8b4b7d4049790cd9a423d97ee34d04b5",
+      "cases": [
+        {
+          "name": "live_comparison",
+          "intake": {
+            "status": "ready",
+            "task": "compare_allocations",
+            "draft_status": "ready",
+            "calls": [
+              {
+                "role": "semantic_intake",
+                "region": "us-east-1",
+                "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "operation": "Converse",
+                "http_status": 200,
+                "status": "success",
+                "error_code": null,
+                "retry_attempts": 0,
+                "total_tokens": 1710,
+                "request_id_sha256_16": "4bb8898d22df5ac0"
+              }
+            ],
+            "usage": {
+              "elapsed_ms": 6329.06,
+              "http_attempts_started": 1,
+              "responses_observed": 1,
+              "reported_total_tokens": 1710,
+              "limit_reached": null
+            },
+            "tool": true,
+            "failures": []
+          },
+          "replay": {
+            "status": "verified",
+            "basis": "CAD",
+            "conversion": "verified",
+            "review_id_sha256_16": "674315702837b951",
+            "options": [
+              "AGG",
+              "GLD"
+            ],
+            "decision": "difference",
+            "windows": {
+              "2022": 244,
+              "2025": 67
+            },
+            "download_present": true
+          },
+          "pass": true,
+          "elapsed_ms": 12232
+        },
+        {
+          "name": "live_allocation",
+          "intake": {
+            "status": "ready",
+            "task": "analyze_allocation",
+            "draft_status": "allocation",
+            "calls": [
+              {
+                "role": "semantic_intake",
+                "region": "us-east-1",
+                "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "operation": "Converse",
+                "http_status": 200,
+                "status": "success",
+                "error_code": null,
+                "retry_attempts": 0,
+                "total_tokens": 1549,
+                "request_id_sha256_16": "7b7d042488afb3b0"
+              }
+            ],
+            "usage": {
+              "elapsed_ms": 1887.01,
+              "http_attempts_started": 1,
+              "responses_observed": 1,
+              "reported_total_tokens": 1549,
+              "limit_reached": null
+            },
+            "tool": true,
+            "failures": []
+          },
+          "replay": {
+            "status": "verified",
+            "basis": "CAD",
+            "conversion": "verified",
+            "review_id_sha256_16": "a98eb5918cdb46dd",
+            "options": [
+              "Proposed allocation"
+            ],
+            "decision": "neutral",
+            "windows": {
+              "2022": 244,
+              "2025": 67
+            },
+            "download_present": true
+          },
+          "pass": true,
+          "elapsed_ms": 2236
+        }
+      ],
+      "passed": 2,
+      "total": 2,
+      "distinct_http_200_request_ids": 2
+    }
+  ],
+  "live_authorization": {
+    "original": {
+      "http_200": 3,
+      "roles": [
+        "evidence",
+        "review",
+        "scenario"
+      ],
+      "request_id_sha256_16": [
+        "1333eb1f9cdff145",
+        "151601c0e3d8fcdf",
+        "afa79bad7684e2d7"
+      ],
+      "search_authorized": false,
+      "verified": true,
+      "alternative_solver_called": false
+    },
+    "authorized": {
+      "http_200": 4,
+      "roles": [
+        "alternatives",
+        "evidence",
+        "review",
+        "scenario"
+      ],
+      "request_id_sha256_16": [
+        "1a4b6a83573bfb52",
+        "25c72460c9519000",
+        "8a0ee584a247fe08",
+        "fd43e429841470a2"
+      ],
+      "search_authorized": true,
+      "verified": true,
+      "solver_status": "feasible_full"
+    },
+    "counterfactual": {
+      "status": "verified",
+      "selected_check": "toggle_loss_metric",
+      "original_result_preserved": true,
+      "http_200": 1,
+      "roles": [
+        "review_challenge"
+      ],
+      "request_id_sha256_16": [
+        "274621da7b5fe81a"
+      ]
+    },
+    "passed": true,
+    "elapsed_ms": 11835
+  }
+}
