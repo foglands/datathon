@@ -9,6 +9,7 @@
 - Add independently expected path, scale, signed-contribution and strict-threshold cases, plus intake, provenance and coverage regressions.
 - Verified 219 regression tests and six offline CLI cases on both local macOS and competition CloudShell. Eleven live Bedrock checks passed. [Verification record](submission/verification.md#risk-reliability-completion-on-local-and-competition-aws)
 - [Risk model reliability implementation](RISK_RELIABILITY_IMPLEMENTATION.md) lists each proposed change, its implementation status, and the supporting acceptance evidence.
+- Align the README setup, interactive CLI walkthrough, and result links with the verified application.
 
 ## 2026-11-15 · Formula-based risk and verified publication
 

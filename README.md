@@ -4,13 +4,15 @@ PolyFinances Datathon 2026 · Banque Nationale · AWS
 
 AlphaForge AI shows how the funding source for a proposed trade changes a portfolio's risk and its fit with an investor's stated constraints. The prototype compares the original portfolio, the requested trade and feasible alternatives. It reports which rule drove the decision and which conclusions still depend on missing evidence.
 
+[Quick start](#run-it) · [Latest local and AWS verification](submission/verification.md#risk-reliability-completion-on-local-and-competition-aws) · [Risk model reliability implementation](RISK_RELIABILITY_IMPLEMENTATION.md)
+
 ## Choose the scope of the audit
 
 - **Original proposal.** Streamlit and interactive CLI requests first return an independently reviewed result for the submitted trade.
 - **Alternative funding.** Prepare the search settings, then authorize search separately after seeing the original result. The search checks whether an authorized funding mix can support the full requested purchase. When a positive smaller purchase may help, the application asks before expanding an undecided size scope.
 - **Limited review.** When a binding condition is unsupported, the investor can confirm a review of the supported parts of the original proposal. The report records which condition remains unassessed and limits the conclusion to the work performed.
 
-Both flows use independent numerical review. The published report distinguishes completed checks, proven violations, unresolved evidence, and steps skipped outside the confirmed scope.
+Independent numerical review applies to all three scopes. The published report distinguishes completed checks, proven violations, unresolved evidence, and steps skipped outside the confirmed scope.
 
 Select **Include equity sector analysis** to describe the potential change based on the approved GICS sector evidence. The view shows unmapped weight and the effect of using the same unknown holdings on both sides of the transaction. [Sector evidence and limitations](SECTOR_EVIDENCE.md)
 
@@ -18,9 +20,9 @@ The command-line demo uses a fictional CAD portfolio holding 35% SPY, 25% XIU.TO
 
 ## Competition package
 
-[Release verification](submission/verification.md) · [One-page summary](submission/one-pager.pdf) · [Technical summary](submission/technical-summary.pdf) · [Demo video](submission/alphaforge-demo.mp4) · [Demo visuals](submission/visual-handout.pdf)
+[Release verification](submission/verification.md) · [One-page summary](submission/one-pager.pdf) · [Technical summary](submission/technical-summary.pdf) · [Demo video recorded at `13ccc42`](submission/alphaforge-demo.mp4) · [Demo visuals](submission/visual-handout.pdf)
 
-The package includes competition AWS results and a reproducible offline walkthrough. The verification record identifies the optimized application, the earlier demo recording, and the evidence for each revision.
+Application revision [`98661fe`](https://github.com/WindsTrace/datathon-prep/commit/98661fe71f880139d51d2361624193adc8db7c82) passed 219 regression tests on local macOS and the same 219 tests on competition AWS CloudShell. Both environments passed all six offline CLI cases. The competition account also passed 11 live Bedrock checks with 36 successful Converse responses. The [verification record](submission/verification.md#risk-reliability-completion-on-local-and-competition-aws) identifies the evidence and reproduction steps for each revision.
 
 ## What the prototype found
 
@@ -57,7 +59,7 @@ python -m datathon.resilience_benchmark --data "$DATA" --repeats 2 --report outp
 | Profile | Extracts the proposed trade, funding sources, preferences and explicit constraints. Requests clarification when the loss metric is ambiguous. |
 | Evidence | Selects the frozen CAD market inputs and adds a dated issuer disclosure snapshot when the confirmed request has an issuer cap. |
 | Exposure | Measures direct and indirect NVIDIA exposure and bounds disclosure gaps for policies with an issuer cap. |
-| Scenario | Selects how to report historical loss from the confirmed policy. It uses both required windows, and Python retains terminal loss and drawdown for independent review. |
+| Scenario | Coordinates the historical replay for the two required windows and the optional fixed 2023 window. Python retains terminal loss and drawdown for independent review. |
 | Alternatives | Calls the funding solver to check feasible purchase sizes, funding mixes and binding limits. |
 | Review | Calls independent Python checks for metrics, limits, funding and exposure, or selects a supported follow-up check when the user delegates that choice. |
 
@@ -83,42 +85,44 @@ Macro observations are inventoried for provenance and may have been revised. The
 
 ## Run it
 
-Use **Python 3.10+** and the organizer's `Datathon2026.zip` or extracted `alphaforge_starter/` folder. Set `DATA` to its local path. The organizer data stays outside version control.
+Use **Python 3.10+** and the organizer's `Datathon2026.zip` or extracted `alphaforge_starter/` folder. The full regression suite uses all six starter CSV tables. Keep the organizer data outside version control. From the repository root, use your Python 3.10+ executable in place of `python3` if your shell defaults to an earlier version.
+
+```bash
+python3 --version
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+export DATA="/path/to/Datathon2026.zip"
+export DATATHON_STARTER_PATH="$DATA"
+export DATATHON_FULL_STARTER_PATH="$DATA"
+```
 
 ### Decision audit screen
 
 ```bash
-python3.10 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-export DATATHON_STARTER_PATH=/path/to/Datathon2026.zip
 python -m streamlit run app.py
 ```
 
-Open **Robert · loss definition** and enable **Search alternative funding** to prepare the settings. Run the audit, then choose **Confirm and search alternative funding** to reproduce the funding frontier from the demo. The other Robert cases isolate the reserve floor and permission for a smaller purchase. **Amira · issuer exposure** shows a proven breach for the proposal and, if search is authorized, an unresolved alternative. Expand the evidence and review section or download the JSON audit record to inspect the calculations and role events.
+Open **Reference case**, select **Offline**, then choose **Robert · loss definition**. To reproduce the funding frontier, enable **Search alternative funding**, run the original audit and select **Confirm and search alternative funding**. The other Robert cases isolate the reserve floor and permission for a smaller purchase. **Amira · issuer exposure** shows a proven breach for the proposal and, if search is authorized, an unresolved alternative. Open **Metric values and provenance** or **Agent activity and AWS trace**, or download the JSON audit record.
 
-Enter the supported constraints directly to bypass language interpretation, then choose Bedrock or Offline for the audit. Optional free-text intake uses the competition's Sonnet 4.5 inference profile. The staged audit and Review selector use Nova 2 Lite. Free-text inputs are editable before confirmation. Source excerpts, when available, point to the wording the model used. Flagged unsupported binding conditions or contradictions require explicit resolution. Reference cases can run offline with deterministic calculations and simulated agent events. With competition AWS credentials, choose **Write a request** to have Bedrock interpret a fictional request, ask for a missing risk definition, and audit the confirmed inputs. Running a reference case in **Bedrock** mode uses its displayed structured inputs and calls the downstream agents live. Both routes use the same Python solver and independent review as the CLI.
+Choose **Write a request → Enter inputs directly** and select **Offline** or **Bedrock** for structured intake. With competition AWS credentials, **Write a request → Interpret text with Bedrock** uses the competition's Sonnet 4.5 inference profile and shows the editable interpretation before confirmation. Numeric rules are grounded in the relevant request wording or explicitly entered. The staged audit and delegated Review selector use Nova 2 Lite. Reference cases in **Offline** mode use deterministic calculations and simulated role events. Reference cases in **Bedrock** mode use the displayed structured inputs and real downstream calls. Streamlit and CLI use the same Python solver and independent review.
 
 ### Command-line verification
 
 ```bash
-python3.10 -m venv .venv
-source .venv/bin/activate
-DATA=/path/to/Datathon2026.zip
 python -m datathon --data "$DATA" --case all --mode offline --stress --report outputs/offline.json
-python -m unittest discover -s tests -v
+python -m unittest discover -q
 ```
 
 For live calls, use an authenticated competition AWS session. The pinned Strands SDK is `1.63.0` and the default model is Nova 2 Lite via `us.amazon.nova-2-lite-v1:0` in `us-east-1`.
 
 ```bash
-python -m pip install -r requirements.txt
 python -m datathon --data "$DATA" --case all --mode aws --stress --report outputs/aws.json
 python -m datathon.runtime_benchmark --data "$DATA" --mode aws --jobs 1 3 --repeats 2 \
   --report outputs/runtime.json
 ```
 
-Use `--case robert` or `--case amira` to run one persona. Offline mode simulates role handoffs and runs the financial calculations locally. The first validated release passed **6/6 offline scenarios, 6/6 live competition CloudShell scenarios and 11/11 governance tests**. The live suite recorded **62 successful Converse responses**. Complete seven-role runs took **10.3–12.7 seconds** in that run. [Reproduction and AWS notes](PROTOTYPE.md)
+Use `--case robert` or `--case amira` to run one persona. Offline mode simulates role handoffs and runs the financial calculations locally. [Latest test results](submission/verification.md#risk-reliability-completion-on-local-and-competition-aws) · [Earlier reproduction and AWS notes](PROTOTYPE.md)
 
 To try the interactive audit, start with a fictional request. Select `1` for terminal loss when the clarification menu appears, then type `YES` once the interpreted terms match your intent.
 
@@ -127,7 +131,7 @@ python -m datathon --data "$DATA" --mode aws --report outputs/request.json \
   --request 'Add exactly 10 percentage points of NVDA by selling only ZST.TO. Keep at least 15% in ZST.TO. A smaller purchase is not allowed. I can lose at most 14%.'
 ```
 
-With the terminal-loss clarification, the full request is infeasible. The audit shows 5% of the portfolio as a diagnostic limit. Rerun with explicit permission for a smaller purchase to make that size eligible. [Changelog](CHANGELOG.md)
+With the terminal-loss clarification, this original-only audit reports breaches of the 15% reserve floor and the 14% terminal-loss limit. To test alternative funding, specify the permitted sources in the request, pass `--search-alternatives`, and enter `SEARCH` after the original audit. If the requested size is infeasible and smaller size remains undecided, a separate prompt can authorize a smaller purchase. [Changelog](CHANGELOG.md)
 
 ## Repository map
 
@@ -137,6 +141,7 @@ With the terminal-loss clarification, the full request is infeasible. The audit 
 | [`datathon/`](datathon/) | CLI, orchestration, Strands roles, data loader, financial solver and independent governance audit |
 | [`tests/`](tests/) | Regression tests for data coverage, rule checks, bad metrics, funding and infeasibility evidence |
 | [`BENCHMARK.md`](BENCHMARK.md) | Paired comparison of deterministic, bundled single-agent and multi-agent audits |
+| [`RISK_RELIABILITY_IMPLEMENTATION.md`](RISK_RELIABILITY_IMPLEMENTATION.md) | Proposed safeguards, implementation status, and acceptance evidence |
 | [`PROTOTYPE.md`](PROTOTYPE.md) | Detailed reproduction steps, stress test behavior and AWS handoff fix |
 | [`Introduction-Datathon.executed.ipynb`](Introduction-Datathon.executed.ipynb) | Executed official AWS workshop notebook |
 | [`Datathon_Research_Brief.md`](Datathon_Research_Brief.md), [`AGENTS.md`](AGENTS.md), [`plan.md`](plan.md) | Earlier research, competition context and prep notes |
