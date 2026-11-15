@@ -54,15 +54,50 @@ class InvestmentAssistantTests(unittest.TestCase):
         self.assertIsNone(limited["finding"]["option"])
 
     def test_intent_suggestion_cannot_confirm_or_run_an_analysis(self):
-        proposal = {"status": "proposed", "task": "trade_audit", "trace": [], "usage": {}}
+        proposal = {"status": "ready", "task": "trade_audit", "trace": [], "usage": {}}
         question = "Add eight percentage points of NVDA by selling only ZST.TO."
-        with patch("datathon.streamlit_assistant.suggest_intent", return_value=proposal) as suggest:
+        with patch("datathon.streamlit_assistant.interpret_semantic_request", return_value=proposal) as suggest:
             self.app.text_area(key="assistant_question").set_value(question).run()
-            self.click("Interpret with Bedrock")
+            self.click("Interpret with Amazon Bedrock")
             self.assertEqual(suggest.await_args.args[0], question)
             self.assertEqual(self.app.text_area(key="assistant_trade_question").value, question)
             self.assertNotIn("request_results", self.app.session_state)
             self.assertFalse(any(item.label == "Confirm inputs and compare" for item in self.app.button))
+
+    def test_non_english_question_is_blocked_before_cloud_or_market_data(self):
+        self.app.text_area(key="assistant_question").set_value("¿Cómo debería invertir mis ahorros?").run()
+        with patch("datathon.streamlit_assistant.interpret_semantic_request") as interpret:
+            with patch("datathon.streamlit_assistant._market_bundle") as market:
+                self.click("Interpret with Amazon Bedrock")
+        interpret.assert_not_called()
+        market.assert_not_called()
+        self.assertTrue(any("Please enter your question in English" in item.value for item in self.app.warning))
+        self.assertNotIn("assistant_question_draft", self.app.session_state)
+        self.app.text_area(key="assistant_question").set_value("Can you help me invest my cash?").run()
+        self.click("Interpret question")
+        self.assertEqual(self.app.session_state["assistant_question_draft"][0]["status"], "planning")
+
+    def test_model_only_comparison_requires_full_scope_confirmation(self):
+        proposal = {"status": "ready", "task": "compare_allocations", "trace": [], "usage": {}}
+        self.app.text_area(key="assistant_question").set_value("Show me how AGG and GLD held up in past downturns.").run()
+        with patch("datathon.streamlit_assistant.interpret_semantic_request", return_value=proposal):
+            self.click("Interpret with Amazon Bedrock")
+        compare = next(button for button in self.app.button if button.label == "Confirm inputs and compare")
+        self.assertTrue(compare.disabled)
+        self.app.checkbox(key="assistant_confirm_text_scope").set_value(True).run()
+        self.click("Confirm inputs and compare")
+        self.assertIn("assistant_comparison", self.app.session_state)
+
+    def test_mixed_request_answers_planning_and_exposes_unsupported_forecast(self):
+        self.app.text_area(key="assistant_question").set_value(
+            "How could I invest cash set aside for tuition? Predict next year's price for GLD."
+        ).run()
+        with patch("datathon.streamlit_assistant._market_bundle") as market:
+            self.click("Interpret question")
+        market.assert_not_called()
+        self.assertEqual(self.app.session_state["assistant_question_draft"][0]["status"], "planning")
+        self.assertTrue(any("future price" in item.value for item in self.app.warning))
+        self.assertFalse(self.app.get("download_button"))
 
     def test_question_text_sets_options_and_cap_without_manual_form(self):
         question = "Compare AGG and GLD. Maximum drawdown must not exceed {}%."

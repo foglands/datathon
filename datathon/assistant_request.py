@@ -63,7 +63,7 @@ _UNSUPPORTED = (
 _UNKNOWN = re.compile(r"(?<![A-Za-z0-9_.$-])(?:\$[A-Za-z]{1,9}|[A-Z]{2,8})(?:[.-][A-Za-z0-9]{1,5})?(?![A-Za-z0-9_-]|\.[A-Za-z0-9])")
 _ORDINARY = frozenset("AI AM AND ARE AS AT CAD CAN CASH CHOOSE COMPARE ETF ETFS EUR ESG FOR GBP GROWTH I IN IS IT MAX MONTHS MY NO NOT OF ONLY OR OUT PORTFOLIO RISK SHOW STOCK THE TO USD USE VS WITH YEARS".split())
 _CLAUSE = re.compile(r".+?(?:[!?。！？;；\n]|\.(?=\s|$)|$)", re.S)
-_BINDING = re.compile(r"\b(?:must|require(?:s|d)?|need to|can't|cannot|may not|avoid|only|maximum|limit|cap|under|at most|exclude|ignore|not|don't|if|unless|provided that)\b|必须|必須|只能|不得|不超过|不超過|上限|限制|禁止|不能|避免|忽略|不要|排除|如果|除非|仅在|僅在", re.I)
+_BINDING = re.compile(r"\b(?:must|require(?:s|d)?|need to|can't|cannot|may not|avoid|only|maximum|limit|cap|under|at most|exclude|ignore|never|except|without|no|not|don't|if|unless|provided that)\b|必须|必須|只能|不得|不超过|不超過|上限|限制|禁止|不能|避免|忽略|不要|排除|除外|如果|除非|仅在|僅在", re.I)
 _IGNORE = re.compile(r"\b(?:do not|don't|ignore|exclude|omit|without|skip|avoid|never|rather than|instead of|not use)\b|不(?:用|要|考虑|考慮|需要)|忽略|排除|而非|不要用", re.I)
 _EXPLICIT_RANKING = re.compile(r"\b(?:by|rank|prioriti[sz]e|prioritise|most important|primarily|based on|minimi[sz]e|maximi[sz]e)\b|根据|根據|按|依照|优先|優先|以.{0,22}为主|以.{0,22}為主|哪个|哪個", re.I)
 _SAFE_ONLY = re.compile(r"\bonly\s+(?:compare|show historical (?:data|performance|results?))\b|\bcompare\s+only\b|只(?:比较|比較|对比|看历史数据|看歷史資料)", re.I)

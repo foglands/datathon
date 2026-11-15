@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-15 · Rebuild question intake and require English input
+
+- Route the full question to planning, grounded historical comparison, trade audit, or a scope explanation. Planning can answer before accessing market files.
+- Offer one bounded Strands/Bedrock classification per explicitly authorized question. Model suggestions contain original clause references. Local checks preserve ownership, excluded choices, and unconfirmed conditions.
+- Use an offline language check for user-facing questions and follow-ups. Keep text, tool selection, historical computation, and user confirmation distinct.
+- Exercise 141 reproducible intake scenarios, English submission checks, and the Streamlit planning-to-data path. See the [verification record](submission/verification.md#question-intake-verification).
+
 ## 2026-11-15 · Respond to concentration and high-return claims
 
 - Interpret open-ended first-person and guarantee questions about investing. Keep the stated savings balance, beginner context, interest in a concentrated position, and return claim available in the response.

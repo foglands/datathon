@@ -2,6 +2,23 @@
 
 PolyFinances Datathon 2026 · Montréal
 
+## Question intake verification
+
+The previous local entry routed wording through a planning phrase gate and then a two-choice comparison parser. Its Bedrock task list did not include planning. On 72 independently assembled planning prompts, 63 missed the planning route and 4 preserved all checked amounts, goals, risk statements, and choices. The baseline was `fec73c7`.
+
+The revised intake passed the 72 planning cases and all 141 labeled intake scenarios. Three seeds (17, 104, and 609) vary wording, amounts, order, separators, goals, risk concerns, choices, and limits. Additional cases check third-party amounts, excluded choices, unsupported actions, unsupported assets, and unrelated questions. The parser is tested internally on varied language forms. The product checks English locally before sending any user question or follow-up to Bedrock or opening a data workflow.
+
+| Check | Observed result |
+| --- | --- |
+| Browser on macOS, organizer starter bundle | Both reported planning cases produced an answer on the first submission. Each optional example returned an independently verified historical comparison. A fresh bond-fund and index-fund planning question also reached a verified historical comparison. |
+| Language boundary | English questions with short phrasing, ticker pairs and proper names can reach interpretation. Representative Chinese, French, Spanish, German and mixed-language requests are blocked with an English prompt. Very short or unclear text may need a fuller English sentence. |
+| Confirmation and scope | A model-assisted numerical interpretation still requires scope and input review. An unsupported forecast in a separate clause leaves the planning answer available and does not open a replay for that mixed request. |
+| Local macOS suite | 288 regressions passed with the organizer data. All six standard and stress CLI cases passed offline. |
+| Strands SDK 1.63.0 | Botocore Stubber verified the Converse tool call and response parsing. Tests cover clause references, unavailable responses, unsupported tasks, and false attribution and financial fields. |
+| Competition AWS | The console required sign-in during this check. The new intake has no live AWS result. Live results below apply to earlier revisions. |
+
+Run `python -m unittest discover -q` after installing `requirements.txt` and setting `DATATHON_STARTER_PATH` and `DATATHON_FULL_STARTER_PATH` to the organizer bundle. The generated scenarios are in `tests/test_general_intake.py`. For a live smoke check in an authenticated competition environment, enter a fictional planning question, use **Interpret with Amazon Bedrock**, and open **Question interpretation activity** to check the returned tool and request metadata. The historical comparison remains a separate action.
+
 ## Mixed investment question verification
 
 All 269 local regressions passed with the official starter data. The browser processed a single prompt about saved cash, peers' trading gains, NVIDIA, Bitcoin, options, and a guaranteed annual return. The response flagged the return claim and described concentration, crypto, and options risk. The work history left the withdrawal horizon open. The separate NVDA and BTC-USD example returned a verified, unranked CAD historical comparison. A standalone guarantee request also reaches educational guidance. Explicit forecast, historical analysis, and trade requests retain their existing routing checks.

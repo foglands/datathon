@@ -61,6 +61,13 @@ class PlanningRequestTests(unittest.TestCase):
             with self.subTest(question=question):
                 self.assertIsNone(parse_planning_request(question))
 
+    def test_owned_balance_uses_plural_and_singular_statements(self):
+        for clause in ("My cash savings are CAD 39,475.", "Our bank account total is CAD 39,475."):
+            with self.subTest(clause=clause):
+                plan = parse_planning_request(f"{clause} Where would you park this money?")
+                self.assertEqual(plan["points"]["amount"], "CAD 39,475")
+                self.assertEqual(plan["points"]["currency"], "CAD")
+
     def test_multiple_unattributed_amounts_do_not_become_the_investment_budget(self):
         draft = parse_planning_request("I owe $6,000 and someone offered $20,000. Should I buy gold?")
         self.assertEqual(draft["instruments"], ("gold",))

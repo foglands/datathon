@@ -10,6 +10,7 @@ from .agents import PROFILE_FIELDS, AgentRun
 from .data import load_market_data
 from .model_settings import configured_bedrock_runtime
 from .publication import publish_report
+from .question_language import ENGLISH_QUESTION_MESSAGE, is_english_question
 from .runtime_budget import PROFILE_LIMITS, RuntimeBudgetExceeded, bound_audit, run_bounded, run_sync_action
 from .workflow import Case, examples, interpret_request, numeric_input_provenance, preset_profile, profile_policy, run_case
 
@@ -78,6 +79,14 @@ def read_input(prompt):
     except (EOFError, KeyboardInterrupt):
         print()
         return ""
+
+
+def read_english_input(prompt):
+    while True:
+        value = read_input(prompt)
+        if value.casefold() in {"", "yes", "scoped", "1", "2"} or is_english_question(value):
+            return value
+        print(ENGLISH_QUESTION_MESSAGE)
 
 
 def print_policy(policy, *, search_alternatives=True):
@@ -155,6 +164,9 @@ async def run_request(args):
     if not request:
         print("Provide a simulated trade request.")
         return 2
+    if not is_english_question(request):
+        print(ENGLISH_QUESTION_MESSAGE)
+        return 2
     while True:
         if manual_draft is not None:
             draft, policy = manual_draft
@@ -198,7 +210,7 @@ async def run_request(args):
                     if excerpt := requirement.get("excerpt"):
                         print(f"  Not assessed: {excerpt}")
                 print_policy(scoped_policy, search_alternatives=False)
-                change = read_input("Type SCOPED to audit only supported rules, enter a correction, or press Enter to end: ")
+                change = read_english_input("Type SCOPED to audit only supported rules, enter a correction, or press Enter to end: ")
                 if change.casefold() == "scoped":
                     policy = scoped_policy
                     unassessed = [{"code": requirement["code"]} for requirement in requirements]
@@ -213,10 +225,10 @@ async def run_request(args):
             if not numeric_pending and field == "loss_metric" and draft.data.get("limit_bps") is not None:
                 print("  1. Terminal loss (start to finish)")
                 print("  2. Maximum drawdown (peak to trough)")
-            change = read_input("Clarify the request, or press Enter to end: ")
+            change = read_english_input("Clarify the request, or press Enter to end: ")
             while change.casefold() == "yes":
                 print(question)
-                change = read_input("Provide the missing detail, or press Enter to end: ")
+                change = read_english_input("Provide the missing detail, or press Enter to end: ")
             if (not numeric_pending and field == "loss_metric" and draft.data.get("limit_bps") is not None
                     and change in ("1", "2")):
                 metric = "terminal_loss" if change == "1" else "max_drawdown"
@@ -234,7 +246,7 @@ async def run_request(args):
                 continue
         else:
             print_policy(policy, search_alternatives=search_alternatives)
-            change = read_input("Type YES to run the audit, enter a correction, or press Enter to end: ")
+            change = read_english_input("Type YES to run the audit, enter a correction, or press Enter to end: ")
             if change.casefold() == "yes":
                 break
         if not change:

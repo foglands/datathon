@@ -57,6 +57,26 @@ class Role:
 
 
 ROLES = {
+    "semantic_intake": Role(
+        "Interpret the entire latest English question from a fictional investor. Use planning for open questions about investing choices, goals, risks, "
+        "or an investment claim to evaluate, even when the user gives little background. Use compare_allocations "
+        "for a requested historical, numerical comparison of specified hypothetical choices. Use trade_audit "
+        "for checking an explicit hypothetical change to a portfolio. Use unsupported when the main request "
+        "requires a real transaction, a future price or return forecast, or an unrelated task. "
+        "When the user asks whether a promised return is plausible, use planning. A real-world execution order "
+        "cannot be turned into an audit. Do not infer that a suggested purchase or third-party story is a holding. "
+        "Read all of user_request. Call classify_investment_question once. Use a candidate_clauses ID in task_source "
+        "for the clause that states the operative request. For planning only, optional points map these topic "
+        "keys to candidate_clauses IDs: cash_position, spending, inflation, growth, risk, timing, beginner, "
+        "concentration, peer_trading, return_claim. Choose a topic only when the user actually states or asks "
+        "about it. Keep negations, conditionals and quoted context. Do not confuse work experience with the "
+        "investment horizon, another person's situation with the user's, or a product being considered with an "
+        "existing holding. Optional instruments map these category keys to candidate_clauses IDs: sp500, gold, "
+        "cash_deposits, bonds, equity_funds, individual_stock, crypto, options. Include categories only when "
+        "the user explicitly mentions them as investment choices, including in a question about their trade-offs. "
+        "Exclude rejected instruments and categories mentioned only as background. Leave uncertain points or "
+        "instruments unset. Do not add amounts, constraints, tickers, conclusions, or explanations."
+    ),
     "assistant_intent": Role(
         "Select the task that matches the fictional investor's current question, in English or French. "
         "Use trade_audit for checking one proposed trade against constraints. Use compare_allocations for "

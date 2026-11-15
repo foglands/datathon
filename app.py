@@ -15,6 +15,7 @@ from datathon.data import load_market_data, market_data_source
 from datathon.finance import BASE_WEIGHTS
 from datathon.model_settings import configured_bedrock_runtime
 from datathon.publication import publish_check, publish_report
+from datathon.question_language import ENGLISH_QUESTION_MESSAGE, is_english_question
 from datathon.runtime_budget import (
     CHALLENGE_LIMITS, PROFILE_LIMITS, RuntimeBudgetExceeded, bound_audit, run_bounded, run_sync_action,
 )
@@ -131,7 +132,7 @@ def show_counterfactual(case, report, published, runtime):
     reviewed_ids = ()
     option = next((item for item in options if item.id == selected), None)
     if runtime is not None and selected is None:
-        hint = st.text_input("What would you like to check?", max_chars=500, key=f"{key}-hint")
+        hint = st.text_input("What would you like to check?", max_chars=500, key=f"{key}-hint", help="Write in English.")
     if option and option.value_unit == "basis_points":
         value = st.number_input(
             "Hypothetical minimum ZST.TO weight (%)",
@@ -163,6 +164,9 @@ def show_counterfactual(case, report, published, runtime):
         else:
             st.caption("No reviewed disclosure qualifies for the unresolved holdings at this audit date.")
     if st.button("Re-audit reviewed disclosures" if reviewed_ids else "Check once", key=f"{key}-run"):
+        if hint.strip() and not is_english_question(hint):
+            st.warning(ENGLISH_QUESTION_MESSAGE)
+            return
         with st.spinner("Checking the assumption against the independent audit"):
             try:
                 check, usage = run_sync_action(run_bounded(run_counterfactual(
@@ -503,14 +507,17 @@ def live_request(setup, *, investor=None, assistant_question="", intent=None):
             scope = ReplayScope(objective=investor.objective, withdrawal_time=investor.withdrawal_time)
         if investor or assistant_question:
             request = st.text_area("Fictional investment request", value=assistant_question, height=145,
-                                   key="assistant_trade_question")
+                                   key="assistant_trade_question", help="Write in English.")
         else:
-            request = st.text_area("Fictional investment request", value=ROBERT_REQUEST, height=145)
+            request = st.text_area("Fictional investment request", value=ROBERT_REQUEST, height=145, help="Write in English.")
         previous = st.session_state.get("request_draft")
         if previous and previous[:2] != (request, requested_search):
             for key in ("request_draft", "request_results", "request_confirmed"):
                 st.session_state.pop(key, None)
         if st.button("Interpret request with Bedrock", type="primary", disabled=not request.strip()):
+            if not is_english_question(request):
+                st.warning(ENGLISH_QUESTION_MESSAGE)
+                return
             with st.spinner("Identifying the trade and rules that need confirmation"):
                 run_id = f"request-{uuid4().hex[:12]}"
                 try:
@@ -746,7 +753,7 @@ def main():
     market_bundle_found = bool(st.session_state.get("market_source"))
     show_masthead(market_bundle_found)
     if not market_bundle_found:
-        st.warning("Set `DATATHON_STARTER_PATH` to your organizer ZIP or extracted starter folder before running an analysis.")
+        st.warning("Set `DATATHON_STARTER_PATH` to your organizer ZIP or extracted starter folder to run historical analyses.")
     with st.container(key="assistant-nav"):
         workspace = st.radio("Workspace", ("Investment assistant", "Reference cases"), horizontal=True,
                              label_visibility="collapsed", key="workspace")

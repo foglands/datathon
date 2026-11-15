@@ -6,14 +6,13 @@ import streamlit as st
 
 from .allocation_compare import compare_allocations, comparison_assets
 from .allocation_view import render_allocation_result
-from .assistant_intent import suggest_intent
-from .assistant_request import parse_comparison_request
-from .assistant_request_model import interpret_comparison_request
 from .investor_profile import InvestorProfile, PRIORITIES, RISK_TOLERANCES, suggest_priority
 from .model_settings import configured_bedrock_runtime
-from .planning_request import parse_planning_request
 from .planning_view import render_planning_answer
+from .question_intake import analyze_question
+from .question_language import ENGLISH_QUESTION_MESSAGE, is_english_question
 from .runtime_budget import run_sync_action
+from .semantic_intake import interpret_semantic_request
 from .scope import OBJECTIVES, WITHDRAWAL_TIMES
 
 
@@ -22,7 +21,8 @@ TASKS = {
     "trade_audit": "Audit a proposed NVDA trade",
 }
 _TRADE_STATE = ("request_draft", "request_results", "request_confirmed", "manual_draft_id",
-                "request_resize_choice", "request_declined_resize", "active_intake", "active_challenge")
+                "request_resize_choice", "request_declined_resize", "active_intake", "active_challenge",
+                "assistant_trade_question")
 
 
 def clear_assistant_result():
@@ -33,29 +33,10 @@ def clear_assistant_result():
 def _assistant_question():
     st.subheader("What investment decision are you exploring?")
     return st.text_area(
-        "Investment question", height=104, max_chars=800, key="assistant_question",
+        "Investment question", height=104, max_chars=2000, key="assistant_question",
         placeholder="I am saving for a planned expense and worried about market drops. How should I compare savings and stock funds?",
-        help="Use fictional details and describe your goal, concerns, and any options or limits in your own words.",
+        help="Write in English. Use fictional details and describe your goal, concerns, and options or limits in your own words.",
     ).strip()
-
-
-async def _bedrock_draft(question, assets, local):
-    runtime = configured_bedrock_runtime(profile=True)
-    route = None
-    if local["status"] == "unrecognized":
-        route = await suggest_intent(question, runtime)
-        if route["task"] == "trade_audit":
-            return local, route
-        if route["task"] != "compare_allocations":
-            return local, route
-    draft = await interpret_comparison_request(question, assets, runtime)
-    if trace := draft.get("trace"):
-        logged_route = {"status": "proposed", "task": "compare_allocations", "trace": trace,
-                        "usage": draft.get("usage", {})}
-        if route:
-            logged_route["trace"] = [*route["trace"], *trace]
-        route = logged_route
-    return draft, route
 
 
 def _market_bundle(data_loader):
@@ -66,26 +47,24 @@ def _market_bundle(data_loader):
         return None
 
 
-def _question_draft(question, data_loader):
-    actions = st.columns(2)
-    use_local = actions[0].button("Interpret question", type="primary")
-    use_model = actions[1].button("Interpret with Bedrock")
-    if use_local or use_model:
-        clear_assistant_result()
-        st.session_state.pop("assistant_question_draft", None)
-        if plan := parse_planning_request(question):
-            st.session_state.assistant_question_draft = ({"status": "planning", "plan": plan}, None)
-            return st.session_state.assistant_question_draft
-        if (data := _market_bundle(data_loader)) is None:
+def _question_draft(question, data_loader, *, use_model):
+    clear_assistant_result()
+    st.session_state.pop("assistant_question_draft", None)
+    if not is_english_question(question):
+        st.warning(ENGLISH_QUESTION_MESSAGE)
+        return None
+    route = None
+    if use_model:
+        with st.spinner("Understanding the goal, concerns, and requested analysis"):
+            route = run_sync_action(interpret_semantic_request(question, configured_bedrock_runtime(profile=True)))
+    draft = analyze_question(question, semantic=route)
+    if draft.get("needs_assets"):
+        data = _market_bundle(data_loader)
+        if data is None:
             return None
-        assets = comparison_assets(data)
-        draft = parse_comparison_request(question, assets)
-        route = None
-        if use_model and draft["status"] not in {"ready", "unsupported"}:
-            with st.spinner("Checking how the question maps to supported evidence and inputs"):
-                draft, route = run_sync_action(_bedrock_draft(question, assets, draft))
-        st.session_state.assistant_question_draft = (draft, route)
-    return st.session_state.get("assistant_question_draft")
+        draft = analyze_question(question, comparison_assets(data), semantic=route)
+    st.session_state.assistant_question_draft = draft, route
+    return draft, route
 
 
 def _question_options(fields):
@@ -104,17 +83,27 @@ def _render_question_answer(question, saved, data_loader, trade_entry):
         st.caption("Interpret the question to see planning considerations or the inputs for a specific comparison.")
         return
     draft, route = saved
+    if route:
+        if route["status"] == "ready":
+            st.caption("Amazon Bedrock returned an interpretation. The application checks all inputs before analysis.")
+            if route.get("trace"):
+                with st.expander("Question interpretation activity"):
+                    st.json(route["trace"], expanded=False)
+        else:
+            st.caption("Amazon Bedrock was unavailable for this question. The application used local interpretation.")
     if draft["status"] == "planning":
-        if options := render_planning_answer(draft["plan"]):
+        if limitation := draft.get("limitation"):
+            st.warning(limitation)
+        if options := render_planning_answer(draft["plan"], allow_example=not limitation):
             pair = " and ".join(options)
             st.subheader("Explore a historical example")
-            st.write(f"Compare {pair} as examples of the exposures you mentioned. Each is shown separately in CAD "
+            st.write(f"Compare {pair} as illustrative market exposures from the archived dataset. Each is shown separately in CAD "
                      "over the archived stress windows. The figures are nominal, so evaluating purchasing power would "
                      "also require inflation over the same periods.")
             _run_comparison(data_loader, options, InvestorProfile(), False, None, None,
                             button_label=f"Compare {pair} historically")
         return
-    if route and route["task"] == "trade_audit":
+    if draft["status"] == "trade_audit":
         panel = st.container(key="assistant-trade", border=True)
         with panel:
             st.subheader(TASKS["trade_audit"])
@@ -126,7 +115,7 @@ def _render_question_answer(question, saved, data_loader, trade_entry):
     options = _question_options(fields)
     scope_check = bool(draft.get("scope_review_required")) and draft["status"] == "clarify" and bool(options)
     if draft["status"] != "ready" and not scope_check:
-        st.warning(draft["message"] or "Describe a historical comparison with two choices, or use Bedrock to interpret a supported trade.")
+        st.warning(draft["message"] or "Name the two choices you want to compare historically.")
         if draft["sources"]:
             _show_question_sources(draft["sources"])
         return
@@ -262,14 +251,24 @@ def _run_comparison(data_loader, options, profile, include_2023, cap, intent, *,
 
 def render_assistant(data_loader, trade_entry):
     with st.container(key="assistant-question", border=True):
-        question = _assistant_question()
+        with st.form("assistant_question_form"):
+            question = _assistant_question()
+            local, cloud = st.columns(2)
+            interpret = local.form_submit_button("Interpret question", type="primary")
+            use_model = cloud.form_submit_button(
+                "Interpret with Amazon Bedrock",
+                help="Sends the submitted fictional question to the configured AWS model.",
+            )
         if question != st.session_state.get("assistant_last_question"):
             clear_assistant_result()
             st.session_state.pop("assistant_question_draft", None)
             st.session_state.assistant_last_question = question
         if question:
-            saved = _question_draft(question, data_loader)
+            saved = (_question_draft(question, data_loader, use_model=use_model) if interpret or use_model
+                     else st.session_state.get("assistant_question_draft"))
         else:
+            if interpret or use_model:
+                st.warning(ENGLISH_QUESTION_MESSAGE)
             task = st.selectbox("Analysis task", tuple(TASKS), format_func=TASKS.__getitem__, index=None,
                                 placeholder="Choose a task to enter inputs directly", key="assistant_task")
     if question:

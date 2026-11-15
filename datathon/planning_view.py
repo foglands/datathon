@@ -50,7 +50,12 @@ _OPTIONS = {
 }
 
 
-def render_planning_answer(plan):
+# The official bundle supports these illustrative exposures. Each remains a
+# standalone market series rather than a proxy assigned to the user's holdings.
+_CATEGORY_EXAMPLES = {"equity_funds": "SPY", "sp500": "SPY", "bonds": "AGG", "gold": "GLD"}
+
+
+def render_planning_answer(plan, *, allow_example=True):
     """Show an answer now and return example symbols for an optional replay."""
     points, instruments = plan["points"], plan["instruments"]
     with st.container(key="assistant-options", border=True):
@@ -60,6 +65,8 @@ def render_planning_answer(plan):
         if return_claim := points.get("return_claim"):
             st.text(f"Return claim to check · {return_claim}")
             st.warning(guarantee_guidance())
+            if set(points) == {"return_claim"} and not instruments:
+                return None
         if "spending" in points:
             st.write("Separate money you expect to spend from money you could leave invested through a downturn. "
                      "For the spending portion, the withdrawal date and accessible amount come first.")
@@ -77,12 +84,15 @@ def render_planning_answer(plan):
         if "risk" in points:
             st.write("Your concern about a market drop matters most if you would need to sell during it. "
                      "First identify the money that must stay accessible, then consider what loss you could tolerate on the rest.")
+        if "growth" in points:
+            st.write("For the money you can leave invested, compare potential growth with how much it could fall before "
+                     "you need it. A return target alone cannot tell you whether the risk fits the goal.")
         if "inflation" in points:
             st.markdown("Inflation affects purchasing power. Compare the savings rate with inflation over the same period, "
                         f"and consider taxes and access terms where they apply. [Bank of Canada inflation guide]({_INFLATION})")
 
         options = list(instruments)
-        if any(key in points for key in ("spending", "cash_position")) and "cash_deposits" not in options:
+        if (not options or any(key in points for key in ("spending", "cash_position"))) and "cash_deposits" not in options:
             options.insert(0, "cash_deposits")
         for instrument in options:
             if instrument in _OPTIONS and (instrument != "equity_funds" or "sp500" not in options):
@@ -103,6 +113,12 @@ def render_planning_answer(plan):
             st.text("\n".join(f"{_POINT_LABELS[key]} · {value}" for key, value in points.items()
                               if key in _POINT_LABELS and key not in {"amount", "return_claim"}))
 
-    if len(plan["examples"]) == 2:
-        return {symbol: {symbol: 1.0} for symbol in plan["examples"]}
+    if not allow_example:
+        return None
+    symbols = plan["examples"]
+    if len(symbols) < 2 and all(category in _CATEGORY_EXAMPLES for category in instruments):
+        symbols = tuple(dict.fromkeys((*symbols, *(_CATEGORY_EXAMPLES[category] for category in instruments))))
+    if len(symbols) == 2:
+        return {symbol: {symbol: 1.0} for symbol in symbols}
+    st.caption("For a historical data comparison, ask about two supported ticker symbols or give two complete allocations.")
     return None

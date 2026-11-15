@@ -38,7 +38,7 @@ _REQUEST_LABELS = {
     "include_2023": "2023 stress window",
     "require_esg": "ESG requirement",
 }
-_ROUTING_STATES = {"proposed", "unsupported", "unavailable", "needs_input"}
+_ROUTING_STATES = {"ready", "proposed", "unsupported", "unavailable", "needs_input"}
 _ROUTING_TASKS = {"trade_audit", "compare_allocations"}
 _TRACE_FIELDS = {
     "event", "role", "model_id", "region", "tool_name", "status", "duration_ms", "operation", "request_id", "http_status",
