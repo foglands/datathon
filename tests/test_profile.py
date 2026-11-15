@@ -275,9 +275,104 @@ class ProfileHandoffTests(unittest.TestCase):
         self.assertIsNone(draft["metric"])
         self.assertEqual(draft["limit_bps"], 1400)
 
+    def test_only_search_entries_require_alternative_permissions(self):
+        request = "Buy 5 percentage points of NVDA from QQQ."
+        fields = {**FIELDS, "allow_smaller": -1, "allowed_sources": "", "metric": "", "limit_bps": -1}
+        legacy = _profile_handoff(request, **fields)
+        self.assertEqual(legacy["clarification_field"], "allow_smaller")
+
+        for scope in ({"search_alternatives": False}, {"defer_smaller_authorization": True}):
+            with self.subTest(scope=scope):
+                draft = _profile_handoff(request, **fields, **scope)
+                self.assertEqual(draft["status"], "ok")
+                self.assertIsNone(draft["allow_smaller"])
+                self.assertEqual(draft["allowed_sources"], ["QQQ"])
+
+        draft = _profile_handoff(request, **fields, funding_rule="ambiguous", search_alternatives=False)
+        self.assertEqual(draft["status"], "ok")
+        search = _profile_handoff(request, **fields, funding_rule="ambiguous", defer_smaller_authorization=True)
+        self.assertEqual(search["clarification_field"], "allowed_sources")
+
+    def test_audit_scope_does_not_discard_explicit_funding_conflict(self):
+        request = "Buy 5 percentage points of NVDA from QQQ. Do not sell QQQ."
+        draft = _profile_handoff(request, **FIELDS, search_alternatives=False)
+        self.assertEqual(draft["clarification_field"], "conflict")
+        draft = _profile_handoff('Buy 5 percentage points of NVDA from QQQ. The example says "Do not sell QQQ."',
+                                 **FIELDS, search_alternatives=False)
+        self.assertEqual(draft["status"], "ok")
+
+    def test_material_requirements_survive_a_model_handoff_that_omits_them(self):
+        request = (REQUEST + " Apply my mandatory ESG screen. Require a 9% liquidity floor. "
+                   "The technology sector must stay below 30%.")
+        draft = _profile_handoff(request, **FIELDS, search_alternatives=False)
+        self.assertEqual(draft["clarification_field"], "unsupported_constraint")
+        self.assertTrue(StrandsAgents._valid_data(draft, "profile"))
+        self.assertEqual([record["code"] for record in draft["unassessed_requirements"]],
+                         ["esg", "liquidity", "sector"])
+        self.assertTrue(all(record["excerpt"] in request for record in draft["unassessed_requirements"]))
+
+    def test_unadopted_examples_and_preferences_do_not_add_rules(self):
+        examples = (
+            'A sample adviser said "An ESG screen is mandatory."',
+            "The liquidity floor is optional.",
+            "I prefer an ESG screen, if available.",
+            "Do not impose a minimum return.",
+            "I declined the proposed maximum sector cap.",
+            "\n> Require a minimum return of 7%.",
+            "\n```\nEnforce the board policy.\n```",
+        )
+        request = REQUEST + " " + " ".join(examples)
+        draft = _profile_handoff(request, **FIELDS, search_alternatives=False)
+        self.assertEqual(draft["unassessed_requirements"], [])
+        self.assertEqual(draft["status"], "ok")
+        adopted = _profile_handoff(REQUEST + ' Apply my exact rule: "ESG screening is mandatory."', **FIELDS)
+        self.assertEqual(adopted["unassessed_requirements"][0]["code"], "esg")
+        self.assertEqual(adopted["clarification_field"], "unsupported_constraint")
+
+    def test_unknown_model_binding_term_remains_unassessed_without_fabricated_excerpt(self):
+        draft = _profile_handoff(REQUEST, **FIELDS, clarification_field="unsupported_constraint",
+                                 unsupported_excerpt="This excerpt is not in the request.")
+        self.assertEqual(draft["unassessed_requirements"], [{"code": "other_binding"}])
+        self.assertEqual(draft["status"], "needs_input")
+        self.assertFalse(StrandsAgents._valid_data({**draft, "unassessed_requirements": [{"code": "arbitrary"}]},
+                                                  "profile"))
+
 
 @unittest.skipIf(Agent is None, "Install the pinned Strands SDK to verify its Profile tool schema.")
 class ProfileSDKTests(unittest.IsolatedAsyncioTestCase):
+    async def test_sdk_respects_audit_scope_and_keeps_material_text_out_of_trace(self):
+        test = self
+        requirement = "Require a liquidity floor from my private fictional employment scenario."
+        initial = "Buy 5 percentage points of NVDA from QQQ."
+
+        class RecordedAgent:
+            def __init__(self, *, tools, system_prompt, **_):
+                self.tool = tools[0]
+                self.callbacks = {}
+                self.hooks = SimpleNamespace(add_callback=self.callbacks.__setitem__)
+                test.assertIn("When search_alternatives is false", system_prompt)
+
+            async def invoke_async(self, prompt, **_):
+                data = json.loads(prompt.split("\n", 1)[1])
+                test.assertIs(data["search_alternatives"], False)
+                use = {"name": "submit_profile", "toolUseId": "audit-profile-test", "input": {
+                    "target_bps": 500, "initial_source": "QQQ",
+                }}
+                result = [part async for part in self.tool.stream(use, {})][-1].tool_result
+                self.callbacks[AfterToolCallEvent](SimpleNamespace(tool_use=use, result=result, duration=.001))
+                return SimpleNamespace(stop_reason="tool_use")
+
+        client = SimpleNamespace(meta=SimpleNamespace(events=SimpleNamespace(register=lambda *_: None)))
+        with patch("strands.Agent", RecordedAgent), patch("strands.models.BedrockModel", return_value=SimpleNamespace(client=client)):
+            runtime = StrandsAgents()
+            handoff = await runtime.run("profile", {"user_request": initial, "search_alternatives": False})
+            blocked = await runtime.run("profile", {"user_request": initial + " " + requirement, "search_alternatives": False})
+        self.assertEqual(handoff.status, "ok")
+        self.assertIsNone(handoff.data["allow_smaller"])
+        self.assertEqual(blocked.data["unassessed_requirements"][0]["code"], "liquidity")
+        self.assertEqual(blocked.data["clarification_field"], "unsupported_constraint")
+        self.assertNotIn("private fictional employment", json.dumps(blocked.trace))
+
     async def test_sdk_handoff_excludes_verbatim_excerpts_and_failed_tool_values_from_trace(self):
         test = self
         excerpt = "Limit start-to-end loss to 14%."

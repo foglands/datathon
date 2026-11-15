@@ -172,6 +172,13 @@ _PROFILE_TOOL_PROMPT = (
     "For allowed_sources, use comma-separated tickers such as QQQ,ZST.TO. Keep excerpts short and verbatim. "
     "If you select conflict, copy the operative competing instructions into issue_excerpt when they occur together."
 )
+_SCOPED_PROFILE_PROMPT = (
+    " The caller confirms whether alternatives are requested. When search_alternatives is false, extract the "
+    "original transaction and all its binding rules. Do not require hypothetical funding choices or permission "
+    "to reduce the purchase. When defer_smaller_authorization is true, leave unstated permission at -1. "
+    "Continue reporting global funding prohibitions, incompatible instructions, and unsupported binding rules. "
+    "A broker opinion, investor preference, or rejected example does not create a binding rule."
+)
 
 
 _TARGET_WORDS = dict(zip(
@@ -333,11 +340,93 @@ def _grounded_initial_funding(request, unquoted, purchase_end):
     return "ZST.TO" if ticker == "ZST" else ticker, request[suffix.start():suffix.end("source")].strip()
 
 
+_MATERIAL_TERMS = {
+    "esg": r"\bESG\b|\b(?:environmental and social|environnemental et social)\b",
+    "liquidity": r"\b(?:liquidity|liquid cash|cash (?:floor|reserve)|liquidit[ée]|tr[ée]sorerie)\b",
+    "sector": r"\b(?:sector(?:al|s|ielle)?|industry|secteur(?:s)?)\b",
+    "direct_issuer_cap": r"\b(?:direct (?:NVDA|NVIDIA)\b|(?:NVDA|NVIDIA) (?:position|shares?) (?:held )?directly\b|(?:NVDA|NVIDIA)\b.+\bdirect(?:ly)? (?:holdings?|shares?|exposure)\b)",
+    "return_floor": r"\b(?:(?:minimum|guaranteed) (?:rate of )?return|(?:return|rendement) (?:floor|minimum|guarantee|minimal)|(?:return|rendement)\b.{0,32}\b(?:at least|au moins))\b",
+    "other_binding": r"\b(?:board|investment committee|portfolio) (?:policy|mandate)\b",
+}
+_MATERIAL_PATTERNS = {code: re.compile(pattern, re.IGNORECASE) for code, pattern in _MATERIAL_TERMS.items()}
+_MATERIAL_REQUIRED = re.compile(
+    r"\b(?:must|required?|requires|requirement|mandatory|enforce|satisfy|comply with|ensure|exclude|"
+    r"minimum|guarantee|cap|hard limit|upper limit|floor|obligatoire|exig(?:e|ez|ence)|"
+    r"doit|doivent|respect(?:er|ez)|plafond|minimal)\b", re.IGNORECASE,
+)
+_MATERIAL_BACKGROUND = re.compile(
+    r"\b(?:(?:do not|don['’]t|no longer) (?:require|enforce|impose|cap)|not required|not (?:a )?binding|unnecessary|"
+    r"no\b[^.;]{0,48}\b(?:needed|required|applies)|optional|reject(?:ed)?|decline(?:d)?|prefer(?:ence|red)?|"
+    r"for example|third.party|hypothetical|(?:broker|advis[eo]r|analyst) (?:said|suggested|proposed)|"
+    r"(?:facultatif|pas obligatoire|n['’]exige pas|exemple))\b", re.IGNORECASE,
+)
+_PROFILE_LITERAL_BLOCKS = re.compile(r"```[\s\S]*?(?:```|$)|`[^`\n]+`|(?m:^[ \t]*>[^\n]*)")
+_PROHIBITED_FUNDING = re.compile(
+    r"^(?:please\s+)?(?:(?:do not|don['’]t|never) (?:sell|liquidate)|(?:no (?:sale|selling) of))"
+    r"\s+(?P<ticker>QQQ|ZST(?:\.TO)?)\s*(?:(?:is )?(?:permitted|allowed))?$", re.IGNORECASE,
+)
+_MAX_REQUIREMENTS = 12
+_MAX_REQUIREMENT_EXCERPT = 180
+
+
+def _profile_clause_text(request):
+    """Mask quoted background, preserving offsets into the user request."""
+    def mask_quote(match):
+        prefix = _previous_target_sentence(request[:match.start()]).strip()
+        if _ADOPTED_TARGET_QUOTE.fullmatch(prefix):
+            return " " + match[0][1:-1] + " "
+        return " " * len(match[0])
+
+    prose = _PROFILE_LITERAL_BLOCKS.sub(lambda match: " " * len(match[0]), request)
+    return _QUOTED_TARGET_TEXT.sub(mask_quote, prose)
+
+
+def _unsupported_profile_requirements(request, field, excerpt, text):
+    """Retain recognizable active hard rules even when the model reports only one."""
+    records = {}
+    for clause in re.finditer(r"(?:[^;!?\n.]|\.(?!\s|$))+", text):
+        visible = clause[0].strip()
+        if (visible.startswith(">") or not _MATERIAL_REQUIRED.search(visible)
+                or _MATERIAL_BACKGROUND.search(visible)):
+            continue
+        for code, pattern in _MATERIAL_PATTERNS.items():
+            match = pattern.search(clause[0])
+            if match is not None:
+                start = clause.start() + max(0, match.start() - 60)
+                end = min(clause.end(), start + _MAX_REQUIREMENT_EXCERPT)
+                verbatim = request[start:end].strip()
+                records[(code, verbatim)] = {"code": code, "excerpt": verbatim}
+
+    if field == "unsupported_constraint" and isinstance(excerpt, str):
+        ground = excerpt.strip()
+        if ground and ground in request and ground in text:
+            code = next((code for code, pattern in _MATERIAL_PATTERNS.items() if pattern.search(ground)), "other_binding")
+            ground = ground[:_MAX_REQUIREMENT_EXCERPT]
+            if not any(kind == code and ground in passage for kind, passage in records):
+                records[(code, ground)] = {"code": code, "excerpt": ground}
+    if field == "unsupported_constraint" and not records:
+        records[("other_binding", "")] = {"code": "other_binding"}
+
+    items = list(records.values())
+    if len(items) > _MAX_REQUIREMENTS:
+        return items[:_MAX_REQUIREMENTS - 1] + [{"code": "other_binding"}]
+    return items
+
+
+def _prohibits_original_funding(text, source):
+    for clause in re.split(r"[;!?\n]|\.(?:\s|$)", text):
+        match = _PROHIBITED_FUNDING.fullmatch(clause.strip())
+        if match and (match["ticker"].upper() == source or (match["ticker"].upper() == "ZST" and source == "ZST.TO")):
+            return True
+    return False
+
+
 def _profile_handoff(request, *, status, summary, metric="", limit_bps=-1, target_bps=-1,
                      reserve_floor_bps=-1, issuer_cap_bps=-1, allowed_sources="", allow_smaller=-1,
                      prefer_reserve=-1, initial_source="", clarification_field="",
                      additional_loss_limit_bps=-1, unsupported_excerpt="", funding_rule="",
-                     loss_excerpt="", initial_source_excerpt="", funding_excerpt="", target_excerpt=""):
+                     loss_excerpt="", initial_source_excerpt="", funding_excerpt="", target_excerpt="",
+                     search_alternatives=True, defer_smaller_authorization=False):
     """Validate the model draft and normalize explicit, unambiguous purchase size."""
     if status not in {"ok", "needs_input"} or (clarification_field and clarification_field not in _PROFILE_QUESTIONS):
         raise ValueError("Unknown profile status or clarification field.")
@@ -350,6 +439,12 @@ def _profile_handoff(request, *, status, summary, metric="", limit_bps=-1, targe
         raise ValueError("Unsupported historical loss metric.")
     if funding_rule not in {"", "add", "only", "ambiguous"}:
         raise ValueError("Unsupported funding rule.")
+    if type(search_alternatives) is not bool or type(defer_smaller_authorization) is not bool:
+        raise ValueError("Profile scope flags must be boolean.")
+    if ((clarification_field == "allowed_sources" and not search_alternatives)
+            or (clarification_field == "allow_smaller" and (not search_alternatives or defer_smaller_authorization))):
+        clarification_field = ""
+        status = "ok"
 
     source = initial_source.strip().upper()
     source = "ZST.TO" if source == "ZST" else source
@@ -380,15 +475,19 @@ def _profile_handoff(request, *, status, summary, metric="", limit_bps=-1, targe
     # A declared complete list cannot be broadened, and a supported incomplete
     # request must get its typed clarification rather than a generic hold.
     field = clarification_field
+    clause_text = _profile_clause_text(request)
+    unassessed = _unsupported_profile_requirements(request, field, unsupported_excerpt, clause_text)
     target_grounded = False
-    if field == "conflict" or (source in _PROFILE_FUNDING_ASSETS and sources
-                               and set(sources).issubset(_PROFILE_FUNDING_ASSETS) and source not in sources):
+    excluded_source = (source in _PROFILE_FUNDING_ASSETS and sources and source not in sources
+                       and (set(sources).issubset(_PROFILE_FUNDING_ASSETS)
+                            or not search_alternatives and funding_rule == "only"))
+    if field == "conflict" or excluded_source or _prohibits_original_funding(clause_text, source):
         field = "conflict"
     elif additional_loss_limit_bps != -1 or field == "multiple_loss_limits":
         field = "multiple_loss_limits"
-    elif (source and source not in _PROFILE_FUNDING_ASSETS) or set(sources) - _PROFILE_FUNDING_ASSETS:
+    elif (source and source not in _PROFILE_FUNDING_ASSETS) or (search_alternatives and set(sources) - _PROFILE_FUNDING_ASSETS):
         field = "unsupported_scope"
-    elif field == "unsupported_constraint":
+    elif unassessed and field != "unsupported_scope":
         field = "unsupported_constraint"
     elif field != "unsupported_scope":
         if grounded_target:
@@ -410,9 +509,9 @@ def _profile_handoff(request, *, status, summary, metric="", limit_bps=-1, targe
             field = "target"
         elif not source:
             field = "initial_source"
-        elif funding_rule == "ambiguous" or not sources:
+        elif search_alternatives and (funding_rule == "ambiguous" or not sources):
             field = "allowed_sources"
-        elif allow_smaller == -1:
+        elif search_alternatives and not defer_smaller_authorization and allow_smaller == -1:
             field = "allow_smaller"
         elif not metric and limit_bps != -1:
             field = "loss_metric"
@@ -438,6 +537,7 @@ def _profile_handoff(request, *, status, summary, metric="", limit_bps=-1, targe
         "clarification_field": field or None, "source_excerpts": grounded,
         "target_grounded": target_grounded, "funding_grounded": funding_grounded,
         "unsupported_excerpt": unsupported_excerpt if unsupported_excerpt.strip() and unsupported_excerpt in request else "",
+        "unassessed_requirements": unassessed,
     }
 
 
@@ -699,7 +799,16 @@ class StrandsAgents:
             )
             initial_source = data.get("initial_source")
             valid_initial_source = initial_source is None or initial_source in ("QQQ", "ZST.TO")
-            return valid_loss_rule and valid_amounts and valid_flags and valid_sources and valid_initial_source
+            unassessed = data.get("unassessed_requirements", [])
+            valid_unassessed = isinstance(unassessed, list) and len(unassessed) <= _MAX_REQUIREMENTS and all(
+                isinstance(item, dict) and set(item) <= {"code", "excerpt"}
+                and isinstance(item.get("code"), str) and item["code"] in _MATERIAL_PATTERNS
+                and ("excerpt" not in item or (isinstance(item["excerpt"], str)
+                                               and 0 < len(item["excerpt"]) <= _MAX_REQUIREMENT_EXCERPT))
+                for item in unassessed
+            )
+            return (valid_loss_rule and valid_amounts and valid_flags and valid_sources
+                    and valid_initial_source and valid_unassessed)
         return True
 
     async def _invoke_bedrock(
@@ -818,6 +927,8 @@ class StrandsAgents:
                              "The tool result is the final handoff.")
 
         if role == "profile":
+            profile_input = json.loads(prompt.partition("\n")[2])
+
             @tool
             def submit_profile(
                 target_bps: int = -1,
@@ -841,15 +952,16 @@ class StrandsAgents:
                 """Extract operative request fields. Leave unknowns unset."""
                 nonlocal profile_tool_reached
                 profile_tool_reached = True
-                request = json.loads(prompt.partition("\n")[2]).get("user_request", "")
                 handoff = _profile_handoff(
-                    request, status="ok", summary="Review the extracted simulation inputs.",
+                    profile_input.get("user_request", ""), status="ok", summary="Review the extracted simulation inputs.",
                     metric=metric, limit_bps=limit_bps, target_bps=target_bps, reserve_floor_bps=reserve_floor_bps,
                     issuer_cap_bps=issuer_cap_bps, allowed_sources=allowed_sources, allow_smaller=allow_smaller,
                     prefer_reserve=prefer_reserve, initial_source=initial_source, clarification_field=binding_issue,
                     additional_loss_limit_bps=additional_loss_limit_bps, loss_excerpt=loss_excerpt,
                     initial_source_excerpt=initial_source_excerpt, funding_excerpt=funding_excerpt,
                     funding_rule=funding_rule, unsupported_excerpt=issue_excerpt, target_excerpt=target_excerpt,
+                    search_alternatives=profile_input.get("search_alternatives", True),
+                    defer_smaller_authorization=profile_input.get("defer_smaller_authorization", False),
                 )
                 if not self._valid_data(handoff, role):
                     raise ValueError("Profile output violates the metric, value, flag, or funding source contract.")
@@ -861,6 +973,8 @@ class StrandsAgents:
             registered.append(submit_profile)
             tool_names.add("submit_profile")
             instructions += _PROFILE_TOOL_PROMPT
+            if "search_alternatives" in profile_input or "defer_smaller_authorization" in profile_input:
+                instructions += _SCOPED_PROFILE_PROMPT
 
         completed_handoffs: set[str] = set()
 
