@@ -40,6 +40,7 @@ _ROLES = {
     "alternatives": "Alternatives",
     "review": "Review",
     "explanation": "Explanation",
+    "sector": "Sector",
 }
 _HOLDING_REASONS = {
     "missing_holding_disclosure": "No eligible holding disclosure is available.",
@@ -86,6 +87,10 @@ def result_label(report: dict) -> str:
     status = report.get("status")
     if status in ("execution_error", "invalid", "needs_input", "insufficient_evidence"):
         return _STATUS[status]
+    if report.get("unassessed_requirements"):
+        return "Original proposal · limited assessment"
+    if report.get("search_alternatives") is False:
+        return _STATUS.get(status, "Awaiting independent review")
     verified = _verified(report)
     frontier = verified.get("frontier", {})
     outcome = verified.get("solver_status") or frontier.get("status")
@@ -131,7 +136,7 @@ def _render_portfolio(st: Any, report: dict, label: str, heading: str, data: dic
     else:
         key = "max_drawdown" if metric == "max_drawdown" else "terminal_loss"
         st.metric(_RULE[key], _percent(data.get(key)))
-        st.caption("Worst result across the two historical windows.")
+        st.caption("Worst result across the selected historical windows.")
 
     weights = data.get("weights", {})
     st.write(f"NVIDIA weight **{_percent(weights.get('NVDA'))}** · ZST.TO weight **{_percent(weights.get('ZST.TO'))}**")
@@ -158,8 +163,6 @@ def _render_frontier(st: Any, report: dict, verified: dict) -> None:
         st.success(_OUTCOME[outcome], icon="✅")
     elif outcome == "requested_size_infeasible":
         st.error(_OUTCOME[outcome], icon="⛔")
-        if (diagnostic := frontier.get("diagnostic_max_total")) is not None:
-            st.caption(f"Diagnostic only: a smaller purchase could reach {_points(diagnostic)} if the exact-size rule changed.")
     elif outcome == "feasible_partial" and (amount := frontier.get("max_total")) is not None:
         st.info(result_label(report))
         if amount > 1e-9:
@@ -172,7 +175,8 @@ def _render_frontier(st: Any, report: dict, verified: dict) -> None:
 
 
 def _render_constraints(st: Any, report: dict, verified: dict, has_alternative: bool) -> None:
-    left, right = st.columns(2)
+    show_boundary = report.get("search_alternatives", True) and not report.get("unassessed_requirements")
+    left, right = st.columns(2) if show_boundary else (st.container(), None)
     with left:
         st.markdown("**What drove the decision**")
         flagged = [
@@ -187,28 +191,24 @@ def _render_constraints(st: Any, report: dict, verified: dict, has_alternative: 
             actual_text = _interval(actual) if isinstance(actual, dict) else _percent(actual)
             verdict = "breach" if finding["status"] == "fail" else "unresolved"
             limit = finding.get("limit")
-            delta = actual["lower"] - limit if isinstance(actual, dict) else (
-                limit - actual if rule == "reserve_weight" else abs(actual - limit)
-            )
+            matching_actual = actual.get("lower") if isinstance(actual, dict) else actual
+            delta = 0
+            if matching_actual is not None and limit is not None:
+                delta = limit - matching_actual if rule == "reserve_weight" else abs(matching_actual - limit)
             margin = f" Breach size: {_points(delta)}." if verdict == "breach" and delta > 0 else ""
             st.write(f"{label} · **{_RULE.get(rule, rule)}**: {actual_text} vs. {_percent(limit)} ({verdict}).{margin}")
         if not flagged:
             st.caption("The independent review found no breach in the displayed proposal rules.")
+    if right is None:
+        return
     with right:
         st.markdown("**Funding boundary and headroom**")
         frontier = verified.get("frontier", {})
-        binding = report.get("alternatives", {}).get("frontier", {}).get("full_zst_max_binding")
         if report.get("status") != "insufficient_evidence" and (funding_range := _funding_range(frontier)):
             st.write(f"ZST.TO can fund **{funding_range}** of the portfolio, with the remainder from QQQ.")
-            if binding:
-                st.write(f"At the upper ZST.TO funding boundary: **{_RULE.get(binding, binding.replace('_', ' '))}**.")
-        certificate = report.get("alternatives", {}).get("certificate")
-        if certificate and any(row["metric_id"] == "frontier.certificate" and row["status"] == "pass"
-                               for row in report.get("audit", {}).get("findings", ())):
-            rule = certificate["rule"]
-            start, end = certificate.get("peak_date"), certificate.get("observation_date")
-            dates = f" ({start} to {end})" if start and end else ""
-            st.write(f"Infeasibility certificate: **{_RULE.get(rule, rule)}**{dates}.")
+        if any(row["metric_id"] == "frontier.certificate" and row["status"] == "pass"
+               for row in report.get("audit", {}).get("findings", ())):
+            st.write("Independent review verified an infeasibility certificate.")
         if has_alternative:
             for finding in _policy_findings(report, "maximum"):
                 rule = finding["metric_id"].split(".")[-2]
@@ -220,8 +220,6 @@ def _render_constraints(st: Any, report: dict, verified: dict, has_alternative: 
                 if finding["status"] == "pass" and isinstance(value, (int, float)) and isinstance(bound, (int, float)):
                     headroom = value - bound if rule == "reserve_weight" else bound - value
                     st.write(f"{_RULE.get(rule, rule)} headroom: **{_points(max(headroom, 0.0))}**.")
-        elif frontier.get("status") == "requested_size_infeasible":
-            st.caption("The smaller diagnostic ceiling has no eligible allocation under the exact-size rule.")
         elif frontier.get("status") == "insufficient_evidence":
             st.caption("Unresolved holdings can change the feasible funding range.")
 
@@ -246,26 +244,63 @@ def render_comparison(report: dict) -> None:
 
     if report.get("explanation"):
         st.write(report["explanation"])
-    baseline, proposal, alternative = st.columns(3)
+    if report.get("unassessed_requirements"):
+        st.warning("Assessment limited · Some stated requirements remain unevaluated.")
+    search = report.get("search_alternatives", True)
+    show_alternative = search and not report.get("unassessed_requirements")
+    baseline, proposal, *alternatives = st.columns(3 if show_alternative else 2)
     with baseline.container(border=True):
         _render_portfolio(st, report, "baseline", "Starting portfolio", verified["baseline"])
     with proposal.container(border=True):
         _render_portfolio(st, report, "proposal", "Original proposal", verified["proposal"])
-    with alternative.container(border=True):
-        maximum = verified.get("maximum") or {}
-        has_alternative = (
-            status != "insufficient_evidence" and maximum.get("passes") is True and (maximum.get("total") or 0) > 1e-9
-        )
-        if has_alternative:
-            prefers_reserve = report.get("policy", {}).get("prefer_reserve") is True
-            heading = "Verified alternative" if prefers_reserve else "Verified funding example"
-            _render_portfolio(st, report, "maximum", heading, maximum)
-            if not prefers_reserve:
-                st.caption("This example uses the largest eligible purchase. If several mixes reach that size, "
-                           "the calculation shows the one that sells the least ZST.TO.")
-        else:
-            _render_frontier(st, report, verified)
+    maximum = verified.get("maximum") or {}
+    has_alternative = bool(show_alternative and status != "insufficient_evidence" and
+                           maximum.get("passes") is True and (maximum.get("total") or 0) > 1e-9)
+    if alternatives:
+        with alternatives[0].container(border=True):
+            if has_alternative:
+                prefers_reserve = report.get("policy", {}).get("prefer_reserve") is True
+                heading = "Verified alternative" if prefers_reserve else "Verified funding example"
+                _render_portfolio(st, report, "maximum", heading, maximum)
+                if not prefers_reserve:
+                    st.caption("This example uses the largest eligible purchase. If several mixes reach that size, "
+                               "the calculation shows the one that sells the least ZST.TO.")
+            else:
+                _render_frontier(st, report, verified)
+    elif not search:
+        st.caption("Alternative funding search · skipped by request.")
     _render_constraints(st, report, verified, has_alternative)
+
+
+def _render_requirements(st: Any, report: dict) -> None:
+    if rows := report.get("requirements"):
+        with st.expander("Requirements and coverage", expanded=bool(report.get("unassessed_requirements"))):
+            def label(value):
+                return value.replace("_", " ").capitalize() if value else "—"
+
+            st.table([
+                {"Requirement": row.get("label") or label(row.get("code")),
+                 "Assessment": label(row.get("task_status")), "Rule verdict": label(row.get("verdict")),
+                 "Evidence": ", ".join(row.get("evidence_ids", ())) or "—"}
+                for row in rows
+            ])
+
+
+def _render_exposure_changes(st: Any, report: dict) -> None:
+    if bounds := report.get("exposure_change"):
+        if "lower" in bounds and "upper" in bounds:
+            st.caption(f"NVIDIA issuer exposure change · {_points(bounds['lower'])} to {_points(bounds['upper'])}. "
+                       "The same unknown holdings are used before and after the trade.")
+    if sector := report.get("sector_analysis"):
+        sectors = sector.get("sectors", {})
+        with st.expander("Sector exposure · descriptive"):
+            st.caption(f"Classification: {sector.get('taxonomy', 'Unmapped')} · {sector.get('status', 'Unknown')} coverage.")
+            if sectors:
+                st.table([
+                    {"Sector": name, "Starting": _interval(row["before"]), "Original proposal": _interval(row["after"]),
+                     "Change": f"{_points(row['change']['lower'])} to {_points(row['change']['upper'])}"}
+                    for name, row in sectors.items()
+                ])
 
 
 def _render_risk_drivers(st: Any, report: dict, verified: dict) -> None:
@@ -302,6 +337,8 @@ def render_evidence(report: dict) -> None:
     import streamlit as st
 
     evidence = report.get("evidence", {})
+    _render_requirements(st, report)
+    _render_exposure_changes(st, report)
     with st.expander("Evidence and calculation method"):
         windows = report.get("scenarios", {}).get("baseline", {}).get("windows", {})
         if windows:
@@ -316,7 +353,8 @@ def render_evidence(report: dict) -> None:
                 example = ("Verified alternative" if report.get("policy", {}).get("prefer_reserve") is True
                            else "Verified funding example")
                 figures = [
-                    {"Portfolio": heading, "Window": window, "Terminal loss": _percent(row["terminal_loss"]),
+                    {"Portfolio": heading, "Window": window, "Terminal return": _percent(row["terminal_return"]),
+                     "Terminal loss": _percent(row["terminal_loss"]),
                      "Maximum drawdown": _percent(row["max_drawdown"])}
                     for key, heading in (("baseline", "Starting portfolio"), ("proposal", "Original proposal"),
                                          ("maximum", example))
@@ -356,8 +394,9 @@ def render_evidence(report: dict) -> None:
                 if row.get("age_days") is not None:
                     dates += f" · {row['age_days']} days since observation"
                 url = row.get("url") or ""
+                locator = f" · {row['source_locator']}" if row.get("source_locator") else ""
                 source = f" · [Source]({url})" if url.startswith(("https://", "http://")) else ""
-                st.markdown(f"**{ticker}** · {value}{dates}{source}")
+                st.markdown(f"**{ticker}** · {value}{dates}{source}{locator}")
                 if status != "disclosed":
                     st.caption(_HOLDING_REASONS.get(row["reason"], "The disclosure cannot be used to verify this holding."))
         if evidence.get("evidence_ids"):
@@ -380,7 +419,7 @@ def render_evidence(report: dict) -> None:
         routing = [row for row in trace if row.get("event") in ("tool_routing", "role_skipped")]
         if routing:
             st.table([
-                {"Role": _ROLES[row["role"]], "Action": row.get("tool_name") or "Skip",
+                {"Role": _ROLES.get(row.get("role"), row.get("role", "")), "Action": row.get("tool_name") or "Skip",
                  "Result": row["status"].replace("_", " "),
                  "Policy inputs": ", ".join(f"{key}={value}" for key, value in row.get("arguments", {}).items()
                                             if value not in ("", [])),
