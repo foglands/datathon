@@ -75,6 +75,17 @@ def _verified(report: dict) -> dict:
     return report.get("audit", {}).get("verified", {})
 
 
+def released_funding_example(report: dict) -> dict | None:
+    """Return the eligible funding example that may accompany a published proposal."""
+    if (not report.get("search_alternatives", True) or report.get("unassessed_requirements")
+            or report.get("status") == "insufficient_evidence"):
+        return None
+    maximum = _verified(report).get("maximum") or {}
+    if maximum.get("passes") is True and (maximum.get("total") or 0) > 1e-9:
+        return maximum
+    return None
+
+
 def _funding_range(frontier: dict) -> str | None:
     if not frontier.get("full_possible"):
         return None
@@ -220,7 +231,7 @@ def _render_constraints(st: Any, report: dict, verified: dict, has_alternative: 
             st.caption("Unresolved holdings can change the feasible funding range.")
 
 
-def render_comparison(report: dict) -> None:
+def render_comparison(report: dict, *, show_explanation: bool = True) -> None:
     """Compare verified portfolios, withhold blocked results and show eligible alternatives."""
     import streamlit as st
 
@@ -238,7 +249,7 @@ def render_comparison(report: dict) -> None:
         st.warning(report.get("explanation") or "The independent portfolio comparison is unavailable.")
         return
 
-    if report.get("explanation"):
+    if show_explanation and report.get("explanation"):
         st.write(report["explanation"])
     if report.get("unassessed_requirements"):
         st.warning("Assessment limited · Some stated requirements remain unevaluated.")
@@ -249,12 +260,10 @@ def render_comparison(report: dict) -> None:
         _render_portfolio(st, report, "baseline", "Starting portfolio", verified["baseline"])
     with proposal.container(border=True):
         _render_portfolio(st, report, "proposal", "Original proposal", verified["proposal"])
-    maximum = verified.get("maximum") or {}
-    has_alternative = bool(show_alternative and status != "insufficient_evidence" and
-                           maximum.get("passes") is True and (maximum.get("total") or 0) > 1e-9)
+    maximum = released_funding_example(report)
     if alternatives:
         with alternatives[0].container(border=True):
-            if has_alternative:
+            if maximum is not None:
                 prefers_reserve = report.get("policy", {}).get("prefer_reserve") is True
                 heading = "Verified alternative" if prefers_reserve else "Verified funding example"
                 _render_portfolio(st, report, "maximum", heading, maximum)
@@ -265,7 +274,7 @@ def render_comparison(report: dict) -> None:
                 _render_frontier(st, report, verified)
     elif not search:
         st.caption("Alternative funding search · skipped by request.")
-    _render_constraints(st, report, verified, has_alternative)
+    _render_constraints(st, report, verified, maximum is not None)
 
 
 def _render_requirements(st: Any, report: dict) -> None:
@@ -337,7 +346,7 @@ def _render_risk_drivers(st: Any, report: dict, verified: dict) -> None:
     st.write(" · ".join(largest))
 
 
-def render_evidence(report: dict) -> None:
+def render_evidence(report: dict, *, include_activity: bool = True) -> None:
     """Show timelines, source records, independent findings and actual tool activity."""
     import streamlit as st
 
@@ -438,35 +447,46 @@ def render_evidence(report: dict) -> None:
         with st.expander("Metric values and provenance"):
             selected = st.selectbox("Verified metric", tuple(records), key=f"metric-{report['case']}")
             st.json({"value": resolve_metric(report, selected), **records[selected]}, expanded=True)
-    with st.expander("Agent activity and AWS trace"):
-        trace = report.get("trace", ())
-        aws = [event for event in trace if event.get("event") == "bedrock" and event.get("status") == "success"]
-        if aws:
-            st.caption(f"{len(aws)} successful Amazon Bedrock response(s) recorded in this run.")
-        elif report.get("mode") == "offline":
-            st.caption("Offline replay. Roles are simulated locally for this run.")
-        else:
-            st.caption("No successful Amazon Bedrock response was recorded in this run.")
-        routing = [row for row in trace if row.get("event") in ("tool_routing", "role_skipped")]
-        if routing:
-            st.table([
-                {"Role": _ROLES.get(row.get("role"), row.get("role", "")), "Action": row.get("tool_name") or "Skip",
-                 "Result": row["status"].replace("_", " "),
-                 "Policy inputs": ", ".join(f"{key}={value}" for key, value in row.get("arguments", {}).items()
-                                            if value not in ("", [])),
-                 "Reason": row.get("reason") or ", ".join(row.get("invalid_fields", ()))}
-                for row in routing
-            ])
-            if any(row["status"] == "deterministic_fallback" for row in routing):
-                st.caption("Python applied the confirmed policy when a routed agent did not supply a usable tool result.")
-        rows = [
-            {"Role": _ROLES.get(row.get("role"), row.get("role", "")),
-             "Action": row.get("tool_name") or row.get("operation") or row.get("event", ""),
-             "Status": row.get("status", ""), "Request ID": row.get("request_id") or ""}
-            for row in trace
-            if row.get("event") in ("tool", "bedrock", "offline_role", "agent_end", "policy_confirmed", "loss_metric_selected")
-        ]
-        if rows:
-            st.table(rows)
-        if trace:
-            st.json(trace, expanded=False)
+    if include_activity:
+        with st.expander("Agent activity and AWS trace"):
+            render_agent_activity(report)
+
+
+def render_agent_activity(report: dict) -> None:
+    """Show the tool calls, skipped stages and policy routing from the public trace."""
+    import streamlit as st
+
+    trace = report.get("trace", ())
+    aws_calls = sum(event.get("event") == "bedrock" and event.get("status") == "success" for event in trace)
+    if report.get("mode") == "offline":
+        st.caption("Offline replay. Roles are simulated locally for this run.")
+    elif aws_calls:
+        st.caption(f"Successful Amazon Bedrock responses in this run: {aws_calls}.")
+    else:
+        st.caption("This run recorded zero successful Amazon Bedrock responses.")
+    routing = [row for row in trace if row.get("event") in ("tool_routing", "role_skipped", "stage_skipped")]
+    if routing:
+        st.markdown("**Routing and authorization**")
+        st.table([
+            {"Role": _ROLES.get(row.get("role"), row.get("role", "")), "Action": row.get("tool_name") or "Skip",
+             "Result": row["status"].replace("_", " "),
+             "Policy inputs": ", ".join(f"{key}={value}" for key, value in row.get("arguments", {}).items()
+                                        if value not in ("", [])),
+             "Reason": row.get("reason") or ", ".join(row.get("invalid_fields", ()))}
+            for row in routing
+        ])
+        if any(row["status"] == "deterministic_fallback" for row in routing):
+            st.caption("Python applied the confirmed policy when a model route did not produce a usable tool result.")
+    rows = [
+        {"Role": _ROLES.get(row.get("role"), row.get("role", "")),
+         "Action": row.get("tool_name") or row.get("operation") or row.get("event", "").replace("_", " "),
+         "Status": row.get("status", ""), "Request ID": row.get("request_id") or ""}
+        for row in trace
+        if row.get("event") in ("tool", "bedrock", "offline_role", "agent_end", "policy_confirmed", "loss_metric_selected")
+    ]
+    if rows:
+        st.markdown("**Recorded tool and model activity**")
+        st.table(rows)
+    if trace:
+        st.markdown("**Public trace record**")
+        st.json(trace, expanded=False)

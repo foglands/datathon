@@ -2,13 +2,14 @@
 
 import json
 from dataclasses import replace
+from pathlib import Path
 from uuid import uuid4
 from zipfile import BadZipFile
 
 import streamlit as st
 
 from datathon.agents import PROFILE_FIELDS, AgentRun
-from datathon.audit_view import render_comparison, render_evidence, result_label
+from datathon.audit_view import render_comparison, result_label
 from datathon.counterfactual import counterfactual_options, issuer_disclosure_options, run_counterfactual
 from datathon.data import load_market_data, market_data_source
 from datathon.finance import BASE_WEIGHTS
@@ -18,6 +19,7 @@ from datathon.runtime_budget import (
     CHALLENGE_LIMITS, PROFILE_LIMITS, RuntimeBudgetExceeded, bound_audit, run_bounded, run_sync_action,
 )
 from datathon.scope import EXTRA_WINDOW, OBJECTIVES, WITHDRAWAL_TIMES, ReplayScope
+from datathon.streamlit_results import render_audit_workspace
 from datathon.workflow import (
     NUMERIC_POLICY_LABELS, Case, examples, interpret_request, numeric_input_provenance, preset_profile, profile_policy,
     run_case,
@@ -44,6 +46,7 @@ PRESETS = {
     "Amira · issuer exposure": (AMIRA, {}, None, None, None),
 }
 ROBERT_REQUEST = next(case.user_request for case in examples("robert", stress=True) if case.ambiguous)
+STYLES = Path(__file__).with_name("datathon") / "streamlit_style.css"
 
 
 @st.cache_data(show_spinner=False)
@@ -105,20 +108,6 @@ def audit(case, profile, runtime):
     except (OSError, ValueError, BadZipFile) as exc:
         st.error(f"Market data could not be used. Check DATATHON_STARTER_PATH and the starter files. {exc}")
         return None
-
-
-def show_report(report):
-    """Render and export the same public projection."""
-    render_comparison(report)
-    render_evidence(report)
-    if report.get("runtime_usage"):
-        with st.expander("Runtime and model usage"):
-            st.json(report["runtime_usage"], expanded=False)
-    st.download_button(
-        "Download audit record",
-        json.dumps(report, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
-        file_name=f"{report['case']}.json", mime="application/json", key=f"download-{report['case']}",
-    )
 
 
 def show_counterfactual(case, report, published, runtime):
@@ -239,18 +228,36 @@ def can_confirm_search(report):
             and report["publication"]["independent_review_verified"])
 
 
-def preset_audit(mode):
-    name = st.selectbox("Scenario", tuple(PRESETS))
-    case, overrides, field, alternative, comparison_label = PRESETS[name]
-    search = st.checkbox(
-        SEARCH_ALTERNATIVES, key=f"preset_search_alternatives-{name}",
-        help="Prepare the funding search settings. Confirm the search after reviewing the original trade.",
-    )
-    case = replace(case, search_alternatives=False)
-    profile_data = {**preset_profile(case), **overrides}
-    show_policy(profile_policy(profile_data, search_alternatives=search), search_alternatives=search)
-    if field == "metric":
-        st.caption("Terminal loss compares the start and end. Maximum drawdown measures the largest fall from a prior peak.")
+def show_search_authorization(key):
+    with st.container(key="audit-search-authorization", border=True):
+        st.subheader("Explore alternative funding")
+        st.caption("Authorize a separate search using the funding sources and size rules you confirmed.")
+        return st.button(CONFIRM_SEARCH, key=key, type="primary")
+
+
+def preset_audit(setup):
+    with setup:
+        scenario_column, execution_column = st.columns((3, 2))
+        with scenario_column:
+            name = st.selectbox(
+                "Scenario", tuple(PRESETS), help="Choose a fictional case to explore a rule or evidence gap.",
+            )
+        with execution_column:
+            mode = st.radio("Execution", ("Offline", "Bedrock"), horizontal=True)
+        st.caption({
+            "Offline": "Replay the organizer’s data with Python and locally simulated agent handoffs.",
+            "Bedrock": "Run live Strands and Amazon Bedrock tool calls with the confirmed reference inputs.",
+        }[mode])
+        case, overrides, field, alternative, comparison_label = PRESETS[name]
+        search = st.checkbox(
+            SEARCH_ALTERNATIVES, key=f"preset_search_alternatives-{name}",
+            help="Prepare the funding search settings. Confirm the search after reviewing the original trade.",
+        )
+        case = replace(case, search_alternatives=False)
+        profile_data = {**preset_profile(case), **overrides}
+        with st.container(key="audit-policy"):
+            show_policy(profile_policy(profile_data, search_alternatives=search), search_alternatives=search)
+        confirmed = st.button("Confirm inputs and run audit", type="primary")
     key = (mode, name, search)
     if st.session_state.get("preset_key") != key:
         st.session_state.preset_key = key
@@ -258,7 +265,7 @@ def preset_audit(mode):
         st.session_state.pop("comparison_result", None)
 
     runtime = configured_bedrock_runtime() if mode == "Bedrock" else None
-    if st.button("Confirm inputs and run audit", type="primary"):
+    if confirmed:
         st.session_state.pop("comparison_result", None)
         st.session_state.preset_result = audit(
             new_case(case), AgentRun("ok", profile_data, ({"role": "profile", "event": "preset_inputs_selected"},)), runtime
@@ -269,35 +276,38 @@ def preset_audit(mode):
         return
     published = publish_report(report)
     reviewed_search = published.get("search_alternatives", False)
+    result_panel = st.container()
     can_compare = field is not None and (field != "allow_smaller" or reviewed_search)
     if can_compare and published["publication"]["independent_review_verified"]:
-        st.subheader("Change one rule")
-        st.caption(comparison_label)
-        if st.button("Confirm this change and compare"):
-            changed_data = {**profile_data, field: alternative}
-            changed_case = replace(new_case(case), search_alternatives=reviewed_search, user_request=(
-                f"{case.user_request}\nThe reviewer changed {field}. Use the confirmed review inputs."
-            ))
-            trace = ({"role": "profile", "event": "one_rule_changed", "field": field,
-                      "previous": profile_data.get(field), "current": alternative},)
-            st.session_state.comparison_result = audit(changed_case, AgentRun("ok", changed_data, trace), runtime)
+        with st.container(key="audit-rule-change", border=True):
+            st.subheader("Change one rule")
+            st.caption(comparison_label)
+            if st.button("Confirm this change and compare"):
+                changed_data = {**profile_data, field: alternative}
+                changed_case = replace(new_case(case), search_alternatives=reviewed_search, user_request=(
+                    f"{case.user_request}\nThe reviewer changed {field}. Use the confirmed review inputs."
+                ))
+                trace = ({"role": "profile", "event": "one_rule_changed", "field": field,
+                          "previous": profile_data.get(field), "current": alternative},)
+                st.session_state.comparison_result = audit(changed_case, AgentRun("ok", changed_data, trace), runtime)
 
-    comparison = st.session_state.get("comparison_result")
-    if comparison is not None:
-        published_comparison = publish_report(comparison)
-        left, right = st.columns(2)
-        left.markdown(f"**Original policy**  \n{result_label(published)}")
-        right.markdown(f"**With the confirmed change**  \n{result_label(published_comparison)}")
-        for panel, result in zip(st.tabs(("Original policy audit", "Changed policy audit")),
-                                 (published, published_comparison)):
-            with panel:
-                if result["publication"]["independent_review_verified"] and result.get("policy"):
-                    show_policy(result["policy"], search_alternatives=reviewed_search)
-                show_report(result)
-    else:
-        show_report(published)
+    with result_panel:
+        comparison = st.session_state.get("comparison_result")
+        if comparison is not None:
+            published_comparison = publish_report(comparison)
+            left, right = st.columns(2)
+            left.markdown(f"**Original policy**  \n{result_label(published)}")
+            right.markdown(f"**With the confirmed change**  \n{result_label(published_comparison)}")
+            for panel, result in zip(st.tabs(("Original policy audit", "Changed policy audit")),
+                                     (published, published_comparison)):
+                with panel:
+                    if result["publication"]["independent_review_verified"] and result.get("policy"):
+                        show_policy(result["policy"], search_alternatives=reviewed_search)
+                    render_audit_workspace(result)
+        else:
+            render_audit_workspace(published)
     if search and can_confirm_search(published):
-        if st.button(CONFIRM_SEARCH, key="preset-confirm-alternatives"):
+        if show_search_authorization("preset-confirm-alternatives"):
             search_case = replace(new_case(case), search_alternatives=True)
             confirmed = AgentRun("ok", profile_data, ({"role": "profile", "event": "alternative_search_authorized"},))
             if updated := audit(search_case, confirmed, runtime):
@@ -328,9 +338,17 @@ def edit_profile(draft, run_id, *, manual=False, search_alternatives):
     if not manual:
         st.caption("Check the values against your fictional request.")
     st.caption("Blank reserve and issuer limits are not applied.")
+    purchase_column, funding_column = st.columns(2)
+    with purchase_column:
+        target = amount(
+            "target_bps", "NVDA purchase size (percentage points)",
+            "10 percentage points adds 10% of the portfolio to NVDA.",
+        )
+    with funding_column:
+        source = option("initial_source", "Funding for the original proposal", FUNDING)
     edited = {
-        "target_bps": amount("target_bps", "NVDA purchase size (percentage points)", "10 percentage points adds 10% of the portfolio to NVDA."),
-        "initial_source": option("initial_source", "Funding for the original proposal", FUNDING),
+        "target_bps": target,
+        "initial_source": source,
         "allowed_sources": initial.get("allowed_sources", []),
         "allow_smaller": None,
         "prefer_reserve": initial.get("prefer_reserve"),
@@ -363,11 +381,19 @@ def edit_profile(draft, run_id, *, manual=False, search_alternatives):
                           key=f"{run_id}-metric")
         limit = amount("limit_bps", "Historical loss cap (%)", "Applies to every included historical window.")
         st.caption("Terminal loss compares the start and end. Maximum drawdown measures the largest fall from a prior peak.")
+    reserve_column, issuer_column = st.columns(2)
+    with reserve_column:
+        reserve = amount("reserve_floor_bps", "Minimum ZST.TO weight (%)", "This floor is a binding rule.")
+    with issuer_column:
+        issuer = amount(
+            "issuer_cap_bps", "Maximum total NVIDIA issuer exposure (%)",
+            "Includes direct and disclosed indirect common equity.",
+        )
     edited.update({
         "metric": metric,
         "limit_bps": limit,
-        "reserve_floor_bps": amount("reserve_floor_bps", "Minimum ZST.TO weight (%)", "This floor is a binding rule."),
-        "issuer_cap_bps": amount("issuer_cap_bps", "Maximum total NVIDIA issuer exposure (%)", "Includes direct and disclosed indirect common equity."),
+        "reserve_floor_bps": reserve,
+        "issuer_cap_bps": issuer,
     })
     edited["allowed_sources"] = sorted(edited["allowed_sources"] or [])
     extracted = {key: initial.get(key) for key in PROFILE_FIELDS}
@@ -422,24 +448,28 @@ def edit_scope(run_id):
     return None
 
 
-def live_request():
-    intake = st.radio("Profile input", PROFILE_INPUT, horizontal=True, key="request_intake")
+def live_request(setup):
+    with setup:
+        intake = st.radio("Profile input", PROFILE_INPUT, horizontal=True, key="request_intake")
     for key in ("request_draft", "request_results", "request_confirmed", "manual_draft_id"):
         if st.session_state.get("active_intake") != intake:
             st.session_state.pop(key, None)
     st.session_state.active_intake = intake
     manual = intake == PROFILE_INPUT[0]
-    requested_search = st.checkbox(
-        SEARCH_ALTERNATIVES, key="request_search_alternatives",
-        help="Prepare the funding search settings. Confirm the search after reviewing the original trade.",
-    )
-    include_sector = st.checkbox(INCLUDE_SECTOR, key="request_include_sector")
+    with setup:
+        search_column, sector_column = st.columns(2)
+        requested_search = search_column.checkbox(
+            SEARCH_ALTERNATIVES, key="request_search_alternatives",
+            help="Prepare the funding search settings. Confirm the search after reviewing the original trade.",
+        )
+        include_sector = sector_column.checkbox(INCLUDE_SECTOR, key="request_include_sector")
     unassessed = []
     scope = None
     scope_error = None
     if manual:
-        st.caption("Enter the supported rules for your fictional scenario. Direct entry skips model interpretation.")
-        mode = st.radio("Audit execution", ("Bedrock", "Offline"), horizontal=True, key="manual_execution")
+        with setup:
+            mode = st.radio("Audit execution", ("Bedrock", "Offline"), horizontal=True, key="manual_execution")
+            st.caption("Direct entry skips model interpretation. Bedrock execution uses live audit tools.")
         if "manual_draft_id" not in st.session_state:
             st.session_state.manual_draft_id = f"manual-{uuid4().hex[:12]}"
             st.session_state.request_results = {}
@@ -508,9 +538,10 @@ def live_request():
             st.warning(question)
 
     search_alternatives = requested_search and not unassessed
-    edited, changes, loss_cap = edit_profile(
-        draft, run_id, manual=manual, search_alternatives=search_alternatives,
-    )
+    with st.container(key="audit-editor", border=True):
+        edited, changes, loss_cap = edit_profile(
+            draft, run_id, manual=manual, search_alternatives=search_alternatives,
+        )
     if scope_error:
         st.session_state.pop("request_confirmed", None)
         st.warning(scope_error)
@@ -557,7 +588,8 @@ def live_request():
         st.session_state.pop("request_confirmed", None)
 
     st.subheader("Confirm your inputs" if manual else "Confirm the interpretation")
-    show_policy(policy, search_alternatives=search_alternatives)
+    with st.container(key="audit-policy"):
+        show_policy(policy, search_alternatives=search_alternatives)
     if scope:
         st.caption("Starting weights · " + " · ".join(f"{ticker} {weight:.2%}" for ticker, weight in scope.baseline.items()))
         st.caption("Historical replays · " + ", ".join(window.id for window in scope.windows))
@@ -607,9 +639,9 @@ def live_request():
                 column.markdown(f"**{METRICS[metric]}**  \n{result_label(publish_report(reports[variant]))}")
     report = reports[key]
     published = publish_report(report)
-    show_report(published)
+    render_audit_workspace(published)
     if search_alternatives and can_confirm_search(published):
-        if st.button(CONFIRM_SEARCH, key="request-confirm-alternatives") and run_confirmed(body, key, search=True):
+        if show_search_authorization("request-confirm-alternatives") and run_confirmed(body, key, search=True):
             st.rerun()
     if published.get("needs_smaller_authorization") and st.session_state.get("request_declined_resize") != basis:
         st.caption("The full purchase is infeasible. A smaller purchase could be checked if you authorize it.")
@@ -624,25 +656,69 @@ def live_request():
     show_counterfactual(replace(request_case, id=published["case"]), report, published, runtime)
 
 
+def show_masthead(market_bundle_found):
+    data_class = "is-present" if market_bundle_found else "is-missing"
+    data_label = "Starter data located" if market_bundle_found else "Starter data needed"
+    st.html(f"""
+        <header class="audit-masthead">
+          <div class="audit-hero-copy">
+            <div class="audit-brand"><span class="audit-brand-mark" aria-hidden="true">◈</span> AlphaForge AI</div>
+            <h1>Portfolio decision audit</h1>
+            <p>Stress-test a proposed trade, inspect the rules it triggers, and trace the decision back to the evidence.</p>
+          </div>
+          <dl class="audit-context">
+            <div><dt>Market bundle</dt><dd><span class="audit-dot {data_class}" aria-hidden="true"></span>{data_label}</dd></div>
+            <div><dt>Valuation</dt><dd>Canadian dollars</dd></div>
+            <div><dt>Application</dt><dd>Fictional simulation</dd></div>
+          </dl>
+        </header>
+        <ol class="audit-steps" aria-label="Audit workflow">
+          <li>Confirm the trade and rules</li>
+          <li>Review the original proposal</li>
+          <li>Authorize a funding search if needed</li>
+        </ol>
+    """)
+
+
+def show_usage_notes():
+    with st.expander("How to read an audit"):
+        st.markdown(
+            "**Historical risk.** Terminal loss compares the start and end of a replay. Maximum drawdown "
+            "measures the largest fall from a prior peak. Each result applies to its displayed historical windows.\n\n"
+            "**Holdings evidence.** Issuer and sector ranges retain unknown exposure when disclosures are missing. "
+            "A verified calculation can still yield an unresolved rule.\n\n"
+            "**Supported trades.** Simulate an NVDA purchase funded from QQQ or ZST.TO. Direct entry also "
+            "supports custom starting weights across the five covered assets. All runs are fictional."
+        )
+
+
 def main():
     st.set_page_config(page_title="AlphaForge · Portfolio Decision Audit", page_icon="◈", layout="wide")
-    st.title("Portfolio Decision Audit")
-    st.caption("AlphaForge AI · Fictional portfolio simulation · Historical results apply to the tested windows.")
+    st.html(STYLES)
     refresh_market_source()
-    st.radio("Input", ("Reference case", "Write a request"), horizontal=True, key="audit_input")
+    market_bundle_found = bool(st.session_state.get("market_source"))
+    show_masthead(market_bundle_found)
+    if not market_bundle_found:
+        st.warning(
+            "Set `DATATHON_STARTER_PATH` to your organizer ZIP or extracted starter folder before running an audit."
+        )
+
+    setup = st.container(key="audit-setup", border=True)
+    with setup:
+        title, input_choice = st.columns((1, 2), vertical_alignment="center")
+        title.subheader("Set up an audit")
+        with input_choice, st.container(key="audit-input-choice"):
+            st.radio("Input", ("Reference case", "Write a request"), horizontal=True,
+                     key="audit_input", label_visibility="collapsed")
     if st.session_state.audit_input != st.session_state.get("active_input"):
         st.session_state.active_input = st.session_state.audit_input
         for key in ("preset_key", "request_draft", "request_results", "request_confirmed", "manual_draft_id", "active_intake"):
             st.session_state.pop(key, None)
     if st.session_state.audit_input == "Write a request":
-        live_request()
+        live_request(setup)
     else:
-        mode = st.radio("Execution", ("Offline", "Bedrock"), horizontal=True)
-        st.caption({
-            "Offline": "Official data and the independent Python audit. Role events are simulated locally.",
-            "Bedrock": "Confirmed reference inputs, then live Strands and Amazon Bedrock tool calls.",
-        }[mode])
-        preset_audit(mode)
+        preset_audit(setup)
+    show_usage_notes()
 
 
 if __name__ == "__main__":

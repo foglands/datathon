@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-15 · Portfolio decision audit workspace
+
+- Add a Streamlit workspace for reference cases and custom requests, with a market-bundle status, a policy review card, and a separate funding search confirmation after the original audit.
+- Organize published results into Decision, Evidence, and Agent activity. Show the publication status and the verification coverage of each section.
+- Chart independently verified terminal loss and maximum drawdown by historical window. Use the same public projection for the chart, other displays, and the JSON download.
+- Keep the original audit available during one-rule comparisons and reviewed follow-up checks.
+- Verify 231 local regression tests and six offline CLI cases with the official starter. Check the original audit, separate funding authorization, and evidence display in Chrome, including a 390-pixel layout.
+
 ## 2026-11-15 · Configurable models and bounded tool recovery
 
 - Read separate Bedrock model settings for Profile and the audit from the application environment.
