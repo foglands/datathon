@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-15 · Answer open-ended investment planning questions
+
+- Recognize stated balances, spending needs, inflation concerns, and risk concerns in a planning question. Ask about missing timing or cash needs while offering relevant educational information and sources.
+- Describe savings, equity fund, and gold trade-offs when the question raises them. Keep the currency, available investment amount, and risk limit open until stated.
+- Offer a separate, unranked historical example for S&P 500 and gold exposure using SPY and GLD.
+
 ## 2026-11-15 · Ground comparisons in the investor's question
 
 - Extract supported assets or weighted allocations, limits, historical measures, and stated context from the question. Show the interpreted request for confirmation before running it.

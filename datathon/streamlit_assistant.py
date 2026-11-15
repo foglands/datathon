@@ -11,6 +11,8 @@ from .assistant_request import parse_comparison_request
 from .assistant_request_model import interpret_comparison_request
 from .investor_profile import InvestorProfile, PRIORITIES, RISK_TOLERANCES, suggest_priority
 from .model_settings import configured_bedrock_runtime
+from .planning_request import parse_planning_request
+from .planning_view import render_planning_answer
 from .runtime_budget import run_sync_action
 from .scope import OBJECTIVES, WITHDRAWAL_TIMES
 
@@ -32,8 +34,8 @@ def _assistant_question():
     st.subheader("What investment decision are you exploring?")
     return st.text_area(
         "Investment question", height=104, max_chars=800, key="assistant_question",
-        placeholder="Compare AGG and GLD. Maximum drawdown must not exceed 12%.",
-        help="Use fictional details. Include the assets, any preferred measure, and binding limits in your own words.",
+        placeholder="I am saving for a planned expense and worried about market drops. How should I compare savings and stock funds?",
+        help="Use fictional details and describe your goal, concerns, and any options or limits in your own words.",
     ).strip()
 
 
@@ -71,6 +73,9 @@ def _question_draft(question, data_loader):
     if use_local or use_model:
         clear_assistant_result()
         st.session_state.pop("assistant_question_draft", None)
+        if plan := parse_planning_request(question):
+            st.session_state.assistant_question_draft = ({"status": "planning", "plan": plan}, None)
+            return st.session_state.assistant_question_draft
         if (data := _market_bundle(data_loader)) is None:
             return None
         assets = comparison_assets(data)
@@ -96,9 +101,18 @@ def _show_question_sources(sources):
 
 def _render_question_answer(question, saved, data_loader, trade_entry):
     if saved is None:
-        st.caption("Interpret the question to see the options and limits that will be used.")
+        st.caption("Interpret the question to see planning considerations or the inputs for a specific comparison.")
         return
     draft, route = saved
+    if draft["status"] == "planning":
+        if options := render_planning_answer(draft["plan"]):
+            st.subheader("Explore a historical example")
+            st.write("Compare SPY and GLD as examples of S&P 500 and gold exposure. Each is shown separately in CAD "
+                     "over the archived stress windows. The figures are nominal, so evaluating purchasing power would "
+                     "also require inflation over the same periods.")
+            _run_comparison(data_loader, options, InvestorProfile(), False, None, None,
+                            button_label="Compare SPY and GLD historically")
+        return
     if route and route["task"] == "trade_audit":
         panel = st.container(key="assistant-trade", border=True)
         with panel:
@@ -223,13 +237,14 @@ def _compare(data_loader, profile, intent):
     _run_comparison(data_loader, options, profile, include_2023, cap, intent)
 
 
-def _run_comparison(data_loader, options, profile, include_2023, cap, intent, *, can_run=True, request_sources=None):
+def _run_comparison(data_loader, options, profile, include_2023, cap, intent, *, can_run=True, request_sources=None,
+                    button_label="Confirm inputs and compare"):
     signature = (options, profile, include_2023, cap)
     saved = st.session_state.get("assistant_comparison")
     if saved and (saved[0] != signature or not can_run):
         st.session_state.pop("assistant_comparison")
         saved = None
-    if st.button("Confirm inputs and compare", type="primary", disabled=options is None or not can_run):
+    if st.button(button_label, type="primary", disabled=options is None or not can_run):
         if (data := _market_bundle(data_loader)) is None:
             return
         with st.spinner("Replaying both choices and independently checking the comparison"):

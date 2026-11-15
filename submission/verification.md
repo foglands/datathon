@@ -2,6 +2,10 @@
 
 PolyFinances Datathon 2026 · Montréal
 
+## Planning question verification
+
+All 266 local regressions passed with the official starter data. Streamlit tests verified a planning response before the market bundle was loaded. An open-ended question about family expenses, inflation, past losses, S&P 500 funds, and gold produced a spending question and sourced explanations of the options in the browser. No dated withdrawal or numeric loss limit was assumed. The optional SPY and GLD historical comparison ran separately and displayed both verified series in CAD without a relative winner.
+
 ## Question-driven comparison verification
 
 The question intake regression passed 259 local tests on macOS with the organizer's starter data. All six offline CLI reference and stress cases passed.

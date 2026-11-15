@@ -2,9 +2,9 @@
 
 PolyFinances Datathon 2026 · Banque Nationale · AWS
 
-AlphaForge AI supports two fictional investment decisions. Compare two assets or custom allocations under a confirmed investor profile, or audit a proposed trade and explore alternative funding after separate authorization. Each result identifies the historical measure or rule that drove the outcome and the evidence needed to verify it.
+AlphaForge AI helps learners reason through an investment question, compare two assets or custom allocations, or audit a proposed trade in a fictional scenario. Quantitative results identify the historical measure or rule that drove the outcome and the evidence needed to verify it.
 
-[Quick start](#run-it) · [Verification and AWS results](submission/verification.md#question-driven-comparison-verification) · [Risk model reliability implementation](RISK_RELIABILITY_IMPLEMENTATION.md)
+[Quick start](#run-it) · [Verification and AWS results](submission/verification.md#planning-question-verification) · [Risk model reliability implementation](RISK_RELIABILITY_IMPLEMENTATION.md)
 
 ## Use the investment assistant
 
@@ -12,6 +12,8 @@ AlphaForge AI supports two fictional investment decisions. Compare two assets or
 2. Review the proposed inputs and supporting excerpts. Correct them by editing the question and interpreting it again. **Confirm inputs and compare** runs the review. When the question omits a preference, eligible options can be shown side by side. Ambiguous or unsupported conditions are surfaced before running the comparison.
 3. **Interpret with Bedrock** can assist with clause selection or route a proposed trade audit to the existing editable intake. Every proposed comparison field must still be grounded in the request. To enter a comparison directly, leave the question blank and choose a task.
 4. The assistant replays both options on common CAD sessions and independently verifies the result. A confirmed drawdown limit applies before comparison. A required ESG screen with missing evidence leaves the choice unresolved while preserving verified financial figures. **Evidence** shows the dates, calculation, review identifiers, and wording used from the question. The JSON export records field provenance without copying the original question.
+
+For a broad planning question, describe what the money is for, the options you are considering, and what concerns you. **Interpret question** responds with education grounded in those details, identifies the next fact that would change the analysis, and links to public sources. A question about S&P 500 funds and gold can lead to a separately confirmed, unranked SPY and GLD historical example. Planning guidance runs locally without the market bundle. The example requires the official data.
 
 For a reproducible profile comparison, select AGG and GLD as the two assets with the two standard archived windows. For growth with a withdrawal more than five years away, the return comparison favors GLD in the tested windows. For capital preservation with a withdrawal within one year, the drawdown comparison favors AGG. A confirmed 12% maximum-drawdown cap leaves AGG as the only tested option that meets the cap. These findings describe the chosen historical windows and hypothetical inputs.
 

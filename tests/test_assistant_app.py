@@ -94,3 +94,23 @@ class InvestmentAssistantTests(unittest.TestCase):
         report = self.app.session_state["assistant_comparison"][1]
         self.assertIsNone(report["priority"])
         self.assertEqual(report["finding"]["status"], "neutral")
+
+    def test_open_ended_question_gets_planning_guidance_before_a_historical_example(self):
+        question = (
+            "I have $62,000 in savings. I want to keep up with inflation and cover childcare costs, "
+            "but I am scared of market crashes. Should I buy an S&P 500 ETF or gold?"
+        )
+        self.app.text_area(key="assistant_question").set_value(question).run()
+        with patch("datathon.streamlit_assistant._market_bundle", side_effect=AssertionError("Must work without market data")):
+            self.click("Interpret question")
+        draft, route = self.app.session_state["assistant_question_draft"]
+        self.assertEqual(draft["status"], "planning")
+        self.assertIsNone(route)
+        self.assertTrue(any("When will you first need to withdraw" in point.value for point in self.app.markdown))
+        self.assertNotIn("assistant_comparison", self.app.session_state)
+
+        self.click("Compare SPY and GLD historically")
+        report = self.app.session_state["assistant_comparison"][1]
+        self.assertEqual(set(report["options"]), {"SPY", "GLD"})
+        self.assertIsNone(report["requirements"]["max_drawdown"]["limit"])
+        self.assertEqual(report["finding"]["status"], "neutral")
