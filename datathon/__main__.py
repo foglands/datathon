@@ -98,6 +98,34 @@ def print_policy(policy, *, search_alternatives=True):
         print("  Preference: preserve ZST.TO")
 
 
+def print_audit(decision, heading, prefer_reserve):
+    print(f"\n{heading}: {decision['status']}")
+    print(decision.get("explanation", decision.get("error", "")))
+    verified = decision.get("audit", {}).get("verified", {})
+    example_label = "Verified alternative" if prefer_reserve is True else "Verified funding example"
+    for label, description in (("baseline", "Starting portfolio"), ("proposal", "Original proposal"),
+                               ("maximum", example_label)):
+        outcome = verified.get(label)
+        if label == "maximum" and (decision["status"] in ("execution_error", "invalid", "insufficient_evidence")
+                                   or not outcome or not outcome["passes"] or (outcome.get("total") or 0) <= 1e-9):
+            continue
+        if outcome:
+            print(f"  {description}: {outcome['status']}")
+            if label == "maximum":
+                mix = outcome["funding"]
+                print(f"    Funding: QQQ {mix['QQQ'] * 100:.2f} pp, ZST.TO {mix['ZST.TO'] * 100:.2f} pp")
+    if decision["status"] not in ("execution_error", "invalid") and prefer_reserve is not True:
+        frontier = verified.get("frontier", {})
+        if frontier.get("full_possible"):
+            bottom, top = frontier["full_zst_min"], frontier["full_zst_max"]
+            print(f"  ZST.TO funding range: {bottom * 100:.2f} to {top * 100:.2f} percentage points.")
+    for finding in decision.get("audit", {}).get("findings", []):
+        if finding["metric_id"].startswith("proposal.") and finding["status"] in ("fail", "insufficient_evidence"):
+            actual, limit = finding.get("actual"), finding.get("limit")
+            fields = f" [{actual:.2%} vs {limit:.2%}]" if isinstance(actual, (int, float)) and isinstance(limit, (int, float)) else ""
+            print(f"  {finding['metric_id']}: {finding['status']}{fields}")
+
+
 async def run_request(args):
     intake_runtime = StrandsAgents(model_id=PROFILE_MODEL)
     runtime = StrandsAgents()
@@ -199,50 +227,33 @@ async def run_request(args):
     data = load_market_data(args.data)
     case = Case(
         "interactive", "User-confirmed fictional request.", "terminal_loss", None, 0,
-        search_alternatives=search_alternatives, include_sector=include_sector,
+        include_sector=include_sector,
     )
     confirmed = {field: draft.data.get(field) for field in PROFILE_FIELDS}
     confirmed.update(status="ok", summary="User confirmed the simulated audit inputs.", evidence_ids=[])
     if unassessed:
         confirmed["unassessed_requirements"] = unassessed
 
-    async def execute_audit():
+    async def execute_audit(case):
         accepted = replace(draft, status="ok", data=confirmed, trace=tuple(parsing_trace))
         return await bound_audit(run_case(data, case, runtime, confirmed_profile=accepted), case.id, live=True)
 
-    decision = await execute_audit()
-    if decision.get("needs_smaller_authorization"):
-        print("The requested size is infeasible. A smaller purchase could be checked if you authorize it.")
-        if read_input("Type YES to authorize a smaller purchase and re-audit, or press Enter to keep the size: ").casefold() == "yes":
-            confirmed = {**confirmed, "allow_smaller": True}
-            parsing_trace.append({"role": "profile", "event": "smaller_purchase_authorized"})
-            decision = await execute_audit()
-    decision = publish_report(decision)
-    print(f"\nAudit of original proposal: {decision['status']}")
-    print(decision.get("explanation", decision.get("error", "")))
-    verified = decision.get("audit", {}).get("verified", {})
-    example_label = "Verified alternative" if policy["prefer_reserve"] is True else "Verified funding example"
-    for label, description in (("baseline", "Starting portfolio"), ("proposal", "Original proposal"),
-                               ("maximum", example_label)):
-        outcome = verified.get(label)
-        if label == "maximum" and (decision["status"] in ("execution_error", "invalid", "insufficient_evidence")
-                                   or not outcome or not outcome["passes"] or (outcome.get("total") or 0) <= 1e-9):
-            continue
-        if outcome:
-            print(f"  {description}: {outcome['status']}")
-            if label == "maximum":
-                mix = outcome["funding"]
-                print(f"    Funding: QQQ {mix['QQQ'] * 100:.2f} pp, ZST.TO {mix['ZST.TO'] * 100:.2f} pp")
-    if decision["status"] not in ("execution_error", "invalid") and policy["prefer_reserve"] is not True:
-        frontier = verified.get("frontier", {})
-        if frontier.get("full_possible"):
-            bottom, top = frontier["full_zst_min"], frontier["full_zst_max"]
-            print(f"  ZST.TO funding range: {bottom * 100:.2f} to {top * 100:.2f} percentage points.")
-    for finding in decision.get("audit", {}).get("findings", []):
-        if finding["metric_id"].startswith("proposal.") and finding["status"] in ("fail", "insufficient_evidence"):
-            actual, limit = finding.get("actual"), finding.get("limit")
-            fields = f" [{actual:.2%} vs {limit:.2%}]" if isinstance(actual, (int, float)) and isinstance(limit, (int, float)) else ""
-            print(f"  {finding['metric_id']}: {finding['status']}{fields}")
+    decision = publish_report(await execute_audit(case))
+    print_audit(decision, "Audit of original proposal", policy["prefer_reserve"])
+    if search_alternatives and decision.get("publication", {}).get("independent_review_verified") is True:
+        choice = read_input("Type SEARCH to authorize an alternative funding search, or press Enter to end: ")
+        if choice.casefold() == "search":
+            parsing_trace.append({"role": "profile", "event": "alternative_search_authorized"})
+            search_case = replace(case, id="interactive-alternatives", search_alternatives=True)
+            result = await execute_audit(search_case)
+            if result.get("needs_smaller_authorization"):
+                print("The requested size is infeasible. A smaller purchase could be checked if you authorize it.")
+                if read_input("Type YES to authorize a smaller purchase and re-audit, or press Enter to keep the size: ").casefold() == "yes":
+                    confirmed = {**confirmed, "allow_smaller": True}
+                    parsing_trace.append({"role": "profile", "event": "smaller_purchase_authorized"})
+                    result = await execute_audit(search_case)
+            decision = publish_report(result)
+            print_audit(decision, "Alternative funding search", policy["prefer_reserve"])
     if unassessed:
         print("  Not assessed: " + ", ".join(requirement["code"] for requirement in unassessed))
     if args.report:
@@ -257,7 +268,7 @@ def main():
     parser.add_argument("--mode", default="offline", choices=("offline", "aws"))
     parser.add_argument("--request", help="Audit a new simulated request interactively (AWS mode)")
     parser.add_argument("--search-alternatives", action="store_true",
-                        help="Authorize an interactive search of alternative funding")
+                        help="Offer an alternative funding search after the original audit is shown")
     parser.add_argument("--include-sector", action="store_true",
                         help="Include descriptive equity sector analysis in an interactive audit")
     parser.add_argument("--stress", action="store_true", help="Add ambiguity, missing evidence and tampered-result cases")
