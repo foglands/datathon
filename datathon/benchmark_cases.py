@@ -61,7 +61,7 @@ class BenchmarkCase:
             loss_limit=profile.limit_bps / 10_000 if profile and profile.limit_bps is not None else None,
             reserve_floor=(profile.reserve_floor_bps or 0) / 10_000 if profile else 0.0,
             issuer_cap=profile.issuer_cap_bps / 10_000 if profile and profile.issuer_cap_bps is not None else None,
-            missing_qqq=self.missing_qqq, tamper=self.tamper, ambiguous=profile is None,
+            missing_qqq=self.missing_qqq, tamper=self.tamper, ambiguous=profile is None, search_alternatives=True,
         )
 
     def confirmed_profile(self) -> AgentRun:

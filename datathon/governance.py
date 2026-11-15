@@ -383,7 +383,7 @@ def _verify_certificate(certificate, windows, baseline, policy, exposures):
 
 
 def audit_decision(*, prices_cad, baseline, proposal, policy, metrics, evidence, maximum=None, dates=None,
-                   issuer_context=None, official_starter=False):
+                   issuer_context=None, official_starter=False, search_alternatives=True):
     """Audit reported metrics, funding and the best feasible counterfactual from raw inputs."""
     findings = []
     verified = {}
@@ -424,11 +424,17 @@ def audit_decision(*, prices_cad, baseline, proposal, policy, metrics, evidence,
             raise ValueError("The frozen baseline must include NVDA, QQQ and ZST.TO.")
         baseline = _weights(baseline, assets)
         proposal_weights = _weights(proposal, assets)
+        if not search_alternatives and (maximum is not None or any(
+            key in metrics for key in ("maximum", "frontier", "solver_status", "certificate")
+        )):
+            raise ValueError("Alternative analysis was submitted without authorization.")
         maximum_weights = _weights(maximum, assets) if maximum is not None else None
         policy = dict(policy)
         policy["allow_smaller"] = policy.get("allow_smaller", True)
         if not isinstance(policy["allow_smaller"], bool):
             raise ValueError("The purchase size policy must use a boolean allow_smaller.")
+        if not search_alternatives:
+            policy["allow_smaller"] = False
         if policy["metric"] not in METRICS:
             raise ValueError("Unknown loss metric.")
         for key in ("target", "loss_limit", "reserve_floor", "direct_cap", "issuer_cap"):
@@ -484,6 +490,8 @@ def audit_decision(*, prices_cad, baseline, proposal, policy, metrics, evidence,
                             any(not _matches(amount, reported_funding.get(ticker, 0.0))
                                 for ticker, amount in funding.items())):
                         add(f"{role}.funding", "invalid", "Reported funding disagrees with the changes in weights.")
+        if not search_alternatives:
+            return output(verified["proposal"]["status"])
         frontier = _frontier(windows, baseline, policy, exposures)
         issuer_unknown = policy.get("issuer_cap") is not None and None in exposures.values()
         if issuer_unknown:

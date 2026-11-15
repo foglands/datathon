@@ -46,7 +46,8 @@ class ReplayScopeTests(unittest.IsolatedAsyncioTestCase):
     async def test_independent_holdout_and_follow_up_preserve_the_custom_scope(self):
         market = load_market_data()
         scope = ReplayScope(HOLDOUT_WEIGHTS, True, "Fund a planned withdrawal", "Within 1 year")
-        case = Case("confirmed-scope", "Fictional request", "terminal_loss", .16, .15, scope=scope)
+        case = Case("confirmed-scope", "Fictional request", "terminal_loss", .16, .15,
+                    scope=scope, search_alternatives=True)
         report = await run_case(market, case, confirmed_profile=AgentRun("ok", holdout_profile()))
         self.assertEqual(report["confirmed_scope"], scope.report())
         self.assertEqual(report["policy"]["reserve_floor"], .15)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from time import perf_counter
 from typing import Literal, Optional
 
@@ -27,6 +27,8 @@ class Case:
     tamper: bool = False
     ambiguous: bool = False
     scope: ReplayScope | None = None
+    search_alternatives: bool = False
+    include_sector: bool = False
 
 
 def examples(group, stress=False):
@@ -34,25 +36,28 @@ def examples(group, stress=False):
         "I am Robert, approaching retirement in 3–5 years. In this simulation I want "
         "to add 10 percentage points of NVDA, initially funded from ZST.TO. I permit "
         "funding from QQQ or ZST.TO, allow a smaller purchase, and require at least "
-        "15% in ZST.TO immediately after the trade. I prefer to preserve ZST.TO. "
+        "15% in ZST.TO immediately after the trade. I prefer to preserve ZST.TO. Compare alternative funding. "
     )
     amira_message = (
         "I am Amira, testing long-term growth over 15 years. I want to add 10 "
         "percentage points of NVDA, initially funded from ZST.TO. I permit QQQ or ZST.TO and allow a smaller "
         "purchase. I want a 14% maximum total NVIDIA issuer exposure, including "
-        "indirect common-equity exposure. I have given no portfolio loss limit."
+        "indirect common-equity exposure. I have given no portfolio loss limit. Compare alternative funding."
     )
     robert = [
-        Case("robert_terminal", robert_message + "The maximum terminal loss in either historical window is 14%.", "terminal_loss", .14, .15),
-        Case("robert_drawdown", robert_message + "The maximum drawdown in either historical window is 14%.", "max_drawdown", .14, .15),
+        Case("robert_terminal", robert_message + "The maximum terminal loss in either historical window is 14%.",
+             "terminal_loss", .14, .15, search_alternatives=True),
+        Case("robert_drawdown", robert_message + "The maximum drawdown in either historical window is 14%.",
+             "max_drawdown", .14, .15, search_alternatives=True),
     ]
-    amira = [Case("amira_concentration", amira_message, "terminal_loss", None, 0, .14)]
+    amira = [Case("amira_concentration", amira_message, "terminal_loss", None, 0, .14, search_alternatives=True)]
     if stress:
         robert += [
-            Case("robert_tampered", robert[0].user_request, "terminal_loss", .14, .15, tamper=True),
-            Case("robert_ambiguous", robert_message + "I cannot lose more than 14%.", "terminal_loss", None, .15, ambiguous=True),
+            replace(robert[0], id="robert_tampered", tamper=True),
+            replace(robert[0], id="robert_ambiguous", user_request=robert_message + "I cannot lose more than 14%.",
+                    loss_limit=None, ambiguous=True),
         ]
-        amira.append(Case("amira_missing_qqq", amira_message, "terminal_loss", None, 0, .14, missing_qqq=True))
+        amira.append(replace(amira[0], id="amira_missing_qqq", missing_qqq=True))
     if group == "robert":
         return robert
     if group == "amira":
@@ -102,14 +107,19 @@ def exposure_range(weights, issuer_weights):
     return {"lower": known, "upper": min(1., known + sum(missing.values())), "unknown_weights": missing}
 
 
+def _without_size_diagnostic(frontier):
+    return {key: (_without_size_diagnostic(value) if key in {"known_safe", "optimistic"} else value)
+            for key, value in frontier.items() if key != "diagnostic_max_total"}
+
+
 class RoleError(RuntimeError):
     """An agent stage did not provide the required handoff."""
 
 
-def profile_policy(profile, *, baseline=BASE_WEIGHTS):
+def profile_policy(profile, *, baseline=BASE_WEIGHTS, search_alternatives=True, defer_smaller_authorization=False):
     """Validate a proposed profile before showing it for confirmation."""
     source = profile.get("initial_source")
-    allowed = profile.get("allowed_sources", [])
+    allowed = profile.get("allowed_sources") or []
     target = profile.get("target_bps")
     smaller = profile.get("allow_smaller")
     metric, limit = profile.get("metric"), profile.get("limit_bps")
@@ -119,13 +129,19 @@ def profile_policy(profile, *, baseline=BASE_WEIGHTS):
         raise ValueError("How many percentage points of NVDA do you want to add?")
     if source not in ("QQQ", "ZST.TO"):
         raise ValueError("Which fund finances the original purchase, QQQ or ZST.TO?")
-    if not isinstance(allowed, (list, tuple)) or not allowed or any(t not in ("QQQ", "ZST.TO") for t in allowed):
+    if not isinstance(allowed, (list, tuple)) or any(t not in ("QQQ", "ZST.TO") for t in allowed):
         raise ValueError("May alternatives sell QQQ, ZST.TO, or either fund?")
-    if source not in allowed:
+    if allowed and source not in allowed:
         raise ValueError("The original source is excluded from the permitted funding sources. Which source or rule should change?")
+    if not search_alternatives or (not allowed and defer_smaller_authorization):
+        allowed = (source,)
+    elif not allowed:
+        raise ValueError("May alternatives sell QQQ, ZST.TO, or either fund?")
     if target / 10000 > baseline[source] + 1e-12:
         raise ValueError(f"The proposed one-fund sale exceeds the starting {source} position. What smaller request should be evaluated?")
-    if type(smaller) is not bool:
+    if not search_alternatives:
+        smaller = False
+    elif type(smaller) is not bool and not (defer_smaller_authorization and smaller is None):
         raise ValueError("If the full purchase is infeasible, may the analysis consider a smaller purchase?")
     if (metric is None) != (limit is None) or (metric is not None and metric not in ("terminal_loss", "max_drawdown")):
         raise ValueError("Does the loss limit apply to terminal loss or maximum drawdown?")
@@ -146,15 +162,21 @@ def profile_policy(profile, *, baseline=BASE_WEIGHTS):
     }
 
 
-async def interpret_request(request, runtime, run_id):
+async def interpret_request(request, runtime, run_id, *, search_alternatives=True, defer_smaller_authorization=False):
     """Extract an editable policy. Only confirmed drafts should be replayed."""
-    parsed = await runtime.run("profile", {"user_request": request}, run_id=run_id)
+    payload = {"user_request": request}
+    if not search_alternatives:
+        payload["search_alternatives"] = False
+    if defer_smaller_authorization:
+        payload["defer_smaller_authorization"] = True
+    parsed = await runtime.run("profile", payload, run_id=run_id)
     if parsed.status == "error":
         return parsed, None, f"Profile interpretation failed: {parsed.stop_reason}."
     if parsed.status != "ok":
         return parsed, None, parsed.data.get("summary") or "Please clarify the simulated request."
     try:
-        return parsed, profile_policy(parsed.data), None
+        return parsed, profile_policy(parsed.data, search_alternatives=search_alternatives,
+                                      defer_smaller_authorization=defer_smaller_authorization), None
     except ValueError as exc:
         return parsed, None, str(exc)
 
@@ -245,7 +267,9 @@ async def run_case(
 
     if single_runtime is not None and (runtime is not None or confirmed_profile is None):
         raise ValueError("The single-agent benchmark requires a confirmed profile and its own runtime.")
-    result = {"case": case.id, "mode": "aws" if runtime is not None or single_runtime is not None else "offline"}
+    search_alternatives = case.search_alternatives
+    result = {"case": case.id, "mode": "aws" if runtime is not None or single_runtime is not None else "offline",
+              "search_alternatives": search_alternatives, "needs_smaller_authorization": False}
     starting_weights = case.scope.baseline if case.scope else BASE_WEIGHTS
     replay_windows = case.scope.windows if case.scope else STRESS_WINDOWS
     if case.scope:
@@ -273,10 +297,12 @@ async def run_case(
             outputs["profile"] = parsed
             trace.append({"role": "profile", "event": "policy_confirmed", "run_id": case.id})
         try:
-            policy_view = profile_policy(parsed, baseline=starting_weights)
+            policy_view = profile_policy(parsed, baseline=starting_weights, search_alternatives=search_alternatives,
+                                         defer_smaller_authorization=search_alternatives)
         except ValueError as exc:
             raise RoleError(str(exc)) from exc
         confirmed_at = perf_counter()
+        pending_smaller_authorization = policy_view["allow_smaller"] is None
         include_issuer = policy_view["issuer_cap"] is not None
         market_files = ("prices_daily.csv", "fx_usdcad_daily.csv")
         market_ids = [f"starter:{filename}" for filename in market_files]
@@ -334,11 +360,12 @@ async def run_case(
                                  trace_fields=tuple(evidence_args), completes_handoff=True)
 
         calculation_policy = {k: v for k, v in policy_view.items() if k not in {"initial_source", "prefer_reserve"}}
+        calculation_policy["allow_smaller"] = policy_view["allow_smaller"] is True
         confirmed = {**calculation_policy, "issuer_exposure": issuer_weights, "windows": replay_windows}
 
         original = proposed_weights(policy_view["initial_source"], policy_view["target"], baseline=starting_weights)
         portfolios = {"baseline": starting_weights, "proposal": original}
-        for source in policy_view["allowed_sources"]:
+        for source in policy_view["allowed_sources"] if search_alternatives else ():
             if source != policy_view["initial_source"] and starting_weights[source] >= policy_view["target"]:
                 label = "qqq_only" if source == "QQQ" else "zst_only"
                 portfolios[label] = proposed_weights(source, amount=policy_view["target"], baseline=starting_weights)
@@ -404,17 +431,23 @@ async def run_case(
             if not solution:
                 solution.update(solve_funding(data, baseline=starting_weights, **confirmed))
             option = {k: solution.get(k) for k in ("status", "frontier", "certificate")}
+            if pending_smaller_authorization:
+                option["frontier"] = _without_size_diagnostic(option["frontier"])
             return option
 
         review_result = {}
 
         def review():
-            if not solution:
+            if search_alternatives and not solution:
                 raise ValueError("Solve the funding range before running independent review.")
+            if not stress or (include_issuer and not exposure):
+                raise ValueError("Complete replay and applicable exposure calculations before reviewing.")
             if review_result:
                 return review_result
             review_metrics = {label: evaluations[label] for label in ("baseline", "proposal")}
-            review_metrics.update(frontier=solution.get("frontier"), solver_status=solution["status"], certificate=solution.get("certificate"))
+            if search_alternatives:
+                review_metrics.update(frontier=solution.get("frontier"), solver_status=solution["status"],
+                                      certificate=solution.get("certificate"))
             if case.tamper:
                 first_window = replay_windows[0].id
                 p = review_metrics["proposal"]
@@ -434,7 +467,21 @@ async def run_case(
                                                 maximum=best, policy=confirmed, metrics=review_metrics,
                                                 evidence=review_evidence,
                                                 issuer_context=issuer_context if include_issuer else None,
-                                                official_starter=data.official_starter))
+                                                official_starter=data.official_starter,
+                                                search_alternatives=search_alternatives))
+            if pending_smaller_authorization:
+                verified = review_result["verified"]
+                if "frontier" in verified:
+                    diagnostic = verified["frontier"].get("diagnostic_max_total")
+                    result["needs_smaller_authorization"] = (
+                        review_result["decision_reason"] == "requested_size_infeasible" and
+                        isinstance(diagnostic, (int, float)) and diagnostic > 1e-9
+                    )
+                    verified["frontier"] = _without_size_diagnostic(verified["frontier"])
+                for finding in review_result["findings"]:
+                    if finding["metric_id"] == "frontier.diagnostic_max_total":
+                        finding.pop("actual", None)
+                        finding.pop("claimed", None)
             result["confirmed_to_reviewed_ms"] = round((perf_counter() - confirmed_at) * 1000, 2)
             return review_result
 
@@ -447,14 +494,16 @@ async def run_case(
             if include_issuer:
                 tools.append(ToolSpec("measure_exposure", "Use the qualified issuer disclosures to bound NVIDIA exposure.",
                                       inspect_exposure, completes_handoff=True))
-            tools += [ToolSpec("solve_funding_range", "Solve the authorized funding range after scenario and exposure.",
-                               find_alternatives, completes_handoff=True),
-                      ToolSpec("recheck_decision", "Independently verify the replay and funding claims after the solver.",
-                               review, completes_handoff=True)]
+            stages = ["lookup_evidence", "stress_replay", *(["measure_exposure"] if include_issuer else [])]
+            if search_alternatives:
+                tools.append(ToolSpec("solve_funding_range", "Solve the authorized funding range after scenario and exposure.",
+                                      find_alternatives, completes_handoff=True))
+                stages.append("solve_funding_range")
+            tools.append(ToolSpec("recheck_decision", "Independently verify the authorized audit scope.",
+                                  review, completes_handoff=True))
             single_run = await single_runtime.run({
                 "policy": policy_view, "proposal": original, "evidence": evidence_payload, "scenario": scenario_payload,
-                "ordered_stages": ["lookup_evidence", "stress_replay", *(["measure_exposure"] if include_issuer else []),
-                                   "solve_funding_range", "recheck_decision"],
+                "ordered_stages": [*stages, "recheck_decision"], "search_alternatives": search_alternatives,
             }, tools, run_id=case.id, required_tools=[tool.name for tool in tools])
             trace.extend(single_run.trace)
             if market_errors:
@@ -463,7 +512,7 @@ async def run_case(
                 reason = single_run.stop_reason if single_run.status == "error" else "missing_checked_review"
                 raise RoleError(f"single: {reason}")
             checked_handoff("single", "recheck_decision", single_run, stage_started)
-            alternatives = find_alternatives()
+            alternatives = find_alternatives() if search_alternatives else None
             stated = single_run.data
         else:
             await routed_role("evidence", evidence_payload, evidence_tool, evidence_args, get_evidence, evidence)
@@ -486,18 +535,28 @@ async def run_case(
                 await scenario_run
             if not stress:
                 raise RoleError("scenario: no checked tool result")
-            alternatives = await role("alternatives", {"policy": policy_view, "exposure": exposure, "stress": scenario_focus},
-                                      tool_name="solve_funding_range", operation=find_alternatives)
-            await role("review", {"policy": policy_view, "candidate_status": alternatives, "proposal": original},
+            alternatives = None
+            if search_alternatives:
+                alternatives = await role("alternatives", {"policy": policy_view, "exposure": exposure, "stress": scenario_focus},
+                                          tool_name="solve_funding_range", operation=find_alternatives)
+            review_payload = {"policy": policy_view, "proposal": original, "search_alternatives": search_alternatives}
+            if alternatives is not None:
+                review_payload["candidate_status"] = alternatives
+            await role("review", review_payload,
                        tool_name="recheck_decision", operation=review)
+        if search_alternatives:
+            result["alternatives"] = alternatives
+        else:
+            trace.append({"role": "alternatives", "event": "stage_skipped", "status": "skipped",
+                          "reason": "not_requested"})
         result.update(status=review_result["status"], decision_reason=review_result["decision_reason"],
                       policy=policy_view, evidence=evidence, exposure=exposure,
-                      scenarios=stress, scenario_focus=scenario_focus, alternatives=alternatives, audit=review_result)
+                      scenarios=stress, scenario_focus=scenario_focus, audit=review_result)
         if review_result["status"] == "invalid":
             result["explanation"] = "The independent calculation detected an invalid claim and withheld the recommendation."
         else:
             result["explanation"] = explain_audit(review_result, alternatives, policy_view)
-            if include_agent_commentary:
+            if include_agent_commentary and search_alternatives and not pending_smaller_authorization:
                 if runtime is not None:
                     try:
                         stated = await role("explanation", {"policy": policy_view, "audited_result": review_result,
@@ -530,6 +589,10 @@ async def run_case(
 
 
 def explain_audit(review, alternatives, policy):
+    if alternatives is None and review["status"] in {"pass", "fail"}:
+        if review["status"] == "pass":
+            return "The submitted trade meets the checked rules. No alternative funding was requested."
+        return "The submitted trade breaches a checked rule. No alternative funding was requested."
     if review["decision_reason"] == "baseline_breaches_policy":
         return "The starting portfolio already breaches a tested rule. The reviewed funding search found no eligible change."
     if review["decision_reason"] == "market_evidence_insufficient":
@@ -543,6 +606,8 @@ def explain_audit(review, alternatives, policy):
     if alternatives["status"] == "no_feasible":
         return "The tested funding choices have no solution under the stated policy. Review the baseline and binding constraints."
     if alternatives["status"] == "requested_size_infeasible":
+        if policy["allow_smaller"] is None:
+            return f"The full {policy['target']:.2%} purchase is infeasible under your checked rules."
         limit = alternatives["frontier"]["diagnostic_max_total"]
         detail = (
             f" The diagnostic limit with smaller purchases allowed is {limit:.2%} of the portfolio."

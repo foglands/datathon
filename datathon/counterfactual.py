@@ -110,7 +110,7 @@ def _issuer_thresholds(report):
 
     base = verified["baseline"]["weights"]
     target = policy["target"]
-    if "QQQ" in policy["allowed_sources"] and target <= base["QQQ"]:
+    if report.get("search_alternatives", True) and "QQQ" in policy["allowed_sources"] and target <= base["QQQ"]:
         weights = {**base, "QQQ": base["QQQ"] - target, "NVDA": base["NVDA"] + target}
         bounds, unknown = _bounds_for(weights, holdings)
         thresholds["qqq_only"] = threshold(bounds, unknown, "derived_from_verified_baseline_and_qualified_disclosures")
@@ -164,7 +164,7 @@ def counterfactual_options(report):
             "reserve_floor", floor, tightened, "confirmed_positive_reserve_floor",
             value_unit="basis_points", minimum_value=floor_bps + 1, maximum_value=10000, preset_value=preset_bps,
         ))
-    if policy["target"] > 0:
+    if report.get("search_alternatives", True) and policy["target"] > 0 and policy["allow_smaller"] is not None:
         smaller = policy["allow_smaller"]
         label = "Require the exact purchase size" if smaller else "Allow a smaller purchase"
         options.append(ChallengeOption("toggle_purchase_size", label, "allow_smaller", smaller, not smaller,
@@ -272,6 +272,10 @@ def _comparison(before, after):
 def _unchanged_replay_inputs(baseline, replay):
     if baseline.get("confirmed_scope") != replay.get("confirmed_scope"):
         return False
+    if baseline.get("search_alternatives", True) != replay.get("search_alternatives", True):
+        return False
+    if tuple(baseline.get("unassessed_requirements", ())) != tuple(replay.get("unassessed_requirements", ())):
+        return False
     first = baseline["audit"]["verified"]
     second = replay["audit"]["verified"]
     evidence = baseline.get("evidence", {})
@@ -356,7 +360,9 @@ def _public_report(report):
     if report is None:
         return None
     fields = {"case", "mode", "status", "decision_reason", "policy", "confirmed_scope", "evidence", "exposure",
-              "scenarios", "scenario_focus", "alternatives", "audit", "elapsed_ms"}
+              "scenarios", "scenario_focus", "alternatives", "audit", "elapsed_ms", "search_alternatives",
+              "needs_smaller_authorization", "requirements", "assessment_scope", "unassessed_requirements",
+              "sector_analysis", "exposure_change"}
     return {**{key: value for key, value in report.items() if key in fields},
             "trace": _public_trace(report.get("trace", ()))}
 
@@ -469,7 +475,11 @@ async def run_counterfactual(
         trace.append({"role": "review_challenge", "event": "challenge_value_confirmed",
                       "status": "accepted", "option_id": option.id, "field": option.field,
                       "threshold_value": challenge_value, "threshold_unit": option.value_unit})
-    baseline_kwargs = {"baseline": case.scope.baseline} if case.scope else {}
+    search = baseline.get("search_alternatives", "alternatives" in baseline)
+    baseline_kwargs = {"search_alternatives": search, "defer_smaller_authorization": search}
+    if case.scope:
+        baseline_kwargs["baseline"] = case.scope.baseline
+    replay_case = replace(case, id=run_id, search_alternatives=search)
     if option.action:
         if before["decision_reason"] != "issuer_evidence_insufficient":
             return result("no_recommendation", "issuer_evidence_not_binding",
@@ -499,7 +509,7 @@ async def run_counterfactual(
         if len({record.ticker for record in records}) != len(records):
             return result("invalid", "conflicting_disclosures", "Select one reviewed disclosure per fund.")
         policy = baseline["policy"]
-        profile = _profile(policy)
+        profile = {**_profile(policy), "unassessed_requirements": baseline.get("unassessed_requirements", ())}
         if profile_policy(profile, **baseline_kwargs) != policy:
             return result("invalid", "policy_changed_during_compilation", "The audited policy could not be preserved.")
         replay_options = _holds_context(baseline)
@@ -508,7 +518,7 @@ async def run_counterfactual(
         if single_runtime is not None:
             replay_options["single_runtime"] = single_runtime
         trace.append({"role": "review_challenge", "event": "issuer_reaudit", "status": "started"})
-        replay = await replayer(data, replace(case, id=run_id), replay_runtime, **replay_options)
+        replay = await replayer(data, replay_case, replay_runtime, **replay_options)
         if not _issuer_reaudit_matches(baseline, replay, records):
             return result("invalid", "issuer_reaudit_not_verified", "The supplemented audit could not be independently verified.")
         trace.append({"role": "review_challenge", "event": "issuer_reaudit", "status": "verified"})
@@ -526,10 +536,9 @@ async def run_counterfactual(
         context[option.field] = option.after
     else:
         policy[option.field] = option.after
-    profile = _profile(policy)
+    profile = {**_profile(policy), "unassessed_requirements": baseline.get("unassessed_requirements", ())}
     if profile_policy(profile, **baseline_kwargs) != policy:
         return result("invalid", "policy_changed_during_compilation", "The proposed change could not be isolated.")
-    replay_case = replace(case, id=run_id)
     trace.append({"role": "review_challenge", "event": "challenge_replay", "status": "started",
                   "option_id": option.id, "field": option.field})
     replay_options = {**context, "confirmed_profile": AgentRun("ok", profile)}

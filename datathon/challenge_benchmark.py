@@ -82,7 +82,7 @@ class ChallengeCase:
                     (self.profile.limit_bps / 10_000 if self.profile.limit_bps is not None else None),
                     (self.profile.reserve_floor_bps or 0) / 10_000,
                     (self.profile.issuer_cap_bps / 10_000 if self.profile.issuer_cap_bps is not None else None),
-                    missing_qqq=self.missing_qqq)
+                    missing_qqq=self.missing_qqq, search_alternatives=True)
 
     def confirmed_profile(self):
         return AgentRun("ok", self.profile.as_profile())
