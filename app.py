@@ -165,7 +165,7 @@ def show_counterfactual(case, report, runtime):
         st.caption(option["label"])
     if comparison := check["replay"]:
         left, right = st.columns(2)
-        left.markdown(f"**Original audit**  \n{result_label(report)}")
+        left.markdown(f"**Original audit**  \n{result_label(publish_report(report))}")
         label = "Independent re-audit with reviewed disclosures" if reviewed_ids else "One hypothetical change"
         right.markdown(f"**{label}**  \n{result_label(comparison)}")
         with st.expander("Independent rerun evidence"):
@@ -241,8 +241,8 @@ def preset_audit(mode):
     comparison = st.session_state.get("comparison_result")
     if comparison is not None:
         left, right = st.columns(2)
-        left.markdown(f"**Original policy**  \n{result_label(report)}")
-        right.markdown(f"**With the confirmed change**  \n{result_label(comparison)}")
+        left.markdown(f"**Original policy**  \n{result_label(publish_report(report))}")
+        right.markdown(f"**With the confirmed change**  \n{result_label(publish_report(comparison))}")
         for panel, result in zip(st.tabs(("Original policy audit", "Changed policy audit")), (report, comparison)):
             with panel:
                 if result.get("policy"):
@@ -536,7 +536,7 @@ def live_request():
         if all(variant in reports for variant in comparison_keys.values()):
             st.subheader("Compare the two confirmed rules")
             for column, (metric, variant) in zip(st.columns(2), comparison_keys.items()):
-                column.markdown(f"**{METRICS[metric]}**  \n{result_label(reports[variant])}")
+                column.markdown(f"**{METRICS[metric]}**  \n{result_label(publish_report(reports[variant]))}")
     report = reports[key]
     show_report(report)
     if report.get("needs_smaller_authorization") and st.session_state.get("request_declined_resize") != basis:

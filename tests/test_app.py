@@ -301,7 +301,8 @@ class PortfolioAppTests(unittest.TestCase):
             self.assertFalse(report["search_alternatives"])
             self.assertNotIn("alternatives", report)
             self.assertNotIn("frontier", report["audit"]["verified"])
-            self.assertFalse(any(event["role"] == "alternatives" for event in report["trace"]))
+            skipped = [event["status"] for event in report["trace"] if event["role"] == "alternatives"]
+            self.assertEqual(skipped, ["skipped"])
             self.assertTrue(any(event["event"] == "manual_profile_entered" for event in report["trace"]))
             self.assertNotIn("source_excerpts", report["agent_outputs"]["profile"])
             self.select("number_input", "Historical loss cap (%)", 15.0)
