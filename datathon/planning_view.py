@@ -22,31 +22,42 @@ _POINT_LABELS = {
 _OPTIONS = {
     "cash_deposits": (
         "Savings accounts and deposits",
-        "For a near-term goal, check when the money can be withdrawn and whether the account pays interest. "
-        "If banking in Canada, a savings account or short-term deposit with suitable access can serve as a baseline. "
+        "Check access and interest for near-term spending. If you bank in Canada, a savings account or "
+        "short-term deposit with suitable withdrawal terms can serve as a baseline. "
         f"[FCAC savings guidance]({_GOALS})",
     ),
     "sp500": (
         "S&P 500 ETF",
-        "An S&P 500 fund offers exposure across large U.S. companies while retaining stock-market risk. "
-        f"The value can fall before a withdrawal is due. SPY is one example. [Fund objective and risks]({_SPY})",
+        "An S&P 500 fund spreads exposure across large U.S. companies and can fall before you need to withdraw. "
+        f"SPY is one example. [Fund objective and risks]({_SPY})",
     ),
     "gold": (
         "Gold",
-        "Gold exposure rises or falls with its market price. A bullion trust such as GLD generates no income, "
-        f"so cash for expenses would come from selling shares. [Issuer risk information]({_GOLD})",
+        "Gold prices can rise or fall. A bullion trust such as GLD generates no income, so you would sell "
+        f"shares to cover expenses. [Issuer risk information]({_GOLD})",
     ),
     "bonds": (
         "Bonds and bond funds",
-        "Compare when money is due and how the investment can react to a change in interest rates. "
-        f"Bond funds can lose value before a withdrawal. [Asset allocation guidance]({_ASSET_ALLOCATION})",
+        "Check when you need the money and how rate changes affect the investment. Bond funds can lose value "
+        f"before you withdraw. [Asset allocation guidance]({_ASSET_ALLOCATION})",
     ),
     "equity_funds": (
         "Equity funds",
-        "Check which companies and markets the fund holds. A fund can diversify across holdings while remaining exposed "
-        f"to stock-market losses. [Diversification guidance]({_ASSET_ALLOCATION})",
+        "Check which companies and markets the fund holds. A fund can spread exposure across holdings and "
+        f"still lose value when the market falls. [Diversification guidance]({_ASSET_ALLOCATION})",
     ),
     **RISK_OPTIONS,
+}
+
+_CONSIDERATIONS = {
+    "concentration": "Putting the entire balance in one asset ties it to that asset's price. "
+                     f"Diversification spreads exposure. [Diversification guidance]({_ASSET_ALLOCATION})",
+    "peer_trading": "Treat other people's profits as individual outcomes. Compare downside over your own time horizon.",
+    "beginner": "Check how each option can make or lose money and how you would withdraw.",
+    "risk": "A market drop matters most if you would need to sell during it.",
+    "growth": "Weigh potential growth against how much the investment could fall before you need it.",
+    "inflation": "Inflation changes purchasing power. Compare savings rates and inflation over the same period, "
+                 f"including taxes and access terms where applicable. [Bank of Canada inflation guide]({_INFLATION})",
 }
 
 
@@ -59,14 +70,18 @@ def render_balance_context(plan):
     """Display a stated balance separately from any market percentage replay."""
     points = plan["points"]
     issue = plan.get("balance_issue")
-    if issue == "conflicting_amounts":
-        st.warning("The request gives different cash balances. Confirm which amount applies.")
-    elif amount := points.get("amount"):
-        st.text(f"Stated amount · {amount}")
-        if issue == "conflicting_currencies":
-            st.warning("The request gives different currencies for the balance. Confirm its currency.")
-        elif currency := points.get("currency"):
-            st.text(f"Stated currency · {currency}")
+    amount = points.get("amount")
+    if not amount and issue != "conflicting_amounts":
+        return
+    with st.container(key="planning-balance"):
+        if issue == "conflicting_amounts":
+            st.warning("The request gives different cash balances. Confirm which amount applies.")
+        else:
+            st.text(f"Stated amount · {amount}")
+            if issue == "conflicting_currencies":
+                st.warning("The request gives different currencies for the balance. Confirm its currency.")
+            elif currency := points.get("currency"):
+                st.text(f"Stated currency · {currency}")
 
 
 def render_planning_answer(plan, *, allow_example=True):
@@ -74,54 +89,43 @@ def render_planning_answer(plan, *, allow_example=True):
     points, instruments = plan["points"], plan["instruments"]
     with st.container(key="assistant-options", border=True):
         st.subheader("Planning considerations")
-        render_balance_context(plan)
         if return_claim := points.get("return_claim"):
             st.text(f"Return claim to check · {return_claim}")
             st.warning(guarantee_guidance())
             if set(points) == {"return_claim"} and not instruments:
                 return None
         if "spending" in points:
-            st.write("Separate money you expect to spend from money you could leave invested through a downturn. "
-                     "For the spending portion, the withdrawal date and accessible amount come first.")
+            st.write("List your planned withdrawals and when they are due. Compare investments for the money "
+                     "you could leave invested through a downturn.")
         else:
-            st.write("Start with when you need the money and what loss you could absorb at that time. "
-                     "Those two facts help decide which options are worth comparing.")
-        if "concentration" in points:
-            st.markdown("Putting the entire balance into one asset exposes it to that asset's price swings. "
-                        f"A diversified allocation spreads exposure across investments. [Diversification guidance]({_ASSET_ALLOCATION})")
-        if "peer_trading" in points:
-            st.write("Treat other people's profits as individual outcomes. Compare choices using their downside and "
-                     "the risk to your savings over your own time horizon.")
-        if "beginner" in points:
-            st.write("Before comparing returns, check how each investment can make or lose money and how you would get your cash out.")
-        if "risk" in points:
-            st.write("Your concern about a market drop matters most if you would need to sell during it. "
-                     "First identify the money that must stay accessible, then consider what loss you could tolerate on the rest.")
-        if "growth" in points:
-            st.write("For the money you can leave invested, compare potential growth with how much it could fall before "
-                     "you need it. A return target alone cannot tell you whether the risk fits the goal.")
-        if "inflation" in points:
-            st.markdown("Inflation affects purchasing power. Compare the savings rate with inflation over the same period, "
-                        f"and consider taxes and access terms where they apply. [Bank of Canada inflation guide]({_INFLATION})")
+            st.write("Start with when you need the money and how much loss you could absorb by then.")
+        render_balance_context(plan)
+        if considerations := [note for field, note in _CONSIDERATIONS.items() if field in points]:
+            st.markdown("\n".join(f"- {note}" for note in considerations))
 
         options = list(instruments)
         if (not options or any(key in points for key in ("spending", "cash_position"))) and "cash_deposits" not in options:
             options.insert(0, "cash_deposits")
-        for instrument in options:
-            if instrument in _OPTIONS and (instrument != "equity_funds" or "sp500" not in options):
-                heading, details = _OPTIONS[instrument]
+        option_details = [_OPTIONS[instrument] for instrument in options
+                          if instrument in _OPTIONS and (instrument != "equity_funds" or "sp500" not in options)]
+        if option_details:
+            st.markdown("**What to compare**")
+            for heading, details in option_details:
                 st.markdown(f"**{heading}.** {details}")
 
-        st.markdown("**The next detail to establish**")
-        if "timing" in points:
-            st.write("How much needs to stay available for planned expenses?")
-        elif "spending" in points:
-            st.write("When will you first need to withdraw money, and roughly how much will you need then?")
-        else:
-            st.write("How much of your savings must stay accessible for expenses or emergencies, and when might you need it?")
-        with st.expander("Details recognized from your question"):
-            st.text("\n".join(f"{_POINT_LABELS[key]} · {value}" for key, value in points.items()
-                              if key in _POINT_LABELS and key not in {"amount", "currency", "return_claim"}))
+        with st.container(key="planning-next-step"):
+            st.markdown("**What to add to your question**")
+            if "timing" in points:
+                st.write("How much needs to stay available for planned expenses?")
+            elif "spending" in points:
+                st.write("When will you first need to withdraw money, and roughly how much will you need then?")
+            else:
+                st.write("How much of your savings must stay accessible for expenses or emergencies, and when might you need it?")
+        stated_details = [f"{_POINT_LABELS[key]} · {value}" for key, value in points.items()
+                          if key in _POINT_LABELS and key not in {"amount", "currency", "return_claim"}]
+        if stated_details:
+            with st.expander("Details from your question"):
+                st.text("\n".join(stated_details))
 
     if not allow_example:
         return None

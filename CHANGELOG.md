@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-15 · Streamline the investment assistant interface
+
+- Put one question composer and three reusable examples on the home screen. Group model settings and manual entry behind explicit controls.
+- Bring the decision and verified figures forward. Fold reviewed inputs, detailed evidence, and audit rules into expandable sections.
+- Use a responsive layout and keep an explicit action to start a new question and clear the previous result.
+
 ## 2026-11-15 · Assess one weighted portfolio and ground balance currency
 
 - Read a single proposed allocation from the question and review its historical metrics using the same valuation and independent verification as the comparison workflow.

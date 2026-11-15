@@ -716,39 +716,37 @@ def live_request(setup, *, investor=None, assistant_question="", intent=None):
     show_counterfactual(replace(request_case, id=published["case"]), report, published, runtime)
 
 
-def show_masthead(market_bundle_found):
-    data_class = "is-present" if market_bundle_found else "is-missing"
-    data_label = "Starter data located" if market_bundle_found else "Starter data needed"
-    st.html(f"""
-        <header class="audit-masthead">
-          <div class="audit-hero-copy">
-            <div class="audit-brand"><span class="audit-brand-mark" aria-hidden="true">◈</span> AlphaForge AI</div>
-            <h1>Investment decision assistant</h1>
-            <p>Explore a fictional investment question. Compare choices against your goals and trace the result back to the evidence.</p>
-          </div>
-          <dl class="audit-context">
-            <div><dt>Market bundle</dt><dd><span class="audit-dot {data_class}" aria-hidden="true"></span>{data_label}</dd></div>
-            <div><dt>Valuation</dt><dd>Canadian dollars</dd></div>
-            <div><dt>Application</dt><dd>Fictional simulation</dd></div>
-          </dl>
-        </header>
-        <ol class="audit-steps" aria-label="Audit workflow">
-          <li>Describe the decision</li>
-          <li>Confirm the interpreted inputs</li>
-          <li>Review the checked result</li>
-        </ol>
-    """)
+def show_navigation(market_bundle_found):
+    with st.container(key="app-navigation"):
+        brand, navigation, status = st.columns((1.3, 2.4, 1.3), vertical_alignment="center")
+        with brand:
+            st.html(
+                '<div class="app-brand"><span class="app-brand-mark" aria-hidden="true">◈</span>'
+                '<span>AlphaForge <strong>AI</strong></span></div>'
+            )
+        with navigation, st.container(key="assistant-nav"):
+            workspace = st.radio(
+                "Workspace", ("Investment assistant", "Reference cases"), horizontal=True,
+                label_visibility="collapsed", key="workspace",
+            )
+        with status:
+            label = "Market data ready" if market_bundle_found else "Market data unavailable"
+            data_state = "ready" if market_bundle_found else "unavailable"
+            st.html(f'<div class="app-data-status" data-state="{data_state}">{label}</div>')
+    return workspace
 
 
-def show_usage_notes():
-    with st.expander("How to read the results"):
+def show_usage_notes(market_bundle_found):
+    with st.container(key="app-data-methods"), st.expander("Data and methods"):
+        if not market_bundle_found:
+            st.warning("Set DATATHON_STARTER_PATH to the organizer ZIP or extracted starter folder to run historical analyses.")
         st.markdown(
             "**Historical risk.** Terminal loss compares the start and end of a replay. Maximum drawdown "
             "measures the largest fall from a prior peak. Each result applies to its displayed historical windows.\n\n"
             "**Holdings evidence.** Issuer and sector ranges retain unknown exposure when disclosures are missing. "
             "A verified calculation can still yield an unresolved rule.\n\n"
-            "**Supported comparisons.** Compare two assets or user-defined allocations using symbols covered "
-            "by the archived market windows. ESG screening remains unresolved with the available evidence.\n\n"
+            "**Market data.** Replays value one allocation or compare two choices in CAD using covered historical "
+            "prices. ESG screening remains unresolved with the available evidence.\n\n"
             "**Supported trades.** Simulate an NVDA purchase funded from QQQ or ZST.TO. Direct entry also "
             "supports custom starting weights across the five covered assets. All runs are fictional."
         )
@@ -777,12 +775,7 @@ def main():
     st.html(STYLES)
     refresh_market_source()
     market_bundle_found = bool(st.session_state.get("market_source"))
-    show_masthead(market_bundle_found)
-    if not market_bundle_found:
-        st.warning("Set `DATATHON_STARTER_PATH` to your organizer ZIP or extracted starter folder to run historical analyses.")
-    with st.container(key="assistant-nav"):
-        workspace = st.radio("Workspace", ("Investment assistant", "Reference cases"), horizontal=True,
-                             label_visibility="collapsed", key="workspace")
+    workspace = show_navigation(market_bundle_found)
     if st.session_state.get("active_workspace") != workspace:
         clear_assistant_result()
         for key in ("active_input", "preset_key", "preset_result", "comparison_result"):
@@ -791,8 +784,9 @@ def main():
     if workspace == "Investment assistant":
         render_assistant(market_data, live_request)
     else:
+        st.title("Reference cases")
         reference_cases()
-    show_usage_notes()
+    show_usage_notes(market_bundle_found)
 
 
 if __name__ == "__main__":

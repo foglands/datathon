@@ -16,7 +16,7 @@ _RELEASE = {
 }
 _METRICS = {"terminal_loss": "Terminal loss", "max_drawdown": "Maximum drawdown", "terminal_return": "End-of-window return"}
 _PORTFOLIOS = {"baseline": "Starting", "proposal": "Proposed", "maximum": "Funding example"}
-_SERIES_COLORS = ("#718c9e", "#15736b", "#415b8e")
+_SERIES_COLORS = ("#7d978d", "#165b46", "#476c8c")
 _SECTION_LABELS = {
     "main_audit": "Main audit",
     "exposure_change": "Issuer exposure change",
@@ -46,6 +46,16 @@ def _render_outcome(report: dict) -> None:
             st.warning(explanation)
 
 
+def _render_key_figures(series: list[dict], metric: str, case: str) -> None:
+    portfolios = list(dict.fromkeys(row["Portfolio"] for row in series))
+    select_value = min if metric == "terminal_return" else max
+    with st.container(key=f"audit-key-figures-{case}"):
+        st.caption(f"Worst {_METRICS[metric].lower()} across the selected windows")
+        for column, name in zip(st.columns(len(portfolios)), portfolios):
+            value = select_value(row["Value"] for row in series if row["Portfolio"] == name)
+            column.metric(name, f"{value:.2%}", border=True)
+
+
 def _window_series(report: dict, metric: str) -> list[dict]:
     verified = report["audit"]["verified"]
     funding_example = released_funding_example(report)
@@ -63,7 +73,6 @@ def _render_windows(report: dict, preferred_metric: str | None = None) -> None:
     default = preferred_metric or policy_metric
     if default not in _METRICS:
         default = "terminal_loss"
-    st.subheader("Historical stress results")
     measures = tuple(_METRICS)
     metric = st.radio(
         "Historical measure", measures, index=measures.index(default), format_func=_METRICS.__getitem__,
@@ -72,7 +81,7 @@ def _render_windows(report: dict, preferred_metric: str | None = None) -> None:
     series = _window_series(report, metric)
     if not series:
         return
-    st.caption("Each group is a verified historical window. Exact values are also available in Evidence.")
+    _render_key_figures(series, metric, report["case"])
     measure = _METRICS[metric]
     windows = list(dict.fromkeys(row["Window"] for row in series))
     observed = {row["Portfolio"] for row in series}
@@ -104,20 +113,25 @@ def _render_windows(report: dict, preferred_metric: str | None = None) -> None:
         )
         chart = chart + limit_line
         st.caption(f"Dashed line · Confirmed {measure.lower()} limit {limit:.2%}.")
-    st.altair_chart(chart.properties(height=250), width="stretch", key=f"audit-window-chart-{report['case']}")
+    chart = (
+        chart.properties(height=218)
+        .configure_view(stroke=None)
+        .configure_axis(domain=False, tickSize=0, gridColor="#e3ede7", labelColor="#51615a", titleColor="#35453e")
+    )
+    st.altair_chart(chart, width="stretch", key=f"audit-window-chart-{report['case']}")
 
 
 def _render_review_record(report: dict) -> None:
     publication = report["publication"]
-    st.subheader("Verification record")
-    st.table([
-        {"Section": label, "Verification": _SECTION_STATES[state]}
-        for section, label in _SECTION_LABELS.items()
-        if (state := publication["section_verification"].get(section)) in _SECTION_STATES
-    ])
-    if review_id := publication.get("review_id"):
-        st.caption("Independent review identifier")
-        st.code(review_id, language=None)
+    with st.expander("Independent review"):
+        st.table([
+            {"Section": label, "Verification": _SECTION_STATES[state]}
+            for section, label in _SECTION_LABELS.items()
+            if (state := publication["section_verification"].get(section)) in _SECTION_STATES
+        ])
+        if review_id := publication.get("review_id"):
+            st.caption("Review ID")
+            st.code(review_id, language=None)
 
 
 def render_audit_workspace(report: dict, *, preferred_metric: str | None = None) -> None:
@@ -127,8 +141,9 @@ def render_audit_workspace(report: dict, *, preferred_metric: str | None = None)
         decision, evidence, activity = st.tabs(("Decision", "Evidence", "Agent activity"))
         with decision:
             if report["publication"]["independent_review_verified"]:
-                render_comparison(report, show_explanation=False)
                 _render_windows(report, preferred_metric)
+                with st.expander("Portfolio details and rule checks"):
+                    render_comparison(report, show_explanation=False)
         with evidence:
             _render_review_record(report)
             render_evidence(report, include_activity=False)

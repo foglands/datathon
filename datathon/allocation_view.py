@@ -30,7 +30,8 @@ _PREFERRED_RESULT = {
     "terminal_loss": "lowest maximum terminal loss",
     "max_drawdown": "lowest worst-window drawdown",
 }
-_CAP_RESULT = {"pass": "Meets the limit", "fail": "Breaches the limit", "not_requested": "No limit requested"}
+_CAP_RESULT = {"pass": "Meets the drawdown limit", "fail": "Breaches the drawdown limit"}
+_ALLOCATION_COLORS = ("#165b46", "#7d978d")
 _REQUEST_LABELS = {
     "first_asset": "First asset",
     "second_asset": "Second asset",
@@ -77,7 +78,7 @@ def _finding_message(report: dict) -> str:
             return "The replay breached the confirmed drawdown limit in at least one historical window."
         if allocation["max_drawdown_test"] == "pass":
             return "The replay met the confirmed drawdown limit in every tested historical window."
-        return "Review the historical return, loss, and largest peak-to-trough decline for this replay."
+        return ""
     finding = report["finding"]
     status, basis = finding["status"], finding["basis"]
     if basis == "all_breach_cap":
@@ -85,7 +86,7 @@ def _finding_message(report: dict) -> str:
     if status == "unavailable":
         return "A relative finding is unavailable under the confirmed requirements."
     if status == "neutral":
-        return "Both options are shown side by side across the tested historical windows."
+        return ""
     if status == "tie":
         measure = _MEASURE_BASIS[report["priority"]].lower()
         return f"The eligible options tie on {measure}."
@@ -111,14 +112,14 @@ def _render_chart(report: dict) -> None:
     label = PRIORITIES[metric]
     chart = (
         alt.Chart(alt.Data(values=series))
-        .mark_bar()
+        .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
         .encode(
-            x=alt.X("Replay:N", title="Historical window", sort=sorted({row["Replay"] for row in series})),
+            x=alt.X("Replay:N", sort=sorted({row["Replay"] for row in series}), axis=alt.Axis(title=None, labelAngle=0)),
             xOffset=alt.XOffset("Option:N", sort=list(options)),
             y=alt.Y("Value:Q", title=label, axis=alt.Axis(format=".0%")),
             color=alt.Color(
-                "Option:N", title=None, scale=alt.Scale(domain=list(options), range=["#156c65", "#45638a"]),
-                legend=alt.Legend(orient="bottom"),
+                "Option:N", title=None, scale=alt.Scale(domain=list(options), range=list(_ALLOCATION_COLORS)),
+                legend=alt.Legend(orient="bottom") if len(options) > 1 else None,
             ),
             tooltip=["Option:N", "Replay:N", alt.Tooltip("Value:Q", title=label, format=".2%")],
         )
@@ -133,25 +134,39 @@ def _render_chart(report: dict) -> None:
         )
         chart = chart + line
         st.caption(f"Dashed line marks the confirmed {limit:.2%} maximum drawdown limit.")
-    st.altair_chart(chart.properties(height=250), width="stretch", key="allocation-performance-chart")
+    chart = (
+        chart.properties(height=218)
+        .configure_view(stroke=None)
+        .configure_axis(domain=False, tickSize=0, gridColor="#e3ede7", labelColor="#51615a", titleColor="#35453e")
+    )
+    st.altair_chart(chart, width="stretch", key="allocation-performance-chart")
+
+
+def _render_key_figures(report: dict) -> None:
+    options = report["options"]
+    single = report.get("kind") == "single_allocation"
+    priority = report["priority"]
+    with st.container(key="allocation-key-figures"):
+        if single:
+            windows = next(iter(options.values()))["windows"].values()
+            worst_drawdown, lowest_return = st.columns(2)
+            worst_drawdown.metric("Largest drawdown", f"{max(window['max_drawdown'] for window in windows):.2%}",
+                                  border=True)
+            lowest_return.metric("Lowest terminal return", f"{min(window['terminal_return'] for window in windows):.2%}",
+                                 border=True)
+            return
+        st.caption(_MEASURE_BASIS[priority or "max_drawdown"])
+        for column, (name, option) in zip(st.columns(len(options)), options.items()):
+            value = option["priority_value"] if priority else max(window["max_drawdown"] for window in option["windows"].values())
+            column.metric(name, f"{value:.2%}", border=True)
+            if limit_status := _CAP_RESULT.get(option["max_drawdown_test"]):
+                column.caption(limit_status)
 
 
 def _render_decision(report: dict) -> None:
     if not report["options"]:
         return
-    priority = report["priority"]
-    rows = []
-    for name, option in report["options"].items():
-        row = {"Allocation" if report.get("kind") == "single_allocation" else "Option": name}
-        if priority is None:
-            for metric, label in _MEASURE_BASIS.items():
-                extreme = min if metric == "terminal_return" else max
-                row[label] = f"{extreme(window[metric] for window in option['windows'].values()):.2%}"
-        else:
-            row[_MEASURE_BASIS[priority]] = f"{option['priority_value']:.2%}"
-        row["Drawdown limit"] = _CAP_RESULT[option["max_drawdown_test"]]
-        rows.append(row)
-    st.table(rows)
+    _render_key_figures(report)
     _render_chart(report)
     if report["requirements"]["esg"]["status"] == "unassessed":
         st.caption("The verified historical figures cover financial performance. ESG eligibility remains unknown.")
@@ -173,10 +188,11 @@ def _render_evidence(report: dict) -> None:
         for window_id, window in verification["windows"].items()
     ])
     if sources := verification.get("sources"):
-        st.table([
-            {"Source": row["source"], "Data": row["file"], "Retrieved": row["retrieved_on"]}
-            for row in sources
-        ])
+        with st.expander("Market data sources"):
+            st.table([
+                {"Source": row["source"], "Data": row["file"], "Retrieved": row["retrieved_on"]}
+                for row in sources
+            ])
     with st.expander("Exact historical values and confirmed allocations"):
         for name, option in report["options"].items():
             st.write(name)
@@ -195,6 +211,7 @@ def _render_evidence(report: dict) -> None:
     with st.expander("Source record and independent review"):
         st.json(verification, expanded=False)
     st.caption("Findings apply to the tested historical windows. The replay excludes transaction costs and taxes.")
+
 
 def _render_proxy_basis(context: dict) -> None:
     substitutions = context["proxy_substitutions"]
@@ -252,33 +269,37 @@ def render_allocation_result(
     title, color = (_REPLAY_STATUS if single else _STATUS)[record["status"]]
     if proxy:
         title = "Verified illustrative replay" if record["status"] == "verified" else "Limited illustrative replay"
-    with st.container(border=True, key="audit-summary-allocation"):
-        st.subheader("Allocation replay outcome" if single else "Comparison outcome")
-        st.badge(title, color=color)
-        if proxy:
-            st.warning("The figures describe the substitute allocation. Fund costs and tracking differences can change the original allocation's performance.")
-        st.write(_finding_message(record))
-        if record.get("reason"):
-            st.warning(record["reason"])
-        st.caption(profile_record["explanation"])
+    with st.container(key="allocation-results"):
+        with st.container(border=True, key="audit-summary-allocation"):
+            st.title("Allocation replay" if single else "Asset comparison", anchor=False)
+            st.badge(title, color=color)
+            if finding := _finding_message(record):
+                st.write(finding)
+            if proxy:
+                st.warning("The figures describe the substitute allocation. Fund costs and tracking differences can change the original allocation's performance.")
+            if record.get("reason"):
+                st.warning(record["reason"])
+            if record["priority"]:
+                st.caption(profile_record["explanation"])
 
-    decision, evidence, activity = st.tabs(("Decision", "Evidence", "Agent activity"))
-    with decision:
-        _render_decision(record)
-    with evidence:
-        if proxy:
-            _render_proxy_basis(proxy)
-        if sources:
-            with st.expander("Wording behind the confirmed inputs"):
-                for field, excerpt in sources.items():
-                    st.caption(_REQUEST_LABELS[field])
-                    st.text(excerpt)
-        _render_evidence(record)
-    with activity:
-        _render_activity(record)
-    st.download_button(
-        "Download allocation record" if single else "Download comparison record",
-        json.dumps(record, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
-        file_name="allocation-replay.json" if single else "allocation-comparison.json", mime="application/json",
-        key="download-allocation-comparison",
-    )
+        decision, evidence, activity = st.tabs(("Decision", "Evidence", "Agent activity"))
+        with decision:
+            _render_decision(record)
+        with evidence:
+            if proxy:
+                with st.expander("Approved substitutions", expanded=True):
+                    _render_proxy_basis(proxy)
+            if sources:
+                with st.expander("Wording behind the confirmed inputs"):
+                    for field, excerpt in sources.items():
+                        st.caption(_REQUEST_LABELS[field])
+                        st.text(excerpt)
+            _render_evidence(record)
+        with activity:
+            _render_activity(record)
+        st.download_button(
+            "Download allocation record" if single else "Download comparison record",
+            json.dumps(record, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
+            file_name="allocation-replay.json" if single else "allocation-comparison.json", mime="application/json",
+            key="download-allocation-comparison",
+        )

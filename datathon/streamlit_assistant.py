@@ -1,5 +1,6 @@
 """Question and profile entry for the fictional investment assistant."""
 
+from contextlib import nullcontext
 from zipfile import BadZipFile
 
 import streamlit as st
@@ -21,6 +22,11 @@ TASKS = {
     "compare_allocations": "Compare assets or allocations",
     "trade_audit": "Audit a proposed NVDA trade",
 }
+_EXAMPLE_QUESTIONS = (
+    ("Compare two funds", "Compare AGG and GLD. Maximum drawdown must not exceed 12%."),
+    ("Assess a portfolio", "Analyze a portfolio with 60% in SPY and 40% in AGG."),
+    ("Audit a trade", "Add five percentage points of NVDA by selling only QQQ. The maximum historical drawdown must not exceed 20%."),
+)
 _TRADE_STATE = ("request_draft", "request_results", "request_confirmed", "manual_draft_id",
                 "request_resize_choice", "request_declined_resize", "active_intake", "active_challenge",
                 "assistant_trade_question", "assistant_trade_intake", "request_offline_recovery")
@@ -32,12 +38,33 @@ def clear_assistant_result():
 
 
 def _assistant_question():
-    st.subheader("What investment decision are you exploring?")
     return st.text_area(
-        "Investment question", height=104, max_chars=2000, key="assistant_question",
-        placeholder="I am saving for a planned expense and worried about market drops. How should I compare savings and stock funds?",
-        help="Write in English. Use fictional details and describe your goal, concerns, and options or limits in your own words.",
+        "Investment question", height=112, max_chars=2000, key="assistant_question",
+        placeholder="Describe a portfolio, compare two funds, or ask about an investment risk.",
+        label_visibility="collapsed",
     ).strip()
+
+
+def _load_example(prompt):
+    st.session_state.assistant_question = prompt
+
+
+def _clear_question():
+    st.session_state.assistant_question = ""
+    st.session_state.pop("assistant_question_draft", None)
+    clear_assistant_result()
+
+
+def _starter_actions():
+    with st.container(key="assistant-starters"):
+        st.markdown("**Try a question**")
+        for column, (label, prompt) in zip(st.columns(3, gap="small"), _EXAMPLE_QUESTIONS):
+            column.button(label, width="stretch", on_click=_load_example, args=(prompt,))
+
+
+def _has_replay_result():
+    saved = st.session_state.get("assistant_comparison")
+    return bool(saved and saved[1]["status"] in {"verified", "limited"} and saved[1]["options"])
 
 
 def _market_bundle(data_loader):
@@ -84,7 +111,9 @@ def _show_question_sources(sources):
 
 def _render_allocation_question(draft, route, data_loader):
     fields = draft["fields"]
-    with st.container(key="assistant-options", border=True):
+    with st.container(key="assistant-options"):
+        inputs = st.expander("Portfolio inputs") if _has_replay_result() else st.container(border=True)
+    with inputs:
         st.subheader("Review your proposed allocation")
         render_balance_context(draft["plan"])
         if draft["status"] != "allocation":
@@ -141,12 +170,10 @@ def _render_allocation_question(draft, route, data_loader):
 
 def _render_question_answer(question, saved, data_loader, trade_entry):
     if saved is None:
-        st.caption("Interpret the question to see planning considerations or the inputs for a specific comparison.")
         return
     draft, route = saved
     if route:
         if route["status"] == "ready":
-            st.caption("Amazon Bedrock returned an interpretation. The application checks all inputs before analysis.")
             if route.get("trace"):
                 with st.expander("Question interpretation activity"):
                     st.json(route["trace"], expanded=False)
@@ -161,9 +188,7 @@ def _render_question_answer(question, saved, data_loader, trade_entry):
         if options := render_planning_answer(draft["plan"], allow_example=not limitation):
             pair = " and ".join(options)
             st.subheader("Explore a historical example")
-            st.write(f"Compare {pair} as illustrative market exposures from the archived dataset. Each is shown separately in CAD "
-                     "over the archived stress windows. The figures are nominal, so evaluating purchasing power would "
-                     "also require inflation over the same periods.")
+            st.caption("Illustrative exposures in CAD across the archived stress windows.")
             _run_comparison(data_loader, options, InvestorProfile(), False, None, None,
                             button_label=f"Compare {pair} historically")
         return
@@ -192,7 +217,9 @@ def _render_question_answer(question, saved, data_loader, trade_entry):
     priority = fields.get("priority") or suggest_priority(objective, horizon, risk)
     profile = InvestorProfile(objective, horizon, priority, fields.get("require_esg", False), risk_tolerance=risk)
     include_2023, cap = fields.get("include_2023", False), fields.get("max_drawdown")
-    with st.container(key="assistant-options", border=True):
+    with st.container(key="assistant-options"):
+        inputs = st.expander("Comparison inputs") if _has_replay_result() else st.container(border=True)
+    with inputs:
         st.subheader("Review the inputs from your question")
         st.table([{"Option": name, "Starting weights": ", ".join(f"{symbol} {weight:.2%}" for symbol, weight in weights.items())}
                   for name, weights in options.items()])
@@ -298,7 +325,7 @@ def _run_comparison(data_loader, options, profile, include_2023, cap, intent, *,
     if saved and (saved[0] != signature or not can_run):
         st.session_state.pop("assistant_comparison")
         saved = None
-    if st.button(button_label, type="primary", disabled=options is None or not can_run):
+    if not _has_replay_result() and st.button(button_label, type="primary", disabled=options is None or not can_run):
         if (data := _market_bundle(data_loader)) is None:
             return
         with st.spinner("Replaying the confirmed inputs and independently checking the results"):
@@ -312,21 +339,38 @@ def _run_comparison(data_loader, options, profile, include_2023, cap, intent, *,
             except ValueError as exc:
                 st.warning(str(exc))
                 return
-        st.session_state.assistant_comparison = saved = (signature, report)
+        st.session_state.assistant_comparison = (signature, report)
+        st.rerun()
     if saved:
         render_allocation_result(saved[1], profile, intent=intent, request_sources=request_sources, replay_context=replay_context)
 
 
 def render_assistant(data_loader, trade_entry):
-    with st.container(key="assistant-question", border=True):
-        with st.form("assistant_question_form"):
+    current_question = st.session_state.get("assistant_question", "").strip()
+    show_result = bool(
+        current_question and current_question == st.session_state.get("assistant_last_question")
+        and (_has_replay_result() or st.session_state.get("request_confirmed"))
+    )
+    if not show_result:
+        intro_class = "assistant-intro assistant-intro--compact" if current_question else "assistant-intro"
+        st.html(f'<header class="{intro_class}"><h1>What would you like to analyze?</h1>'
+                '<p>Test an investment idea with historical market data.</p></header>')
+    with st.container(key="assistant-question"):
+        editor = nullcontext()
+        if show_result:
+            with st.container(key="assistant-result-actions"):
+                edit, reset = st.columns((4, 1), gap="small", vertical_alignment="center")
+                editor = edit.expander("Edit investment question")
+                reset.button("New question", on_click=_clear_question, width="stretch")
+        with editor, st.form("assistant_question_form"):
             question = _assistant_question()
-            local, cloud = st.columns(2)
-            interpret = local.form_submit_button("Interpret question", type="primary")
-            use_model = cloud.form_submit_button(
-                "Interpret with Amazon Bedrock",
-                help="Sends the submitted fictional question to the configured AWS model.",
-            )
+            with st.container(key="assistant-question-actions"):
+                actions, submit = st.columns((2, 1), gap="small", vertical_alignment="center")
+                interpret = submit.form_submit_button("Interpret question", type="primary", width="stretch")
+                with actions, st.popover("Options", help="Question interpretation settings"):
+                    st.caption("Bedrock sends this fictional question to the configured AWS model.")
+                    use_model = st.form_submit_button("Interpret with Amazon Bedrock")
+            st.caption("English · Fictional scenarios only")
         if question != st.session_state.get("assistant_last_question"):
             clear_assistant_result()
             st.session_state.pop("assistant_question_draft", None)
@@ -334,11 +378,16 @@ def render_assistant(data_loader, trade_entry):
         if question:
             saved = (_question_draft(question, data_loader, use_model=use_model) if interpret or use_model
                      else st.session_state.get("assistant_question_draft"))
-        else:
-            if interpret or use_model:
-                st.warning(ENGLISH_QUESTION_MESSAGE)
+    if question and saved and not show_result:
+        with st.container(key="assistant-new-question"):
+            st.button("New question", on_click=_clear_question, type="tertiary")
+    elif not question:
+        if interpret or use_model:
+            st.warning(ENGLISH_QUESTION_MESSAGE)
+        _starter_actions()
+        with st.container(key="assistant-manual"), st.expander("Enter inputs directly"):
             task = st.selectbox("Analysis task", tuple(TASKS), format_func=TASKS.__getitem__, index=None,
-                                placeholder="Choose a task to enter inputs directly", key="assistant_task")
+                                placeholder="Choose a task", key="assistant_task")
     if question:
         _render_question_answer(question, saved, data_loader, trade_entry)
         return

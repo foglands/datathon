@@ -209,3 +209,20 @@ class InvestmentAssistantTests(unittest.TestCase):
         self.click("Interpret question")
         self.assertTrue(any("missing for VTI" in item.value for item in self.app.warning))
         self.assertFalse(any("portfolio replay" in item.label for item in self.app.button))
+
+
+    def test_starter_fills_an_editable_question_and_new_question_clears_result(self):
+        with patch("datathon.streamlit_assistant._market_bundle") as market:
+            self.click("Compare two funds")
+        market.assert_not_called()
+        self.assertIn("AGG and GLD", self.app.text_area(key="assistant_question").value)
+        self.assertNotIn("assistant_question_draft", self.app.session_state)
+
+        self.click("Interpret question")
+        self.click("Confirm inputs and compare")
+        self.assertIn("assistant_comparison", self.app.session_state)
+        self.assertTrue(self.app.get("download_button"))
+        self.click("New question")
+        self.assertEqual(self.app.text_area(key="assistant_question").value, "")
+        self.assertNotIn("assistant_comparison", self.app.session_state)
+        self.assertFalse(self.app.get("download_button"))

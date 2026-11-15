@@ -2,6 +2,12 @@
 
 PolyFinances Datathon 2026 · Montréal
 
+## Assistant interface refresh
+
+The home screen has one question composer, editable starter questions, and separate controls for model use and direct entry. The comparison, portfolio replay, and trade audit emphasize the decision, key figures, and historical chart. Input review, evidence, and agent activity remain available from the result.
+
+Browser checks covered the home screen, starter questions, a verified allocation replay, a drawdown-bound comparison, and a reference audit with its download control. The comparison and reference screens fit a 390-pixel viewport without page-wide horizontal overflow. The Bedrock action was present under **Options**. All 317 regression tests and six offline CLI checks passed with the organizer data. No live AWS call was part of this UI check.
+
 ## Single-allocation replay and balance clarification
 
 A local browser run recognized one weighted portfolio and detected conflicting cash balances. The allocation summary used issuer disclosures to identify the documented benchmark weights. The organizer archive had no VOO or IVV prices for the selected windows. After explicit approval of both substitutions, the independently reviewed illustrative replay used 75% SPY and 25% QQQ. It showed a 23.7931% maximum drawdown in the 2022 window and 20.1763% in the early-2025 window. These figures apply to the proxy portfolio in CAD. Exact results for the requested funds require their own price series.
