@@ -4,6 +4,16 @@ PolyFinances Datathon 2026 · Banque Nationale · AWS
 
 AlphaForge AI shows how the funding source for a proposed trade changes a portfolio's risk and its fit with an investor's stated constraints. The prototype compares the original portfolio, the requested trade and feasible alternatives. It reports which rule drove the decision and which conclusions still depend on missing evidence.
 
+## Choose the scope of the audit
+
+- **Original proposal.** The interactive flow checks the proposed trade and confirmed limits. Alternative funding search requires a separate opt-in.
+- **Alternative funding.** An explicit search checks whether an authorized funding mix can support the full requested purchase. When a positive smaller purchase may help, the application asks before expanding an undecided size scope.
+- **Limited review.** When a binding condition is unsupported, the investor can confirm a review of the supported parts of the original proposal. The report records which condition remains unassessed and limits the conclusion to the work performed.
+
+Both flows use independent numerical review. The published report distinguishes completed checks, proven violations, unresolved evidence, and steps skipped outside the confirmed scope.
+
+Select **Include equity sector analysis** to describe the potential change based on the approved GICS sector evidence. The view shows unmapped weight and the effect of using the same unknown holdings on both sides of the transaction. [Sector evidence and limitations](SECTOR_EVIDENCE.md)
+
 The command-line demo uses a fictional CAD portfolio holding 35% SPY, 25% XIU.TO, 20% QQQ and 20% ZST.TO. The presets add **10 percentage points of NVDA**. An interactive AWS run accepts a new simulated NVDA purchase, confirms the proposed sale and constraints with the user, then searches within the confirmed funding sources and purchase-size rules. [Changelog](CHANGELOG.md)
 
 ## Competition package

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-14 · User-authorized audits and checked publication
+
+- Audit the submitted trade by default. Run the funding solver, candidate tools and independent frontier checks only for a separately authorized search.
+- Defer a smaller-size question until the full-size search and independent review establish that a positive smaller trade can help.
+- Preserve unassessed binding terms and show them alongside checked results. A limited review stops at the original trade.
+- Publish independently reviewed numbers, deterministic explanations and safe trace identifiers. Withhold injected or unverified conclusions.
+- Support optional equity-sector comparisons with dated evidence and shared uncertainty before and after the proposed trade. Keep sector caps outside the funding solver until they have independent verification.
+
 ## 2026-11-14 · Evidence integrity and bounded execution
 
 - Check each archived replay calendar in both the funding solver and independent review. Withhold a funding result when expected trading sessions are missing.

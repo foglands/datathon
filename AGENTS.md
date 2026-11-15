@@ -11,6 +11,12 @@ The official release contains the English and French 19-page case briefs, the En
 - The user aims to win an award. Design the prototype and pitch around what the judges can verify against the rubric. Show a specific, evidence-backed financial insight, the investor constraint that changes the decision, the distinct contribution of each agent, and the concrete AWS operation. Use the same case across the prototype, video, technical documentation and one-pager.
 - Treat the organizer's latest written instructions as authoritative. This file records the kickoff materials and earlier project discussions. Update it when a newer organizer instruction clarifies a rule or deadline. Distinguish organizer requirements, prior preparation, and implementation choices.
 
+### Workflow acceptance
+
+- Tests for an original-proposal request should verify that Profile does not require approval for a smaller purchase and no funding solver runs. Any alternative search requires independent confirmation of the search scope.
+- Exercise the same trade with an explicit search request, an unsupported binding condition and an injected calculation error. Compare checked findings and release status across the runs.
+- Keep estimates separate from verified facts. Sector analysis should expose its source classification, coverage and unknown weight. Enforcing a sector cap also requires solver support and independent verification.
+
 ## Challenge and constraints
 
 - Build an explainable agentic decision aid for investment using public financial data. Possible use cases include comparing assets, analyzing scenarios, explaining risks, proposing a hypothetical allocation, or another defensible aid. The asset universe, tools, models and most architecture choices are open.

@@ -2,6 +2,32 @@
 
 PolyFinances Datathon 2026 · verified November 14, Montréal
 
+## Authorized audit and checked publication
+
+Application commit [`186cdcf`](https://github.com/WindsTrace/datathon-prep/commit/186cdcfc66d0c15f163fcdeb1f16dfd40eff4353) applies the feedback on request scope and publication. A clean checkout passed **165/165 tests** with the full organizer ZIP. The six reference CLI scenarios passed both offline and on competition AWS.
+
+| Check | Observation |
+| --- | --- |
+| Original proposal only | Returned the verified violation in the Robert fixture. The solver and independent frontier had **zero calls** offline and on AWS. |
+| Authorized full-size search | Called the solver once. Independent review found a full-size alternative under the permitted sources. |
+| Limited review with unassessed ESG | Preserved the verified violation and the unassessed binding term. The solver was skipped and the published scope was limited. |
+| Smaller size authorization | The exact-size ZST.TO search found no full-size solution. The first response showed the authorization question and withheld the smaller allocation. After authorization, independent review verified 5.00 percentage points. |
+| Follow-up and publication | Original-only and limited replays preserved scope in the local acceptance matrix. Injecting an incorrect metric blocked the published result. |
+| Optional sector report | Dated and partial equity-sector evidence supports a change of **+8.37 to +10.00 percentage points** in Information Technology exposure in the 10-point ZST.TO-funded NVDA case. The report does not apply a sector cap. [Source conditions](../SECTOR_EVIDENCE.md) |
+
+The independent matrix passed **8/8** locally, and its six live cases passed in competition CloudShell. The two additional live Profile probes accepted the original-only language and preserved the binding ESG requirement. In the matched Robert live sample, the original-only path took **3** Bedrock requests and the explicitly authorized search took **4**. These counts describe one matched execution, separate from the pressure tests below.
+
+The prior mixed, bilingual and issuer Profile cohorts were each rerun once on Amazon Bedrock and matched **10/10**, **6/6** and **3/3**. None emitted a premature policy. These are scoped regression results on the stated examples.
+
+With the existing Python environment and data, run the local regression matrix and request entry tests.
+
+```bash
+python -m unittest tests.test_audit_intent tests.test_request_entry \
+  tests.test_app tests.test_publication tests.test_requirement_status tests.test_sector -q
+```
+
+In Streamlit choose **Write a request** for the new flow. Leave **Search alternative funding** off for an original-only audit. Turn it on to authorize a search, confirm the allowed sources and leave the smaller-size choice undecided to test the deferred question. Choose the limited review option to preserve a binding requirement that cannot currently be assessed. The existing video shows the earlier reference comparison.
+
 ## Optimized application
 
 The optimized application is [`0c39d08`](https://github.com/WindsTrace/datathon-prep/commit/0c39d080edc7c050186df1ebea43e14c8473471e). Performance and structured UI measurements use its parent [`897f0b2`](https://github.com/WindsTrace/datathon-prep/commit/897f0b29e557fb35709a80fb0df56dfc546af80e). The final application commit adds the total-issuer-exposure Profile correction. Results for the separately recorded demo appear under **Earlier package and evidence**.
