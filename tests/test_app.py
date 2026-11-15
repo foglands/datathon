@@ -14,6 +14,7 @@ except ModuleNotFoundError as exc:
     AppTest = None
 
 from datathon.agents import AgentRun, StrandsAgents
+from datathon.finance import solve_funding
 from datathon.workflow import examples, preset_profile
 from tests.test_issuer_reaudit import configured_catalog, synthetic_disclosure
 from tests.test_tool_routing import select_tool_arguments
@@ -61,6 +62,7 @@ class PortfolioAppTests(unittest.TestCase):
 
     def compare(self, scenario):
         self.select("selectbox", "Scenario", scenario)
+        self.select("checkbox", SEARCH, True)
         self.assertNotIn("preset_result", self.app.session_state)
         self.assertFalse(self.has_button(COMPARE))
         self.click(CONFIRM)
@@ -69,6 +71,38 @@ class PortfolioAppTests(unittest.TestCase):
         self.click(COMPARE)
         self.assertGreaterEqual(len(self.app.tabs), 2)
         return self.app.session_state["preset_result"], self.app.session_state["comparison_result"]
+
+    def test_reference_search_requires_explicit_consent_and_invalidates_the_previous_report(self):
+        self.assertFalse(self.widget("checkbox", SEARCH).value)
+        with patch("datathon.workflow.solve_funding", wraps=solve_funding) as solver:
+            self.click(CONFIRM)
+            report = self.app.session_state["preset_result"]
+            self.assertFalse(report["search_alternatives"])
+            self.assertNotIn("alternatives", report)
+            self.assertNotIn("frontier", report["audit"]["verified"])
+            self.assertTrue(any(event.get("role") == "alternatives" and event.get("event") == "stage_skipped"
+                                for event in report["trace"]))
+            solver.assert_not_called()
+
+            self.select("checkbox", SEARCH, True)
+            self.assertNotIn("preset_result", self.app.session_state)
+            solver.assert_not_called()
+            self.click(CONFIRM)
+            report = self.app.session_state["preset_result"]
+            self.assertTrue(report["search_alternatives"])
+            self.assertIn("alternatives", report)
+            solver.assert_called_once()
+
+            self.select("checkbox", SEARCH, False)
+            self.assertNotIn("preset_result", self.app.session_state)
+            self.click(CONFIRM)
+            self.assertFalse(self.app.session_state["preset_result"]["search_alternatives"])
+            solver.assert_called_once()
+
+    def test_purchase_size_comparison_requires_search_consent(self):
+        self.select("selectbox", "Scenario", "Robert · purchase size")
+        self.click(CONFIRM)
+        self.assertFalse(self.has_button(COMPARE))
 
     def test_loss_metric_changes_full_feasibility(self):
         original, changed = self.compare("Robert · loss definition")
@@ -106,6 +140,7 @@ class PortfolioAppTests(unittest.TestCase):
 
     def test_amira_displays_a_breach_and_withholds_an_unresolved_alternative(self):
         self.select("selectbox", "Scenario", "Amira · issuer exposure")
+        self.select("checkbox", SEARCH, True)
         self.click(CONFIRM)
         report = self.app.session_state["preset_result"]
         self.assertEqual(report["status"], "fail")
@@ -116,6 +151,7 @@ class PortfolioAppTests(unittest.TestCase):
         self.assertTrue(any("Maximum drawdown" in table.value.columns for table in self.app.table))
 
     def test_counterfactual_keeps_the_original_audited_policy(self):
+        self.select("checkbox", SEARCH, True)
         self.click(CONFIRM)
         original = self.app.session_state["preset_result"]
         self.select("selectbox", "Check to run", "toggle_loss_metric")
@@ -129,6 +165,7 @@ class PortfolioAppTests(unittest.TestCase):
         self.assertTrue(any("One hypothetical change" in item.value for item in self.app.markdown))
 
     def test_reserve_challenge_accepts_one_explicit_precision_threshold(self):
+        self.select("checkbox", SEARCH, True)
         self.click(CONFIRM)
         original = self.app.session_state["preset_result"]
         self.select("selectbox", "Check to run", "tighten_reserve_floor")
@@ -145,6 +182,7 @@ class PortfolioAppTests(unittest.TestCase):
 
     def test_amira_challenge_names_the_remaining_evidence_and_headroom(self):
         self.select("selectbox", "Scenario", "Amira · issuer exposure")
+        self.select("checkbox", SEARCH, True)
         self.click(CONFIRM)
         self.click("Check once")
 
@@ -159,6 +197,7 @@ class PortfolioAppTests(unittest.TestCase):
             records = [synthetic_disclosure("xiu", "XIU.TO"), synthetic_disclosure("zst", "ZST.TO")]
             with configured_catalog(Path(folder) / "catalog.json", records):
                 self.select("selectbox", "Scenario", "Amira · issuer exposure")
+                self.select("checkbox", SEARCH, True)
                 self.click(CONFIRM)
                 original = self.app.session_state["preset_result"]
                 self.select("selectbox", "Check to run", "request_issuer_evidence")
