@@ -66,6 +66,38 @@ def _source_url(value):
 
 
 @dataclass(frozen=True)
+class _NonEquityAmounts:
+    """Same-date fair value and net assets displayed in one currency unit."""
+
+    fair_value: int
+    net_assets: int
+    display_unit: int
+    currency: str
+
+    def __post_init__(self):
+        if (type(self.fair_value) is not int or type(self.net_assets) is not int
+                or not 0 <= self.fair_value <= self.net_assets or self.net_assets <= 0
+                or type(self.display_unit) is not int or self.display_unit <= 0
+                or not isinstance(self.currency, str) or len(self.currency) != 3
+                or not self.currency.isascii() or not self.currency.isalpha() or not self.currency.isupper()):
+            raise ValueError("Invalid disclosed fair value, net assets or display unit.")
+
+    def lower_fraction(self):
+        # Allow one full reported unit on each side, including if the issuer truncated.
+        return max(0, self.fair_value - 1) / (self.net_assets + 1)
+
+    def provenance(self):
+        return {
+            "method": "fair_value_nav_display_envelope",
+            "formula": "max(0, reported_fair_value - 1) / (reported_net_assets + 1)",
+            "reported_fair_value": self.fair_value,
+            "reported_net_assets": self.net_assets,
+            "display_unit": self.display_unit,
+            "currency": self.currency,
+        }
+
+
+@dataclass(frozen=True)
 class _SectorEvidence:
     ticker: str
     taxonomy: str
@@ -78,6 +110,7 @@ class _SectorEvidence:
     weights: Mapping[str, float]
     non_equity_min: float = 0.0
     equity_fraction: float | None = None
+    non_equity_amounts: _NonEquityAmounts | None = None
 
     def __post_init__(self):
         labels = (self.ticker, self.taxonomy, self.version, self.source_locator)
@@ -89,13 +122,20 @@ class _SectorEvidence:
                 or not _fraction(self.non_equity_min)):
             raise ValueError("Invalid sector evidence record.")
         total = fsum(self.weights.values())
+        if isinstance(self.non_equity_amounts, Mapping):
+            object.__setattr__(self, "non_equity_amounts", _NonEquityAmounts(**self.non_equity_amounts))
+        if self.non_equity_amounts is not None and (
+            self.denominator != "nav" or self.non_equity_min
+            or not isinstance(self.non_equity_amounts, _NonEquityAmounts)
+        ):
+            raise ValueError("A non-equity derivation needs one disclosed NAV basis.")
         if self.denominator == "equity_sleeve":
             if not _fraction(self.equity_fraction) or self.non_equity_min > 1 - self.equity_fraction + _EPS:
                 raise ValueError("Equity-sleeve weights need an independently evidenced equity fraction.")
             if total > 1 + _EPS:
                 raise ValueError("Reported equity-sleeve weights exceed 100%.")
         elif self.denominator == "nav":
-            if self.equity_fraction is not None or total + self.non_equity_min > 1 + _EPS:
+            if self.equity_fraction is not None or total + self.non_equity() > 1 + _EPS:
                 raise ValueError("Reported NAV weights and non-equity lower bound exceed the allowed total.")
         elif self.denominator == "position":
             if (self.equity_fraction is not None or self.non_equity_min != 0
@@ -110,12 +150,18 @@ class _SectorEvidence:
         return {name: weight * scale for name, weight in self.weights.items()}
 
     def non_equity(self):
-        return 1 - self.equity_fraction if self.denominator == "equity_sleeve" else self.non_equity_min
+        if self.denominator == "equity_sleeve":
+            return 1 - self.equity_fraction
+        return self.non_equity_amounts.lower_fraction() if self.non_equity_amounts else 0.0
+
+    def non_equity_provenance(self):
+        if self.non_equity_amounts is not None:
+            return self.non_equity_amounts.provenance()
+        if self.denominator == "nav" and self.non_equity_min:
+            return {"method": "unverified_scalar", "status": "unknown"}
+        return None
 
 
-# Exchange-traded fund exposure differs from the issuer concentration analysis.
-# BMO reports 83.8% in its disclosed debt positions. Use 83.7% of NAV as a
-# lower bound to leave room for published percentage rounding.
 _REFERENCE = (
     _SectorEvidence(
         "NVDA", *_DEFAULT_TAXONOMY, "2026-10-30", REFERENCE_DATE,
@@ -124,10 +170,11 @@ _REFERENCE = (
         "position", {"Information Technology": 1.0},
     ),
     _SectorEvidence(
-        "ZST.TO", *_DEFAULT_TAXONOMY, "2026-06-30", REFERENCE_DATE,
-        "https://bmo.bynder.com/m/649f11fac077a423/original/SA_MRFP_ZST_E.pdf",
-        "June 30, 2026 Summary of Investment Portfolio, Top 25 holdings and NAV total, PDF pp. 4–5",
-        "nav", {}, non_equity_min=.837,
+        "ZST.TO", *_DEFAULT_TAXONOMY, "2026-06-30", "2026-08-28",
+        "https://newsfile.futunn.com/public/NN-PersistNoticeAttachment/7781/20260828/"
+        "911_CSA_SEDAR_PLUS_NOTICE_RECORD_ID_2494089_en-us_0.pdf",
+        "BMO Interim Financial Statements, Schedule of Investment Portfolio, PDF pp. 5–6, fair value and net assets",
+        "nav", {}, non_equity_amounts=_NonEquityAmounts(4_144_027, 4_158_550, 1_000, "CAD"),
     ),
 )
 
@@ -238,6 +285,7 @@ def sector_analysis(
             "as_of": row.as_of, "available_by": row.available_by, "url": row.source_url,
             "locator": row.source_locator, "source_denominator": row.denominator,
             "sector_nav_lower": disclosed[ticker], "non_equity_nav_lower": non_equity[ticker],
+            **({"non_equity_derivation": derivation} if (derivation := row.non_equity_provenance()) else {}),
         } for ticker, row in sorted(evidence.items())},
         "ignored": ignored,
     }

@@ -88,7 +88,7 @@ class PublicationTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(AUDIT_SNAPSHOT_KEY, json.dumps(original))
         self.assertIn("market_data", original["publication"]["versions"]["inputs"])
 
-        with patch("datathon.review_snapshot.POLICY_VERSION", "portfolio-audit-v2"):
+        with patch("datathon.review_snapshot.POLICY_VERSION", "future-policy-version"):
             for source in (report, original):
                 self.assertEqual(publish_report(source)["publication"]["status"], "blocked")
 

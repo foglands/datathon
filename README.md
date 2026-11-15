@@ -63,7 +63,9 @@ python -m datathon.resilience_benchmark --data "$DATA" --repeats 2 --report outp
 
 The profile establishes the simulation rules before Evidence runs. Exposure, when required, runs alongside Scenario. Alternatives runs after separate search authorization. Review runs before publication. In AWS mode Strands on Amazon Bedrock interprets requests and selects typed tools and arguments. Python validates the evidence set, snapshot date, loss metric and windows. If either routed agent fails to produce a usable result, Python applies the confirmed policy and the report identifies the fallback. Use **Agent activity and AWS trace** to see accepted arguments, rejections, skipped roles and fallbacks. [Routing and verification](https://github.com/WindsTrace/datathon-prep/issues/2)
 
-Python owns derived values, rule verdicts and published explanations. Review rebuilds CAD prices from frozen closes and same-date USD/CAD observations before verifying risk metrics. Sector and issuer exposure changes have their own independent checks and publication status. The report binds verified values to the audit inputs, method versions and a review identifier. Reported risk is conditional on the historical paths used in the audit.
+Python owns derived values, rule verdicts and published explanations. Free-text amounts are tied to the applicable source wording and units, or explicitly entered before confirmation. Review rebuilds CAD prices from frozen closes and same-date USD/CAD observations before verifying risk metrics. Sector and issuer exposure changes have their own independent checks and publication status.
+
+Open **Metric values and provenance** to inspect the verified value, method, denominator and review identifier. Download the audit JSON for the same metric references and for the calendar coverage, missing observations and historical scope. Reported risk is conditional on the paths used in the audit.
 
 ## Data and scope
 

@@ -6,6 +6,7 @@ from copy import deepcopy
 
 from .counterfactual import _comparison, _issuer_thresholds, _summary
 from .finance import STRESS_WINDOWS
+from .metric_records import audit_metric_records, challenge_metric_records, verified_rule_margins
 from .review_snapshot import (
     AUDIT_SNAPSHOT_KEY, OPTIONAL_SECTIONS, audit_snapshot, counterfactual_snapshot_matches,
     fingerprint, review_versions_match, reviewed_section,
@@ -118,6 +119,27 @@ def _scenarios(verified):
     return result
 
 
+def _attach_scope_and_metrics(report):
+    evidence = report.get("evidence", {})
+    window_ids = evidence.get("windows", ())
+    report["scope_notes"] = {
+        "calculation_verification": report["publication"]["section_verification"]["main_audit"],
+        "applied_scope": {
+            "valuation_basis": evidence.get("basis"),
+            "historical_replay": "buy_and_hold",
+            "windows": [{"id": identifier, "start": _WINDOWS[identifier].start, "end": _WINDOWS[identifier].end}
+                        for identifier in window_ids if identifier in _WINDOWS],
+            "excluded_effects": ["fees", "taxes", "intraday_moves"],
+        },
+        "future_risk_questions": [
+            "Probability of a future loss or policy breach",
+            "How large a future loss could be",
+            "How the portfolio behaves on price paths outside the tested windows",
+        ],
+    }
+    report["metric_records"] = audit_metric_records(report)
+
+
 def _blocked_report(report, status, reason):
     out = _pick(report, {"case", "mode", "elapsed_ms", "runtime_usage"})
     out.update(
@@ -139,6 +161,7 @@ def _blocked_report(report, status, reason):
         },
     )
     out["explanation"] = _explanation(out, {})
+    _attach_scope_and_metrics(out)
     return _PublicProjection(out, kind="report", sections=OPTIONAL_SECTIONS)
 
 
@@ -149,18 +172,22 @@ def _project_again(report):
     if versions is not None and not review_versions_match(versions):
         return _blocked_report(report, "invalid", "review_snapshot_mismatch")
     out = deepcopy(dict(report))
+    section_withheld = False
     for name, digest in report.section_digests.items():
         try:
             unchanged = digest == fingerprint(_pick(out, (name,)))
         except (TypeError, ValueError):
             unchanged = False
         if not unchanged:
+            section_withheld = True
             out.pop(name, None)
             publication = out["publication"]
             publication["section_verification"][name] = "invalid"
             publication.setdefault("section_reasons", {})[name] = "reviewed_section_changed"
             if publication["status"] == "released":
                 publication["status"] = "limited"
+    if section_withheld:
+        _attach_scope_and_metrics(out)
     return _PublicProjection(out, kind="report", sections=OPTIONAL_SECTIONS)
 
 
@@ -258,7 +285,10 @@ def publish_report(report):
     fields = _FINDING_FIELDS if reviewed else {"metric_id", "status"}
     out["audit"] = {"status": out["status"], "decision_reason": out["decision_reason"], "verified": verified,
                     "findings": [_pick(row, fields) for row in findings]}
+    if reviewed:
+        out["audit"]["rule_margins"] = verified_rule_margins(out["audit"]["findings"])
     out["explanation"] = _explanation(out, verified)
+    _attach_scope_and_metrics(out)
     return _PublicProjection(out, kind="report", sections=OPTIONAL_SECTIONS)
 
 
@@ -273,6 +303,7 @@ def _blocked_check(check, baseline=None):
         "action": None,
         "trace": _trace(check.get("trace", ())),
         "comparison": {"baseline": None, "replay": None, "differences": {}, "material_differences": []},
+        "metric_records": {},
     }, kind="check")
 
 
@@ -321,4 +352,5 @@ def publish_check(check):
             out["comparison"][leg] = _pick(summary, summary.keys() - hidden)
     if out["comparison"]["baseline"] and out["comparison"]["replay"]:
         out["comparison"] = _comparison(out["comparison"]["baseline"], out["comparison"]["replay"])
+    out["metric_records"] = challenge_metric_records(out)
     return _PublicProjection(out, kind="check")

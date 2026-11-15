@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-15 · Complete the risk reliability acceptance checks
+
+- Bind free-text limits to the user's applicable clause, unit and rule. Request a correction or explicit entry when a binding amount cannot be verified, and record the origin of each confirmed input.
+- Index published metrics by stable reference. Expose formula versions, units, denominators, evidence and review identity without duplicating financial values.
+- Export the covered historical dates, documented exclusions, missing observations and consecutive gaps. Separate formula verification, historical scope and unanswered future risk questions.
+- Derive the ZST.TO non-equity lower bound from disclosed fair value and NAV with a conservative display-precision adjustment. Leave unsupported exposure unmapped.
+- Add independently expected path, scale, signed-contribution and strict-threshold cases, plus intake, provenance and coverage regressions.
+
 ## 2026-11-15 · Formula-based risk and verified publication
 
 - Limit model roles to interpreting requests and selecting allowed tools or follow-up checks. Generate public risk numbers, rule verdicts and explanations in Python.

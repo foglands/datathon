@@ -47,9 +47,19 @@ class ExposureReviewTests(unittest.TestCase):
         self.assertEqual(result["status"], "verified")
         self.assertIsNot(result["verified"], claimed)
         verified = result["verified"]["sectors"]["Information Technology"]
-        self.assertEqual(verified["after"], {"lower": 0.10, "upper": 0.9163})
-        self.assertEqual(verified["change"], {"lower": 0.0837, "upper": 0.10})
-        self.assertEqual(result["verified"]["unmapped"]["after"], 0.8163)
+        self.assertEqual(verified["after"], {"lower": 0.10, "upper": 0.9003492803142248})
+        self.assertEqual(verified["change"], {"lower": 0.09965071968577517, "upper": 0.10})
+        self.assertEqual(result["verified"]["unmapped"]["after"], 0.8003492803142248)
+        evidence = result["verified"]["evidence"]["ZST.TO"]
+        self.assertEqual(evidence["non_equity_nav_lower"], 0.9965071968577517)
+        self.assertEqual(evidence["non_equity_derivation"], {
+            "method": "fair_value_nav_display_envelope",
+            "formula": "max(0, reported_fair_value - 1) / (reported_net_assets + 1)",
+            "reported_fair_value": 4_144_027,
+            "reported_net_assets": 4_158_550,
+            "display_unit": 1_000,
+            "currency": "CAD",
+        })
 
     def test_checks_equity_sleeve_denominator_and_keeps_one_catalog(self):
         path = self.set_catalog()
@@ -79,6 +89,8 @@ class ExposureReviewTests(unittest.TestCase):
             (("taxonomy", "version"), "unverified"),
             (("unmapped", "after"), 0.10),
             (("evidence", "ZST.TO", "as_of"), "2026-11-15"),
+            (("evidence", "ZST.TO", "non_equity_derivation", "reported_net_assets"), 4_000_000),
+            (("evidence", "ZST.TO", "non_equity_derivation", "display_unit"), 1),
         ):
             with self.subTest(path=path):
                 candidate = deepcopy(original)

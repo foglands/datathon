@@ -17,7 +17,10 @@ from datathon.runtime_budget import (
     CHALLENGE_LIMITS, PROFILE_LIMITS, RuntimeBudgetExceeded, bound_audit, run_bounded, run_sync_action,
 )
 from datathon.scope import EXTRA_WINDOW, OBJECTIVES, WITHDRAWAL_TIMES, ReplayScope
-from datathon.workflow import Case, examples, interpret_request, preset_profile, profile_policy, run_case
+from datathon.workflow import (
+    NUMERIC_POLICY_LABELS, Case, examples, interpret_request, numeric_input_provenance, preset_profile, profile_policy,
+    run_case,
+)
 
 
 METRICS = {"terminal_loss": "Terminal loss", "max_drawdown": "Maximum drawdown"}
@@ -347,6 +350,7 @@ def edit_profile(draft, run_id, *, manual=False, search_alternatives):
     loss_cap = st.checkbox(
         "Apply a historical loss cap",
         value=initial.get("limit_bps") is not None or initial.get("metric") is not None
+              or "limit_bps" in initial.get("unverified_numeric_fields", ())
               or initial.get("clarification_field") in {"loss_metric", "loss_limit"},
         key=f"{run_id}-apply_loss_cap",
     )
@@ -510,6 +514,12 @@ def live_request():
         st.session_state.pop("request_confirmed", None)
         st.warning(scope_error)
         return
+    pending = [NUMERIC_POLICY_LABELS[field] for field in draft.data.get("unverified_numeric_fields", ())
+               if field in NUMERIC_POLICY_LABELS and edited.get(field) is None]
+    if pending:
+        st.session_state.pop("request_confirmed", None)
+        st.caption("Enter each unverified value before confirming the audit: " + ", ".join(pending) + ".")
+        return
     if loss_cap and (edited["metric"] is None or edited["limit_bps"] is None):
         st.session_state.pop("request_confirmed", None)
         st.caption("Select a loss definition and enter the cap before confirming.")
@@ -523,6 +533,10 @@ def live_request():
     basis = (run_id, key)
     scope_widget_key = f"{run_id}-complete-{key!r}"
     body = {**edited, "status": "ok", "summary": "User confirmed the simulated audit inputs.", "evidence_ids": []}
+    body["numeric_input_sources"] = numeric_input_provenance(
+        body, manually_entered=NUMERIC_POLICY_LABELS if manual else changes,
+        source_excerpts=draft.data.get("source_excerpts", {}),
+    )
     if unassessed:
         body["unassessed_requirements"] = unassessed
     if search_alternatives and st.session_state.get("request_resize_choice") == basis:

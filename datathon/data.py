@@ -15,6 +15,8 @@ from hashlib import sha256
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Iterable
 
+from .market_calendar import STARTER_CALENDAR_ASSETS, starter_calendar_coverage
+
 if TYPE_CHECKING:
     from .finance import StressWindow
 
@@ -227,6 +229,74 @@ def _matches_reference(value, reference):
             and math.isfinite(expected) and expected > 0 and abs(value - expected) <= 4 * math.ulp(expected))
 
 
+def _raw_price_fx(source, tickers, windows):
+    first = min(window.start for window in windows)
+    last = max(window.end for window in windows)
+    raw_fx = {}
+    raw_prices = {ticker: {} for ticker in tickers}
+    for row in _csv_rows(source["fx_usdcad_daily.csv"], {"date", "usdcad"}):
+        day = date.fromisoformat(row["date"]).isoformat()
+        if first <= day <= last:
+            raw_fx[day] = Decimal(row["usdcad"])
+    for row in _csv_rows(source["prices_daily.csv"], {"ticker", "date", "adj_close", "currency"}):
+        ticker = row["ticker"]
+        if ticker in raw_prices:
+            day = date.fromisoformat(row["date"]).isoformat()
+            if first <= day <= last:
+                raw_prices[ticker][day] = (Decimal(row["adj_close"]), row["currency"])
+    return raw_prices, raw_fx
+
+
+def _common_price_days(prices, tickers):
+    return set.intersection(*(set(prices.get(ticker, {})) for ticker in tickers))
+
+
+def _market_windows(data, tickers, windows, *, raw_prices=None, raw_fx=None):
+    converted_price_dates = _common_price_days(data.prices, tickers)
+    converted_fixing_dates = set(data.fx)
+    converted_days = converted_price_dates & converted_fixing_dates
+    source_price_dates = _common_price_days(raw_prices, tickers) if raw_prices is not None else None
+    fixing_dates = converted_fixing_dates if raw_fx is None else converted_fixing_dates.intersection(raw_fx)
+    price_dates = converted_price_dates if source_price_dates is None else source_price_dates
+    missing_fx = price_dates - fixing_dates
+    applicable = data.official_starter and set(tickers) <= STARTER_CALENDAR_ASSETS
+    report = {}
+    for window in windows:
+        aligned = {day for day in converted_days if window.start <= day <= window.end}
+        report[window.id] = {
+            "start": window.start,
+            "end": window.end,
+            "observations": len(aligned),
+            "price_observations": len(aligned) * len(tickers),
+            "missing_fx_dates": sorted(day for day in missing_fx if window.start <= day <= window.end),
+            "coverage": starter_calendar_coverage(
+                window.start, window.end, aligned, applicable=applicable,
+                price_dates=source_price_dates, fixing_dates=fixing_dates,
+                converted_price_dates=converted_price_dates,
+            ),
+        }
+    return report
+
+
+def describe_market_coverage(data: MarketData, *, tickers: Iterable[str], windows: Iterable[StressWindow]) -> dict:
+    """Describe source gaps for an unavailable replay without marking its prices as verified."""
+    tickers = tuple(sorted(set(tickers)))
+    windows = tuple(windows)
+    raw_prices = raw_fx = None
+    source = dict(data.source_csvs)
+    if tickers and windows and set(source) == set(DATA_CSVS):
+        try:
+            raw_prices, raw_fx = _raw_price_fx(source, tickers, windows)
+        except (ValueError, TypeError, DecimalException):
+            pass
+    return {
+        "status": "coverage_diagnostic",
+        "basis": "CAD",
+        "windows": _market_windows(data, tickers, windows, raw_prices=raw_prices, raw_fx=raw_fx)
+        if tickers else {},
+    }
+
+
 def verify_cad_conversion(data: MarketData, *, tickers: Iterable[str], windows: Iterable[StressWindow]) -> dict:
     """Independently rebuild the selected CAD closes from the frozen source CSVs."""
     if not data.source_csvs:
@@ -242,21 +312,8 @@ def verify_cad_conversion(data: MarketData, *, tickers: Iterable[str], windows: 
     if not tickers or not windows:
         raise MarketProvenanceError("Select assets and replay windows before checking CAD conversion.")
 
-    first = min(window.start for window in windows)
-    last = max(window.end for window in windows)
-    raw_fx = {}
-    raw_prices = {ticker: {} for ticker in tickers}
     try:
-        for row in _csv_rows(source["fx_usdcad_daily.csv"], {"date", "usdcad"}):
-            day = date.fromisoformat(row["date"]).isoformat()
-            if first <= day <= last:
-                raw_fx[day] = Decimal(row["usdcad"])
-        for row in _csv_rows(source["prices_daily.csv"], {"ticker", "date", "adj_close", "currency"}):
-            ticker = row["ticker"]
-            if ticker in raw_prices:
-                day = date.fromisoformat(row["date"]).isoformat()
-                if first <= day <= last:
-                    raw_prices[ticker][day] = (Decimal(row["adj_close"]), row["currency"])
+        raw_prices, raw_fx = _raw_price_fx(source, tickers, windows)
         recorded_sources = tuple(_csv_rows(source["sources_metadata.csv"], {"file", "source", "source_url", "retrieved_on"}))
     except (ValueError, TypeError, DecimalException) as exc:
         raise MarketProvenanceError("The frozen price or FX records could not be read for checking.") from exc
@@ -264,11 +321,9 @@ def verify_cad_conversion(data: MarketData, *, tickers: Iterable[str], windows: 
     if data.metadata != recorded_sources:
         raise MarketProvenanceError("The market source metadata do not match the frozen snapshot.")
 
-    raw_price_days = set.intersection(*(set(raw_prices[ticker]) for ticker in tickers))
+    raw_price_days = _common_price_days(raw_prices, tickers)
     source_days = raw_price_days.intersection(raw_fx)
-    missing_fx = raw_price_days - raw_fx.keys()
-    converted_days = set(data.fx).intersection(*(data.prices.get(ticker, {}) for ticker in tickers))
-    checked_windows = {}
+    converted_days = set(data.fx) & _common_price_days(data.prices, tickers)
     with localcontext() as context:
         context.prec = 40
         for window in windows:
@@ -288,15 +343,10 @@ def verify_cad_conversion(data: MarketData, *, tickers: Iterable[str], windows: 
                     expected = close * rate if currency == "USD" else close
                     if not _matches_reference(data.prices[ticker][day], expected):
                         raise MarketProvenanceError(f"The CAD adjusted close for {ticker} on {day} differs from its source.")
-            checked_windows[window.id] = {
-                "observations": len(source_window),
-                "price_observations": len(source_window) * len(tickers),
-                "missing_fx_dates": sorted(day for day in missing_fx if window.start <= day <= window.end),
-            }
 
     return {
         "status": "verified", "formula_id": "cad_adjusted_close", "formula_version": "1",
         "price_field": "adj_close", "fx_field": "usdcad", "basis": "CAD",
         "source_sha256": {name: sha256(source[name].encode("utf-8")).hexdigest() for name in DATA_CSVS},
-        "windows": checked_windows,
+        "windows": _market_windows(data, tickers, windows, raw_prices=raw_prices, raw_fx=raw_fx),
     }

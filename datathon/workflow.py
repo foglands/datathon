@@ -5,11 +5,12 @@ from __future__ import annotations
 import asyncio
 from copy import deepcopy
 from dataclasses import dataclass, replace
+from hashlib import sha256
 from time import perf_counter
 from typing import Literal, Optional
 
 from .agents import AgentRun, ToolSpec
-from .data import MarketProvenanceError, issuer_evidence, verify_cad_conversion
+from .data import MarketProvenanceError, describe_market_coverage, issuer_evidence, verify_cad_conversion
 from .evidence import DEFAULT_HOLDINGS_MAX_AGE_DAYS, add_issuer_disclosures, validate_issuer_snapshot
 from .exposure_review import review_issuer_change, review_sector_analysis
 from .finance import BASE_WEIGHTS, STRESS_WINDOWS, MarketEvidenceError, evaluate_portfolio, solve_funding
@@ -121,6 +122,33 @@ class RoleError(RuntimeError):
     """An agent stage did not provide the required handoff."""
 
 
+NUMERIC_POLICY_LABELS = {
+    "target_bps": "NVDA purchase size",
+    "limit_bps": "historical loss limit",
+    "reserve_floor_bps": "minimum ZST.TO weight",
+    "issuer_cap_bps": "maximum NVIDIA issuer exposure",
+}
+
+
+def numeric_input_provenance(profile, *, manually_entered=(), source_excerpts=None):
+    """Record input origins without exporting excerpts from the request."""
+    excerpts = source_excerpts if source_excerpts is not None else profile.get("source_excerpts", {})
+    sources = {}
+    for field in NUMERIC_POLICY_LABELS:
+        if profile.get(field) is None:
+            continue
+        excerpt = excerpts.get(field)
+        basis = "confirmable_input"
+        source = {}
+        if field in manually_entered:
+            basis = "user_entry"
+        elif isinstance(excerpt, str) and excerpt:
+            basis = "request_excerpt"
+            source["excerpt_sha256"] = sha256(excerpt.encode("utf-8")).hexdigest()
+        sources[field] = {"basis": basis, "value_bps": profile[field], "confirmed": True, **source}
+    return sources
+
+
 def profile_policy(profile, *, baseline=BASE_WEIGHTS, search_alternatives=True, defer_smaller_authorization=False):
     """Validate a proposed profile before showing it for confirmation."""
     source = profile.get("initial_source")
@@ -130,6 +158,10 @@ def profile_policy(profile, *, baseline=BASE_WEIGHTS, search_alternatives=True, 
     metric, limit = profile.get("metric"), profile.get("limit_bps")
     if profile.get("status") != "ok":
         raise ValueError(profile.get("summary") or "Please clarify the simulated request.")
+    if profile.get("unverified_numeric_fields"):
+        pending = ", ".join(NUMERIC_POLICY_LABELS[key] for key in profile["unverified_numeric_fields"]
+                            if key in NUMERIC_POLICY_LABELS)
+        raise ValueError(f"Enter or clarify the numeric rules before auditing: {pending}.")
     if type(target) is not int or not 0 < target <= 10000:
         raise ValueError("How many percentage points of NVDA do you want to add?")
     if source not in ("QQQ", "ZST.TO"):
@@ -317,6 +349,7 @@ async def run_case(
                                          defer_smaller_authorization=search_alternatives)
         except ValueError as exc:
             raise RoleError(str(exc)) from exc
+        input_versions["confirmed_numeric_inputs"] = parsed.get("numeric_input_sources") or numeric_input_provenance(parsed)
         confirmed_at = perf_counter()
         pending_smaller_authorization = policy_view["allow_smaller"] is None
         include_issuer = policy_view["issuer_cap"] is not None
@@ -465,6 +498,10 @@ async def run_case(
                     data, tickers=set(starting_weights) | set(original), windows=replay_windows,
                 )
             except MarketProvenanceError:
+                input_versions["market_data"] = {
+                    **describe_market_coverage(data, tickers=set(starting_weights) | set(original), windows=replay_windows),
+                    "status": "conversion_invalid",
+                }
                 trace.append({"role": "review", "event": "market_conversion", "status": "invalid"})
                 review_result.update(
                     status="invalid", decision_reason="market_conversion_invalid", verified={},
@@ -608,6 +645,9 @@ async def run_case(
     except MarketEvidenceError as exc:
         message = f"Historical replay is unavailable. {exc}"
         reason = "market_evidence_insufficient"
+        input_versions["market_data"] = describe_market_coverage(
+            data, tickers=set(starting_weights) | set(original), windows=replay_windows,
+        )
         trace.append({"role": "scenario", "event": "evidence_unavailable", "status": "insufficient_evidence"})
         result.update(status="insufficient_evidence", decision_reason=reason, policy=policy_view,
                       evidence=evidence, explanation=message,

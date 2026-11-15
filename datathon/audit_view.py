@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .metric_records import metric_id, resolve_metric
+
 
 _STATUS = {
     "pass": "Meets the tested rules",
@@ -191,11 +193,8 @@ def _render_constraints(st: Any, report: dict, verified: dict, has_alternative: 
             actual_text = _interval(actual) if isinstance(actual, dict) else _percent(actual)
             verdict = "breach" if finding["status"] == "fail" else "unresolved"
             limit = finding.get("limit")
-            matching_actual = actual.get("lower") if isinstance(actual, dict) else actual
-            delta = 0
-            if matching_actual is not None and limit is not None:
-                delta = limit - matching_actual if rule == "reserve_weight" else abs(matching_actual - limit)
-            margin = f" Breach size: {_points(delta)}." if verdict == "breach" and delta > 0 else ""
+            delta = resolve_metric(report, metric_id("audit", "rule_margins", finding["metric_id"], "breach"))
+            margin = f" Breach size: {_points(delta)}." if delta is not None and delta > 0 else ""
             st.write(f"{label} · **{_RULE.get(rule, rule)}**: {actual_text} vs. {_percent(limit)} ({verdict}).{margin}")
         if not flagged:
             st.caption("The independent review found no breach in the displayed proposal rules.")
@@ -212,14 +211,11 @@ def _render_constraints(st: Any, report: dict, verified: dict, has_alternative: 
         if has_alternative:
             for finding in _policy_findings(report, "maximum"):
                 rule = finding["metric_id"].split(".")[-2]
-                value, bound = finding.get("actual"), finding.get("limit")
-                if isinstance(value, dict):
-                    value = value.get("upper")
                 if rule == "requested_size":
                     continue
-                if finding["status"] == "pass" and isinstance(value, (int, float)) and isinstance(bound, (int, float)):
-                    headroom = value - bound if rule == "reserve_weight" else bound - value
-                    st.write(f"{_RULE.get(rule, rule)} headroom: **{_points(max(headroom, 0.0))}**.")
+                headroom = resolve_metric(report, metric_id("audit", "rule_margins", finding["metric_id"], "headroom"))
+                if headroom is not None:
+                    st.write(f"{_RULE.get(rule, rule)} headroom: **{_points(headroom)}**.")
         elif frontier.get("status") == "insufficient_evidence":
             st.caption("Unresolved holdings can change the feasible funding range.")
 
@@ -349,14 +345,21 @@ def render_evidence(report: dict) -> None:
     _render_requirements(st, report)
     _render_exposure_changes(st, report)
     with st.expander("Evidence and calculation method"):
+        if notes := report.get("scope_notes"):
+            st.caption("Calculation verification · " + notes["calculation_verification"].replace("_", " ").capitalize())
+            if questions := notes.get("future_risk_questions"):
+                st.caption("Outside the historical assessment · " + " · ".join(questions))
         windows = report.get("scenarios", {}).get("baseline", {}).get("windows", {})
+        inputs = report.get("publication", {}).get("versions", {}).get("inputs", {})
+        market_windows = inputs.get("market_data", {}).get("windows", {})
         if windows:
             st.write("**Historical replay**")
             st.caption("CAD adjusted closes on common observation dates. Each replay starts with the displayed weights and holds them through the window. Fees, taxes and intraday moves are outside this calculation.")
-            st.table([
-                {"Window": label, "Start": row["start"], "End": row["end"], "Observations": row["observations"]}
-                for label, row in windows.items()
-            ])
+            if not market_windows:
+                st.table([
+                    {"Window": label, "Start": row["start"], "End": row["end"], "Observations": row["observations"]}
+                    for label, row in windows.items()
+                ])
             if report.get("status") not in {"invalid", "execution_error"}:
                 verified = _verified(report)
                 example = ("Verified alternative" if report.get("policy", {}).get("prefer_reserve") is True
@@ -376,6 +379,21 @@ def render_evidence(report: dict) -> None:
                     _render_risk_drivers(st, report, verified)
         elif report.get("decision_reason") == "market_evidence_insufficient":
             st.warning("Historical replay evidence is unavailable for a required window.")
+        if market_windows:
+            st.write("**Historical data coverage**")
+            st.table([
+                {"Window": label, "Start": row.get("start"), "End": row.get("end"),
+                 "Aligned observations": row["observations"],
+                 "Expected observations": coverage.get("expected_observations"),
+                 "Calendar check": coverage.get("status", "coverage_not_verified").replace("_", " ").capitalize(),
+                 "Excluded dates": ", ".join(f"{item['date']} ({item['reason'].replace('_', ' ')})"
+                                             for item in coverage.get("excluded_dates", ())) or "—",
+                 "Missing dates": ", ".join(f"{item['date']} ({item['reason'].replace('_', ' ')})"
+                                            for item in coverage.get("missing_dates", ())) or "—",
+                 "Consecutive gaps": ", ".join(f"{gap['start']}–{gap['end']} ({gap['observations']} sessions)"
+                                                for gap in coverage.get("consecutive_gaps", ())) or "—"}
+                for label, row in market_windows.items() if (coverage := row.get("coverage")) is not None
+            ])
         for row in evidence.get("market_sources", {}).values():
             provider = f"[{row['source']}]({row['source_url']})"
             st.write(f"**{row['file']}** · {provider} · retrieved {row['retrieved_on']}")
@@ -416,6 +434,10 @@ def render_evidence(report: dict) -> None:
         if not evidence and not windows:
             st.caption("No verified source snapshot is available for this run.")
 
+    if records := report.get("metric_records"):
+        with st.expander("Metric values and provenance"):
+            selected = st.selectbox("Verified metric", tuple(records), key=f"metric-{report['case']}")
+            st.json({"value": resolve_metric(report, selected), **records[selected]}, expanded=True)
     with st.expander("Agent activity and AWS trace"):
         trace = report.get("trace", ())
         aws = [event for event in trace if event.get("event") == "bedrock" and event.get("status") == "success"]

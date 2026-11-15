@@ -101,14 +101,20 @@ def _sector_result(before, after, catalog, reference, cutoff, max_age_days):
         if row is not None:
             scale = Decimal(str(row.equity_fraction)) if row.denominator == "equity_sleeve" else _ONE
             known[ticker] = {name: Decimal(str(weight)) * scale for name, weight in row.weights.items()}
-            non_equity[ticker] = (_ONE - scale if row.denominator == "equity_sleeve"
-                            else Decimal(str(row.non_equity_min)))
+            if row.denominator == "equity_sleeve":
+                non_equity[ticker] = _ONE - scale
+            if amounts := row.non_equity_amounts:
+                fair_value_floor = max(0, (amounts.fair_value - 1) * amounts.display_unit)
+                net_assets_ceiling = (amounts.net_assets + 1) * amounts.display_unit
+                non_equity[ticker] = Decimal(fair_value_floor) / Decimal(net_assets_ceiling)
             evidence[ticker] = {
                 "as_of": row.as_of, "available_by": row.available_by, "url": row.source_url,
                 "locator": row.source_locator, "source_denominator": row.denominator,
                 "sector_nav_lower": {name: float(value) for name, value in known[ticker].items()},
                 "non_equity_nav_lower": float(non_equity[ticker]),
             }
+            if derivation := row.non_equity_provenance():
+                evidence[ticker]["non_equity_derivation"] = derivation
         missing[ticker] = max(_ZERO, _ONE - sum(known[ticker].values()) - non_equity[ticker])
 
     sectors = {}

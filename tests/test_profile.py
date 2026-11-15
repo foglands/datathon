@@ -15,11 +15,9 @@ from datathon.agents import StrandsAgents, _profile_handoff
 from datathon.workflow import profile_policy
 
 
-FIELDS = dict(
-    status="ok", summary="Goal and rules extracted", metric="terminal_loss", limit_bps=1400,
-    target_bps=500, reserve_floor_bps=1500, initial_source="QQQ", allowed_sources="QQQ",
-    allow_smaller=0,
-)
+TRADE_FIELDS = dict(status="ok", summary="Goal and rules extracted", target_bps=500,
+                    initial_source="QQQ", allowed_sources="QQQ", allow_smaller=0)
+FIELDS = {**TRADE_FIELDS, "metric": "terminal_loss", "limit_bps": 1400, "reserve_floor_bps": 1500}
 REQUEST = (
     "Shift 5 percentage points to NVDA from QQQ. Do not reduce the purchase amount. "
     "Keep 15% in ZST.TO. Limit start-to-end loss to 14%."
@@ -36,11 +34,11 @@ class ProfileHandoffTests(unittest.TestCase):
         self.assertEqual(draft["source_excerpts"], {
             "target_bps": "Shift 5 percentage points to NVDA",
             "metric": "Limit start-to-end loss to 14%.", "limit_bps": "Limit start-to-end loss to 14%.",
-            "initial_source": "from QQQ",
+            "initial_source": "from QQQ", "reserve_floor_bps": "Keep 15% in ZST.TO.",
         })
         self.assertIsNone(draft["issuer_cap_bps"])
 
-    def test_optional_numeric_excerpts_must_match_the_request_number_and_unit(self):
+    def test_numeric_excerpts_must_match_the_request_number_unit_and_rule(self):
         floor = "Gardez au moins 15,25 % dans ZST.TO."
         issuer = "The total NVIDIA issuer cap is thirteen percent."
         cap = "Limit start-to-end loss to 1400 basis points."
@@ -57,9 +55,66 @@ class ProfileHandoffTests(unittest.TestCase):
                                     issuer_cap_excerpt="The total NVIDIA issuer cap is 13%.")
         self.assertTrue(all(key not in mismatch["source_excerpts"] for key in (
             "limit_bps", "reserve_floor_bps", "issuer_cap_bps")))
+        self.assertEqual(mismatch["unverified_numeric_fields"], ["limit_bps", "reserve_floor_bps", "issuer_cap_bps"])
+        self.assertEqual(mismatch["clarification_field"], "loss_limit")
+        with self.assertRaises(ValueError):
+            profile_policy(mismatch)
+
+    def test_explicit_numeric_constraints_survive_omissions_and_wrong_loss_definition(self):
+        request = ("Add five percentage points of NVDA from QQQ. Keep the full buy. "
+                   "Cap maximum drawdown at 12% and keep at least 17% in ZST.TO. "
+                   "Limit total NVIDIA issuer exposure to 19%.")
+        draft = _profile_handoff(request, **TRADE_FIELDS, metric="terminal_loss")
+        self.assertEqual(draft["unverified_numeric_fields"], [])
+        self.assertEqual(profile_policy(draft)["metric"], "max_drawdown")
+        for field, amount in (("limit_bps", 1200), ("reserve_floor_bps", 1700), ("issuer_cap_bps", 1900)):
+            self.assertEqual(draft[field], amount)
+            self.assertIn(draft["source_excerpts"][field], request)
+
+    def test_other_percentage_cannot_authorize_a_rule(self):
+        request = ("Buy five percentage points of NVDA from QQQ. My portfolio grew by 14% last year. "
+                   "The analyst estimated a historical maximum drawdown of 14%. "
+                   "I want to keep my existing ZST.TO position.")
+        draft = _profile_handoff(request, **FIELDS, loss_excerpt="14%", reserve_floor_excerpt="14%")
+        self.assertEqual(draft["unverified_numeric_fields"], ["limit_bps", "reserve_floor_bps"])
+        self.assertIsNone(draft["limit_bps"])
+        self.assertIsNone(draft["reserve_floor_bps"])
+        self.assertEqual(draft["status"], "needs_input")
+
+    def test_correction_preserves_other_numeric_rules(self):
+        request = REQUEST + "\nNew user clarification or correction (takes precedence): " \
+            "For the 14% limit, use maximum drawdown instead of terminal loss."
+        draft = _profile_handoff(request, **{**FIELDS, "metric": "max_drawdown"})
+        self.assertEqual(profile_policy(draft)["metric"], "max_drawdown")
+        self.assertEqual(draft["reserve_floor_bps"], 1500)
+        self.assertEqual(draft["unverified_numeric_fields"], [])
+
+    def test_later_correction_of_one_field_keeps_other_revised_terms(self):
+        request = (
+            REQUEST + "\nCorrection: Limit maximum drawdown to 12%. "
+            "\nCorrection: Maintain a minimum 17% in ZST.TO."
+        )
+        draft = _profile_handoff(request, **{**TRADE_FIELDS, "limit_bps": 1200, "reserve_floor_bps": 1700})
+        self.assertEqual(profile_policy(draft)["metric"], "max_drawdown")
+        self.assertEqual(draft["limit_bps"], 1200)
+        self.assertEqual(draft["reserve_floor_bps"], 1700)
+
+    def test_explicitly_removed_loss_rule_cannot_be_restored_by_old_model_value(self):
+        request = REQUEST + "\nCorrection: Do not apply the historical loss cap."
+        draft = _profile_handoff(request, **FIELDS)
+        self.assertIsNone(profile_policy(draft)["loss_limit"])
+        self.assertEqual(draft["reserve_floor_bps"], 1500)
+        self.assertNotIn("limit_bps", draft["source_excerpts"])
+
+    def test_plain_percent_cannot_be_used_as_purchase_size(self):
+        request = "Increase NVDA to five percent of the portfolio from QQQ. Keep 15% in ZST.TO."
+        draft = _profile_handoff(request, **TRADE_FIELDS)
+        self.assertEqual(draft["unverified_numeric_fields"], ["target_bps"])
+        self.assertEqual(draft["clarification_field"], "target")
+        self.assertIsNone(draft["target_bps"])
 
     def test_recovers_only_explicit_purchase_size_and_grounded_excerpt(self):
-        fields = {**FIELDS, "target_bps": -1}
+        fields = {**TRADE_FIELDS, "target_bps": -1, "metric": "terminal_loss", "limit_bps": 1400}
         cases = (
             ("Add 6.25 percentage points to NVDA from QQQ.", 625),
             ("For a simulated NVDA increase of six percentage points, sell ZST.TO initially.", 600),
@@ -76,7 +131,7 @@ class ProfileHandoffTests(unittest.TestCase):
         )
         for request, expected in cases:
             with self.subTest(request=request):
-                draft = _profile_handoff(request, **fields)
+                draft = _profile_handoff(request + " Limit start-to-end loss to 14%.", **fields)
                 self.assertTrue(draft["target_grounded"])
                 self.assertEqual(draft["target_bps"], expected)
                 self.assertIn(draft["source_excerpts"]["target_bps"], request)
@@ -86,7 +141,7 @@ class ProfileHandoffTests(unittest.TestCase):
         request = "Add eight percentage points to NVDA by selling QQQ alone. Keep 15% in ZST.TO."
         for target in (-1, 800):
             with self.subTest(target=target):
-                draft = _profile_handoff(request, **{**FIELDS, "target_bps": target},
+                draft = _profile_handoff(request, **{**TRADE_FIELDS, "target_bps": target},
                                          target_excerpt="eight percentage points")
                 self.assertEqual(profile_policy(draft)["target"], .08)
                 self.assertEqual(draft["source_excerpts"]["target_bps"], "Add eight percentage points to NVDA")
@@ -100,14 +155,14 @@ class ProfileHandoffTests(unittest.TestCase):
         )
         for request, clause in quotes:
             with self.subTest(request=request):
-                draft = _profile_handoff(request, **{**FIELDS, "target_bps": 600}, target_excerpt=clause)
+                draft = _profile_handoff(request, **{**TRADE_FIELDS, "target_bps": 600}, target_excerpt=clause)
                 self.assertEqual(profile_policy(draft)["target"], .06)
                 self.assertEqual(draft["source_excerpts"]["target_bps"], clause)
                 for target in (-1, 500):
-                    draft = _profile_handoff(request, **{**FIELDS, "target_bps": target}, target_excerpt=clause)
+                    draft = _profile_handoff(request, **{**TRADE_FIELDS, "target_bps": target}, target_excerpt=clause)
                     self.assertEqual(draft["clarification_field"], "target")
                     self.assertIsNone(draft["target_bps"])
-                conflict = _profile_handoff(request, **{**FIELDS, "target_bps": 600}, target_excerpt=clause,
+                conflict = _profile_handoff(request, **{**TRADE_FIELDS, "target_bps": 600}, target_excerpt=clause,
                                              clarification_field="conflict")
                 self.assertEqual(conflict["clarification_field"], "conflict")
                 self.assertFalse(conflict["target_grounded"])
@@ -173,7 +228,7 @@ class ProfileHandoffTests(unittest.TestCase):
             ("Fund a five-percentage-point increase in NVDA exclusively from ZST.TO and keep the purchase at that exact size.", "ZST.TO"),
             ("Add five percentage points to NVDA from ZST", "ZST.TO"),
         )
-        fields = {**FIELDS, "initial_source": "", "allowed_sources": ""}
+        fields = {**TRADE_FIELDS, "initial_source": "", "allowed_sources": ""}
         for request, expected in cases:
             with self.subTest(request=request):
                 draft = _profile_handoff(request, **fields)
@@ -185,7 +240,7 @@ class ProfileHandoffTests(unittest.TestCase):
 
     def test_initial_source_recovery_does_not_erase_binding_or_loss_questions(self):
         request = "Fund five percentage points of NVDA from QQQ alone. No smaller purchases. The loss cap is 14%."
-        fields = {**FIELDS, "initial_source": "", "allowed_sources": "", "metric": ""}
+        fields = {**TRADE_FIELDS, "initial_source": "", "allowed_sources": "", "limit_bps": 1400}
         draft = _profile_handoff(request, **fields)
         self.assertEqual(draft["initial_source"], "QQQ")
         self.assertEqual(draft["clarification_field"], "loss_metric")
@@ -221,13 +276,14 @@ class ProfileHandoffTests(unittest.TestCase):
             f"{clause}.TO.",
             "Add five percentage points to NVDA. QQQ is present in the portfolio.",
         )
-        fields = {**FIELDS, "initial_source": "", "allowed_sources": ""}
+        fields = {**TRADE_FIELDS, "initial_source": "", "allowed_sources": ""}
         for request in cases:
             with self.subTest(request=request):
                 draft = _profile_handoff(request, **fields)
                 self.assertIsNone(draft["initial_source"])
                 self.assertFalse(draft["funding_grounded"])
-                self.assertEqual(draft["clarification_field"], "initial_source")
+                self.assertEqual(draft["clarification_field"],
+                                 "target" if draft["target_bps"] is None else "initial_source")
 
     def test_original_source_defaults_only_when_separate_permission_is_omitted(self):
         fields = {**FIELDS, "allowed_sources": ""}
@@ -249,7 +305,7 @@ class ProfileHandoffTests(unittest.TestCase):
         self.assertEqual(exclusive["allowed_sources"], ["QQQ"])
 
     def test_bare_loss_cap_preserves_number_with_specific_clarification(self):
-        fields = {**FIELDS, "allowed_sources": "", "metric": ""}
+        fields = {**TRADE_FIELDS, "allowed_sources": "", "limit_bps": 1400}
         draft = _profile_handoff("The simulated maximum loss is fourteen percent.", **fields)
         self.assertEqual(draft["clarification_field"], "loss_metric")
         self.assertEqual(draft["limit_bps"], 1400)
@@ -295,7 +351,7 @@ class ProfileHandoffTests(unittest.TestCase):
 
     def test_only_search_entries_require_alternative_permissions(self):
         request = "Buy 5 percentage points of NVDA from QQQ."
-        fields = {**FIELDS, "allow_smaller": -1, "allowed_sources": "", "metric": "", "limit_bps": -1}
+        fields = {**TRADE_FIELDS, "allow_smaller": -1, "allowed_sources": ""}
         legacy = _profile_handoff(request, **fields)
         self.assertEqual(legacy["clarification_field"], "allow_smaller")
 
@@ -313,10 +369,10 @@ class ProfileHandoffTests(unittest.TestCase):
 
     def test_audit_scope_does_not_discard_explicit_funding_conflict(self):
         request = "Buy 5 percentage points of NVDA from QQQ. Do not sell QQQ."
-        draft = _profile_handoff(request, **FIELDS, search_alternatives=False)
+        draft = _profile_handoff(request, **TRADE_FIELDS, search_alternatives=False)
         self.assertEqual(draft["clarification_field"], "conflict")
         draft = _profile_handoff('Buy 5 percentage points of NVDA from QQQ. The example says "Do not sell QQQ."',
-                                 **FIELDS, search_alternatives=False)
+                                 **TRADE_FIELDS, search_alternatives=False)
         self.assertEqual(draft["status"], "ok")
 
     def test_material_requirements_survive_a_model_handoff_that_omits_them(self):

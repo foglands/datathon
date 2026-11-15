@@ -7,7 +7,10 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 from zipfile import ZipFile
 
-from datathon.data import MarketData, MarketProvenanceError, load_market_data, market_data_source, verify_cad_conversion
+from datathon.data import (
+    MarketData, MarketProvenanceError, describe_market_coverage, load_market_data, market_data_source,
+    verify_cad_conversion,
+)
 from datathon.finance import StressWindow
 
 
@@ -52,9 +55,23 @@ class MarketProvenanceTests(unittest.TestCase):
         self.assertEqual(verification["status"], "verified")
         self.assertEqual(verification["price_field"], "adj_close")
         self.assertEqual(len(verification["source_sha256"]["prices_daily.csv"]), 64)
-        self.assertEqual(verification["windows"]["test"], {
-            "observations": 2, "price_observations": 4, "missing_fx_dates": [MISSING_FX],
-        })
+        window = verification["windows"]["test"]
+        self.assertEqual(window["observations"], 2)
+        self.assertEqual(window["price_observations"], 4)
+        self.assertEqual(window["missing_fx_dates"], [MISSING_FX])
+        self.assertEqual(window["coverage"]["status"], "coverage_not_verified")
+        self.assertIsNone(window["coverage"]["expected_observations"])
+        self.assertEqual(window["coverage"]["excluded_dates"], [
+            {"date": MISSING_FX, "reason": "observed_prices_without_fx"},
+        ])
+        self.assertEqual(window["coverage"]["missing_dates"], [])
+
+    def test_incomplete_coverage_remains_a_diagnostic_without_raw_sources(self):
+        fallback = replace(self.market, source_csvs=(), source_path="", official_starter=False)
+        outcome = describe_market_coverage(fallback, tickers=("ABC", "ABC.TO"), windows=(WINDOW,))
+        self.assertEqual(outcome["status"], "coverage_diagnostic")
+        self.assertEqual(outcome["windows"]["test"]["coverage"]["status"], "coverage_not_verified")
+        self.assertEqual(outcome["windows"]["test"]["observations"], 2)
 
     def test_rejects_inverted_shifted_and_repeated_price_transforms(self):
         for label, ticker, price in (

@@ -18,6 +18,7 @@ except ModuleNotFoundError as exc:
 from datathon.agents import AgentRun, StrandsAgents
 from datathon.data import market_data_source
 from datathon.finance import MarketEvidenceError, solve_funding
+from datathon.publication import publish_report
 from datathon.workflow import examples, preset_profile
 from tests.test_issuer_reaudit import configured_catalog, synthetic_disclosure
 from tests.test_tool_routing import select_tool_arguments
@@ -358,6 +359,46 @@ class PortfolioAppTests(unittest.TestCase):
             self.select("text_area", "Fictional investment request", request)
             self.assertFalse(self.has_button(CONFIRM))
             self.assertNotIn("request_results", self.app.session_state)
+
+    def test_free_text_numeric_rules_require_provenance_or_explicit_entry(self):
+        calls = []
+        draft = {
+            **preset_profile(examples("robert")[0]),
+            "status": "needs_input", "clarification_field": "reserve_floor",
+            "reserve_floor_bps": None, "issuer_cap_bps": None,
+            "unverified_numeric_fields": ["reserve_floor_bps", "issuer_cap_bps"],
+            "source_excerpts": {"target_bps": "add 10 percentage points of NVDA"},
+            "summary": "Enter the reserve floor and issuer cap.",
+        }
+
+        async def simulate_bedrock(runtime, role, payload, tools=(), *, run_id=None):
+            calls.append(role)
+            if role == "profile":
+                return AgentRun("needs_input", draft)
+            for tool in tools:
+                tool.handler(**select_tool_arguments(role, payload))
+            return AgentRun("ok", {"status": "ok", "summary": "Checked", "evidence_ids": []})
+
+        with patch.object(StrandsAgents, "run", autospec=True, side_effect=simulate_bedrock):
+            self.select("radio", "Input", "Write a request")
+            self.select("radio", "Profile input", "Interpret text with Bedrock")
+            self.click(INTERPRET)
+            self.assertFalse(self.has_button(CONFIRM))
+            self.select("number_input", "Minimum ZST.TO weight (%)", 15.0)
+            self.assertFalse(self.has_button(CONFIRM))
+            self.assertEqual(calls, ["profile"])
+            self.select("number_input", "Maximum total NVIDIA issuer exposure (%)", 18.0)
+            self.click(CONFIRM)
+
+        key = self.app.session_state["request_confirmed"]
+        result = publish_report(self.app.session_state["request_results"][key])
+        sources = result["publication"]["versions"]["inputs"]["confirmed_numeric_inputs"]
+        self.assertEqual(sources["target_bps"]["basis"], "request_excerpt")
+        self.assertIn("excerpt_sha256", sources["target_bps"])
+        self.assertEqual(sources["reserve_floor_bps"]["basis"], "user_entry")
+        self.assertEqual(sources["issuer_cap_bps"]["value_bps"], 1800)
+        self.assertNotIn("source_excerpts", result)
+        self.assertTrue(self.widget("selectbox", "Verified metric").options)
 
     def test_unsupported_binding_rule_blocks_confirmation(self):
         excerpt = "Never hold more than 5% in the direct NVDA position."

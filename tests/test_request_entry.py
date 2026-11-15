@@ -31,6 +31,21 @@ class RequestEntryTests(IsolatedAsyncioTestCase):
         self.assertEqual(prompt.call_count, 1)
         audit.assert_awaited_once()
 
+    async def test_scoped_shortcut_does_not_skip_an_unverified_numeric_rule(self):
+        unverified = AgentRun("needs_input", {
+            **self.draft.data, "status": "needs_input", "clarification_field": "reserve_floor",
+            "reserve_floor_bps": None, "unverified_numeric_fields": ["reserve_floor_bps"],
+            "unassessed_requirements": [{"code": "esg"}],
+        })
+        with (patch("datathon.__main__.interpret_request", return_value=(unverified, None, "Give the reserve floor.")),
+              patch("datathon.__main__.read_input", return_value="") as prompt,
+              patch("datathon.__main__.run_case", new_callable=AsyncMock) as audit,
+              patch("builtins.print")):
+            self.assertEqual(await run_request(self.args), 0)
+
+        prompt.assert_called_once_with("Clarify the request, or press Enter to end: ")
+        audit.assert_not_awaited()
+
     async def test_cli_authorizes_resize_after_independent_full_size_check(self):
         self.args.search_alternatives = True
         original = {"status": "fail", "publication": {"independent_review_verified": True}}

@@ -14,6 +14,7 @@ from time import perf_counter
 from typing import Any, Literal, Union, get_type_hints
 from uuid import uuid4
 
+from .profile_numbers import NUMBER as _TARGET_NUMBER, POINTS as _TARGET_UNIT, ground_limits, percent_to_basis_points
 from .runtime_budget import PROFILE_MAX_REQUEST_BYTES, RuntimeBudgetExceeded, current_budget
 
 DEFAULT_MODEL = "us.amazon.nova-2-lite-v1:0"
@@ -36,6 +37,8 @@ _PROFILE_FUNDING_ASSETS = {"QQQ", "ZST.TO"}
 _PROFILE_QUESTIONS = {
     "loss_metric": "Does the stated loss cap apply to terminal loss or maximum drawdown?",
     "loss_limit": "What percentage is the historical loss limit?",
+    "reserve_floor": "What minimum percentage of the portfolio must remain in ZST.TO?",
+    "issuer_cap": "What maximum percentage applies to total NVIDIA issuer exposure, including fund holdings?",
     "target": "How many percentage points of the portfolio should be added to NVDA?",
     "initial_source": "Which asset funds the original NVDA purchase, QQQ or ZST.TO?",
     "allowed_sources": "Which funding assets are allowed for alternatives?",
@@ -97,9 +100,10 @@ ROLES = {
         "a mandatory ESG screen, or a minimum return. Do not use these labels for missing details. "
         "For missing fields, leave their arguments unset. For an ordinary 14% loss limit with no metric, "
         "submit limit_bps=1400 with an empty metric and no issue label. "
-        "5. Submit promptly. If available, copy short literal excerpts that support the loss rule, reserve floor, "
-        "issuer cap, funding authorization, and any other binding issue. Copy the number and its unit for "
-        "numeric rules. Excerpts are optional evidence; no JSON or commentary. "
+        "5. Submit promptly. Copy short literal clauses that support each stated numeric rule, including its "
+        "threshold, unit and what the threshold limits. Copy the operative funding or issue wording when "
+        "available. Leave amounts unset if their meaning, value or unit cannot be grounded in the request. "
+        "Use no JSON or commentary. "
         "Examples: if the investor says to apply a quoted rule setting a 10.5% start-to-finish loss cap "
         "and gives no competing rule, submit terminal_loss, 1050, and no binding_issue. If cited only as a "
         "third-party example, the quoted cap provides no loss rule. 'Fund from ZST.TO; QQQ may also be used' means additive, "
@@ -162,31 +166,6 @@ _SCOPED_PROFILE_PROMPT = (
 )
 
 
-_TARGET_WORDS = dict(zip(
-    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen "
-    "seventeen eighteen nineteen".split(), range(20),
-))
-_TARGET_TENS = dict(zip("twenty thirty forty fifty sixty seventy eighty ninety".split(), range(20, 100, 10)))
-_TARGET_FR_WORDS = dict(zip(
-    "zéro un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize "
-    "dix-sept dix-huit dix-neuf vingt".split(), range(21),
-))
-_TARGET_NUMBER = (
-    r"\d{1,3}(?:[.,]\d{1,2})?|one hundred|"
-    r"(?:" + "|".join(_TARGET_TENS) + r")(?:[ -](?:" + "|".join(tuple(_TARGET_WORDS)[1:10]) + r"))?|"
-    + "|".join(_TARGET_WORDS | _TARGET_FR_WORDS)
-)
-_TARGET_UNIT = (r"(?:\s+(?:percentage\s+points?|points?\s+of\s+portfolio\s+weight|"
-                r"points?\s+de\s+pourcentage)|[-–]percentage[-–]points?)")
-_PROFILE_PERCENT = re.compile(
-    r"(?<![\w.,+−-])(?P<amount>" + _TARGET_NUMBER + r")"
-    r"(?:\s*%|\s+(?:percent|pour\s+cent)\b|" + _TARGET_UNIT + r")",
-    re.IGNORECASE,
-)
-_PROFILE_BASIS_POINTS = re.compile(
-    r"(?<![\w.,+−-])(?P<amount>\d{1,5})\s+(?:basis\s+points?|bps|points?\s+de\s+base)\b",
-    re.IGNORECASE,
-)
 _TARGET_AMOUNT = r"(?P<quantity>(?P<amount>" + _TARGET_NUMBER + r")" + _TARGET_UNIT + r")"
 _TARGET_NAME = r"(?:NVDA|Nvidia)\b"
 _TARGET_ACTION = r"(?:add(?:s|ing)?|increase(?:s|d)?|increasing|raise(?:s|d)?|raising|shift(?:s|ing)?|move(?:s|d)?|moving)"
@@ -202,6 +181,9 @@ _TARGET_CLAUSES = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
 _QUOTED_TARGET_TEXT = re.compile(r'"[^"\n]*"|“[^”\n]*”|‘[^’\n]*’|«[^»\n]*»|(?<!\w)\'[^\'\n]*\'(?!\w)')
 _ADOPTED_TARGET_QUOTE = re.compile(
     r"(?:please\s+)?(?:apply|use|adopt)\s+my\s+(?:exact\s+)?(?:instruction|rule)\s*:\s*"
+    r"|(?:please\s+)?(?:apply|use|adopt)\s+this\s+(?:exact\s+)?(?:instruction|rule)\s+of\s+mine\s*:\s*"
+    r"|(?:please\s+)?(?:apply|use)\s+the\s+rule\s+in\s+my\s+approved\s+worksheet\s*:\s*"
+    r"|(?:please\s+)?adopt\s+the\s+rule\s+from\s+my\s+instructor\s+as\s+my\s+constraint\s*:\s*"
     r"|(?:appliquez|utilisez|adoptez)\s+ma\s+consigne(?:\s+exacte)?\s*:\s*", re.IGNORECASE,
 )
 _TARGET_SENTENCE_STOPS = (". ", "!", "?", "\n", ";")
@@ -254,28 +236,6 @@ def _previous_target_sentence(text, *, truncated=False):
     return text[previous_stop + 1:] if previous_stop >= 0 or not truncated else ""
 
 
-def _percent_to_basis_points(token):
-    token = token.lower()
-    if token[0].isdigit():
-        whole, _, decimals = token.replace(",", ".").partition(".")
-        return int(whole) * 100 + int(decimals.ljust(2, "0"))
-    if token == "one hundred":
-        return 10000
-    if token in _TARGET_WORDS:
-        return _TARGET_WORDS[token] * 100
-    if token in _TARGET_FR_WORDS:
-        return _TARGET_FR_WORDS[token] * 100
-    tens, _, ones = token.replace("-", " ").partition(" ")
-    return (_TARGET_TENS[tens] + _TARGET_WORDS.get(ones, 0)) * 100
-
-
-def _numeric_excerpt_matches(excerpt, basis_points):
-    """Check that a quoted amount and unit agree with the editable draft."""
-    amounts = {_percent_to_basis_points(match["amount"]) for match in _PROFILE_PERCENT.finditer(excerpt)}
-    amounts.update(int(match["amount"]) for match in _PROFILE_BASIS_POINTS.finditer(excerpt))
-    return amounts == {basis_points}
-
-
 def _grounded_purchase_size(request, excerpt, model_size):
     """Check one operative NVDA increase against the original request."""
     adopted = []
@@ -290,7 +250,8 @@ def _grounded_purchase_size(request, excerpt, model_size):
 
     # Keep original offsets. A quoted purchase can corroborate the model only
     # when the surrounding user instruction explicitly adopts that quote.
-    unquoted = _QUOTED_TARGET_TEXT.sub(mask_quote, request)
+    prose = _PROFILE_LITERAL_BLOCKS.sub(lambda match: " " * len(match[0]), request)
+    unquoted = _QUOTED_TARGET_TEXT.sub(mask_quote, prose)
     clauses = {
         match.span(): match for pattern in _TARGET_CLAUSES for match in pattern.finditer(unquoted)
     }
@@ -321,7 +282,7 @@ def _grounded_purchase_size(request, excerpt, model_size):
         excerpt_start = request.find(excerpt, max(0, amount_end - len(excerpt)), amount_start + len(excerpt))
         if excerpt_start == -1 or excerpt_start > amount_start:
             return None
-    basis_points = _percent_to_basis_points(match["amount"])
+    basis_points = percent_to_basis_points(match["amount"])
     if not 0 < basis_points <= 10000:
         return None
     if model_size <= 0 and any(left <= start < right for left, right in adopted):
@@ -478,7 +439,32 @@ def _profile_handoff(request, *, status, summary, metric="", limit_bps=-1, targe
     field = clarification_field
     clause_text = _profile_clause_text(request)
     unassessed = _unsupported_profile_requirements(request, field, unsupported_excerpt, clause_text)
+    held_loss_metric = field == "loss_metric" and not metric
+    checked_limits, unverified, checked_metric = ground_limits(request, clause_text, fields, {
+        "limit_bps": loss_excerpt, "reserve_floor_bps": reserve_floor_excerpt, "issuer_cap_bps": issuer_cap_excerpt,
+    }, hold_loss_metric=held_loss_metric)
+    for name, binding in checked_limits.items():
+        fields[name] = binding.amount
+    for name in unverified:
+        fields[name] = None
+    if "limit_bps" in checked_limits or "limit_bps" in unverified:
+        fields["metric"] = checked_metric
+
     target_grounded = False
+    if grounded_target and fields["target_bps"] == grounded_target[0] and field != "conflict":
+        target_excerpt = grounded_target[1]
+        target_grounded = True
+    elif grounded_target and target_bps <= 0 and (
+        field in {"", "target"} and status == "ok" or field == "loss_metric"
+    ):
+        fields["target_bps"], target_excerpt, _ = grounded_target
+        target_grounded = True
+        if field == "target":
+            field = ""
+    else:
+        fields["target_bps"] = None
+        unverified.insert(0, "target_bps")
+
     excluded_source = (source in _PROFILE_FUNDING_ASSETS and sources and source not in sources
                        and (set(sources).issubset(_PROFILE_FUNDING_ASSETS)
                             or not search_alternatives and funding_rule == "only"))
@@ -491,22 +477,13 @@ def _profile_handoff(request, *, status, summary, metric="", limit_bps=-1, targe
     elif unassessed and field != "unsupported_scope":
         field = "unsupported_constraint"
     elif field != "unsupported_scope":
-        if grounded_target:
-            stated_target, matched_excerpt, _ = grounded_target
-            if target_bps <= 0 and field in {"", "target"} and status == "ok":
-                target_bps, target_excerpt = stated_target, matched_excerpt
-                fields["target_bps"] = target_bps
-                target_grounded = True
-                field = ""
-            elif target_bps > 0 and target_bps != stated_target:
-                fields["target_bps"] = None
-                field = "target"
-            elif target_bps == stated_target:
-                target_excerpt = matched_excerpt
-                target_grounded = True
-        elif target_excerpt and field in {"", "target"}:
-            fields["target_bps"] = None
-        if fields["target_bps"] is None:
+        questions = {
+            "target_bps": "target", "limit_bps": "loss_limit",
+            "reserve_floor_bps": "reserve_floor", "issuer_cap_bps": "issuer_cap",
+        }
+        if fields["limit_bps"] is not None and not fields["metric"]:
+            field = "loss_metric"
+        elif fields["target_bps"] is None:
             field = "target"
         elif not source:
             field = "initial_source"
@@ -514,31 +491,31 @@ def _profile_handoff(request, *, status, summary, metric="", limit_bps=-1, targe
             field = "allowed_sources"
         elif search_alternatives and not defer_smaller_authorization and allow_smaller == -1:
             field = "allow_smaller"
-        elif not metric and limit_bps != -1:
-            field = "loss_metric"
-        elif metric and limit_bps == -1:
+        elif unverified:
+            field = questions[unverified[0]]
+        elif fields["metric"] and fields["limit_bps"] is None:
             field = "loss_limit"
         elif not field and status == "needs_input":
             field = "conflict"
 
     excerpts = {
-        "target_bps": target_excerpt, "metric": loss_excerpt, "limit_bps": loss_excerpt,
-        "reserve_floor_bps": reserve_floor_excerpt, "issuer_cap_bps": issuer_cap_excerpt,
+        "target_bps": target_excerpt,
         "initial_source": initial_source_excerpt, "allowed_sources": funding_excerpt or initial_source_excerpt,
     }
-    numeric_rules = {"limit_bps", "reserve_floor_bps", "issuer_cap_bps"}
     grounded = {
         key: excerpt for key, excerpt in excerpts.items()
         if key in PROFILE_FIELDS and fields[key] is not None
         and (key != "target_bps" or target_grounded)
         and isinstance(excerpt, str) and excerpt.strip() and excerpt in request
-        and (key not in numeric_rules or excerpt in clause_text and _numeric_excerpt_matches(excerpt, fields[key]))
     }
+    grounded.update((name, binding.excerpt) for name, binding in checked_limits.items() if not binding.removed)
+    if fields["metric"] and "limit_bps" in grounded:
+        grounded["metric"] = grounded["limit_bps"]
     if field:
         summary = _PROFILE_QUESTIONS[field]
     return {
         **fields, "status": "needs_input" if field else "ok", "summary": summary, "evidence_ids": [],
-        "clarification_field": field or None, "source_excerpts": grounded,
+        "clarification_field": field or None, "source_excerpts": grounded, "unverified_numeric_fields": unverified,
         "target_grounded": target_grounded, "funding_grounded": funding_grounded,
         "unsupported_excerpt": unsupported_excerpt if unsupported_excerpt.strip() and unsupported_excerpt in request else "",
         "unassessed_requirements": unassessed,
@@ -811,8 +788,13 @@ class StrandsAgents:
                                                and 0 < len(item["excerpt"]) <= _MAX_REQUIREMENT_EXCERPT))
                 for item in unassessed
             )
+            unverified = data.get("unverified_numeric_fields", [])
+            valid_unverified = isinstance(unverified, list) and (not unverified or data["status"] == "needs_input") and all(
+                isinstance(name, str) and name in (*_PROFILE_AMOUNT_FIELDS, "limit_bps") and data.get(name) is None
+                for name in unverified
+            )
             return (valid_loss_rule and valid_amounts and valid_flags and valid_sources
-                    and valid_initial_source and valid_unassessed)
+                    and valid_initial_source and valid_unassessed and valid_unverified)
         return True
 
     async def _invoke_bedrock(

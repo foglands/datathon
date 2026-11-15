@@ -61,9 +61,9 @@ class SectorEvidenceTests(unittest.TestCase):
         technology = report["sectors"]["Information Technology"]
         self.assertAlmostEqual(technology["before"]["lower"], 0)
         self.assertAlmostEqual(technology["after"]["lower"], 0.10)
-        self.assertAlmostEqual(technology["change"]["lower"], 0.0837)
+        self.assertAlmostEqual(technology["change"]["lower"], 0.09965071968577517)
         self.assertAlmostEqual(technology["change"]["upper"], 0.10)
-        self.assertAlmostEqual(report["unmapped"]["after"], 0.8163)
+        self.assertAlmostEqual(report["unmapped"]["after"], 0.8003492803142248)
         self.assertEqual(set(report["evidence"]), {"NVDA", "ZST.TO"})
         self.assertEqual(report["ignored"]["QQQ"], "unavailable")
 
@@ -93,6 +93,31 @@ class SectorEvidenceTests(unittest.TestCase):
 
     def test_later_public_material_does_not_resolve_earlier_decision(self):
         weights = {"NVDA": 0.5, "ZST.TO": 0.5}
-        report = sector_analysis(weights, weights, publication_cutoff="2026-11-13")
+        report = sector_analysis(weights, weights, publication_cutoff="2026-08-27")
         self.assertEqual(report["status"], "unavailable")
         self.assertEqual(report["unmapped"], {"before": 1.0, "after": 1.0})
+        report = sector_analysis(weights, weights, publication_cutoff="2026-11-13")
+        self.assertEqual(set(report["evidence"]), {"ZST.TO"})
+        self.assertEqual(report["ignored"], {"NVDA": "outside_evidence_cutoff"})
+
+    def test_legacy_non_equity_scalar_keeps_unsupported_weight_unmapped(self):
+        self.set_catalog(reviewed_row("ETF", non_equity_min=0.3))
+        weights = {"ETF": 1.0}
+        report = sector_analysis(weights, weights)
+        self.assertEqual(report["unmapped"], {"before": 0.6, "after": 0.6})
+        self.assertEqual(report["evidence"]["ETF"]["non_equity_derivation"],
+                         {"method": "unverified_scalar", "status": "unknown"})
+
+    def test_pinned_nav_amounts_respect_source_display_unit(self):
+        self.set_catalog(reviewed_row("ETF", non_equity_amounts={
+            "fair_value": 50, "net_assets": 100, "display_unit": 1_000, "currency": "CAD",
+        }))
+        weights = {"ETF": 1.0}
+        report = sector_analysis(weights, weights)
+        self.assertAlmostEqual(report["known_non_equity_min"]["before"], 49 / 101)
+        self.assertAlmostEqual(report["unmapped"]["before"], 0.6 - 49 / 101)
+        self.set_catalog(reviewed_row("ETF", non_equity_amounts={
+            "fair_value": 50, "net_assets": 0, "display_unit": 1_000, "currency": "CAD",
+        }))
+        with self.assertRaisesRegex(ValueError, "catalog is invalid"):
+            sector_analysis(weights, weights)

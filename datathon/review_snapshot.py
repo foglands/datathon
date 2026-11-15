@@ -12,14 +12,14 @@ REVIEW_ID_KEY = "_review_id"
 CHECK_SNAPSHOT_KEY = "_check_snapshot"
 OPTIONAL_SECTIONS = ("sector_analysis", "exposure_change")
 
-POLICY_VERSION = "portfolio-audit-v1"
+POLICY_VERSION = "portfolio-audit-v2"
 FORMULA_VERSIONS = {
     "portfolio_replay": "buy-and-hold-v1",
     "historical_risk_and_contributions": "terminal-loss-and-drawdown-v1",
-    "exposure": "shared-coefficient-bounds-v1",
+    "exposure": "shared-coefficient-bounds-v2",
     "funding": "two-source-frontier-v1",
 }
-_SNAPSHOT_VERSION = 1
+_SNAPSHOT_VERSION = 2
 AUDIT_FIELDS = frozenset({
     REVIEW_ID_KEY, "case", "mode", "status", "decision_reason", "search_alternatives", "assessment_scope",
     "confirmed_scope", "policy", "unassessed_requirements", "requirements", "evidence", "audit",

@@ -58,7 +58,7 @@ class PublishedScopeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(public["assessment_scope"], "limited")
         self.assertNotIn("private candidate phrase", json.dumps(public))
         bounds = public["sector_analysis"]["sectors"]["Information Technology"]["change"]
-        self.assertAlmostEqual(bounds["lower"], .0837)
+        self.assertAlmostEqual(bounds["lower"], .09965071968577517)
         self.assertAlmostEqual(bounds["upper"], .10)
         self.assertIn("exposure_change", public)
         self.assertTrue(any(row["code"] == "sector" and row["task_status"] == "unsupported"

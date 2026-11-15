@@ -10,7 +10,7 @@ from .agents import PROFILE_FIELDS, PROFILE_MODEL, AgentRun, StrandsAgents
 from .data import load_market_data
 from .publication import publish_report
 from .runtime_budget import PROFILE_LIMITS, RuntimeBudgetExceeded, bound_audit, run_bounded, run_sync_action
-from .workflow import Case, examples, interpret_request, preset_profile, profile_policy, run_case
+from .workflow import Case, examples, interpret_request, numeric_input_provenance, preset_profile, profile_policy, run_case
 
 
 def validate_case(result):
@@ -105,6 +105,12 @@ def print_policy(policy, *, search_alternatives=True):
 def print_audit(decision, heading):
     print(f"\n{heading}: {decision['status']}")
     print(decision.get("explanation", ""))
+    market = decision.get("publication", {}).get("versions", {}).get("inputs", {}).get("market_data", {})
+    if windows := market.get("windows"):
+        coverage = ", ".join(f"{name} {row['coverage']['status'].replace('_', ' ')}"
+                             for name, row in windows.items() if "coverage" in row)
+        if coverage:
+            print(f"  Historical calendar coverage: {coverage}")
     verified = decision.get("audit", {}).get("verified", {})
     prefer_reserve = decision.get("policy", {}).get("prefer_reserve")
     example_label = "Verified alternative" if prefer_reserve is True else "Verified funding example"
@@ -174,11 +180,12 @@ async def run_request(args):
                 write_report(args.report, {"status": "execution_error", "trace": parsing_trace})
             return 1
         field = draft.data.get("clarification_field")
+        numeric_pending = bool(draft.data.get("unverified_numeric_fields"))
         requirements = draft.data.get("unassessed_requirements") or (
             [{"code": "other_binding", "excerpt": draft.data.get("unsupported_excerpt")}]
             if field == "unsupported_constraint" else []
         )
-        if requirements and field not in {"unsupported_scope", "multiple_loss_limits", "conflict"}:
+        if requirements and not numeric_pending and field not in {"unsupported_scope", "multiple_loss_limits", "conflict"}:
             resolved = {**draft.data, "status": "ok"}
             try:
                 scoped_policy = profile_policy(resolved, search_alternatives=False)
@@ -202,14 +209,14 @@ async def run_request(args):
                 continue
         if question:
             print(question)
-            if draft.data.get("clarification_field") == "loss_metric" and draft.data.get("limit_bps") is not None:
+            if not numeric_pending and field == "loss_metric" and draft.data.get("limit_bps") is not None:
                 print("  1. Terminal loss (start to finish)")
                 print("  2. Maximum drawdown (peak to trough)")
             change = read_input("Clarify the request, or press Enter to end: ")
             while change.casefold() == "yes":
                 print(question)
                 change = read_input("Provide the missing detail, or press Enter to end: ")
-            if (draft.data.get("clarification_field") == "loss_metric" and draft.data.get("limit_bps") is not None
+            if (not numeric_pending and field == "loss_metric" and draft.data.get("limit_bps") is not None
                     and change in ("1", "2")):
                 metric = "terminal_loss" if change == "1" else "max_drawdown"
                 resolved = {**draft.data, "status": "ok", "metric": metric, "clarification_field": None}
@@ -239,6 +246,7 @@ async def run_request(args):
         include_sector=include_sector,
     )
     confirmed = {field: draft.data.get(field) for field in PROFILE_FIELDS}
+    confirmed["numeric_input_sources"] = numeric_input_provenance(draft.data)
     confirmed.update(status="ok", summary="User confirmed the simulated audit inputs.", evidence_ids=[])
     if unassessed:
         confirmed["unassessed_requirements"] = unassessed
