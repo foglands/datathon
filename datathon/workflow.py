@@ -12,7 +12,9 @@ from .data import issuer_evidence
 from .evidence import DEFAULT_HOLDINGS_MAX_AGE_DAYS, add_issuer_disclosures, validate_issuer_snapshot
 from .finance import BASE_WEIGHTS, STRESS_WINDOWS, MarketEvidenceError, evaluate_portfolio, solve_funding
 from .governance import audit_decision
+from .requirement_status import apply_requirement_status, unassessed_codes
 from .scope import ReplayScope
+from .sector import sector_analysis, shared_exposure_change
 
 
 @dataclass(frozen=True)
@@ -268,6 +270,7 @@ async def run_case(
     if single_runtime is not None and (runtime is not None or confirmed_profile is None):
         raise ValueError("The single-agent benchmark requires a confirmed profile and its own runtime.")
     search_alternatives = case.search_alternatives
+    unassessed = ()
     result = {"case": case.id, "mode": "aws" if runtime is not None or single_runtime is not None else "offline",
               "search_alternatives": search_alternatives, "needs_smaller_authorization": False}
     starting_weights = case.scope.baseline if case.scope else BASE_WEIGHTS
@@ -294,8 +297,13 @@ async def run_case(
         else:
             parsed = confirmed_profile.data
             trace.extend(confirmed_profile.trace)
-            outputs["profile"] = parsed
+            outputs["profile"] = {key: value for key, value in parsed.items()
+                                  if key not in {"source_excerpts", "unsupported_excerpt", "unassessed_requirements"}}
             trace.append({"role": "profile", "event": "policy_confirmed", "run_id": case.id})
+        unassessed = unassessed_codes(parsed.get("unassessed_requirements"))
+        if unassessed:
+            search_alternatives = False
+            result["search_alternatives"] = False
         try:
             policy_view = profile_policy(parsed, baseline=starting_weights, search_alternatives=search_alternatives,
                                          defer_smaller_authorization=search_alternatives)
@@ -548,7 +556,7 @@ async def run_case(
             result["alternatives"] = alternatives
         else:
             trace.append({"role": "alternatives", "event": "stage_skipped", "status": "skipped",
-                          "reason": "not_requested"})
+                          "reason": "unassessed_requirements" if unassessed else "not_requested"})
         result.update(status=review_result["status"], decision_reason=review_result["decision_reason"],
                       policy=policy_view, evidence=evidence, exposure=exposure,
                       scenarios=stress, scenario_focus=scenario_focus, audit=review_result)
@@ -556,6 +564,16 @@ async def run_case(
             result["explanation"] = "The independent calculation detected an invalid claim and withheld the recommendation."
         else:
             result["explanation"] = explain_audit(review_result, alternatives, policy_view)
+            verified = review_result["verified"]
+            if "baseline" in verified and "proposal" in verified:
+                before, after = (verified[leg]["weights"] for leg in ("baseline", "proposal"))
+                if include_issuer:
+                    result["exposure_change"] = shared_exposure_change(before, after, issuer_weights)
+                if case.include_sector:
+                    try:
+                        result["sector_analysis"] = sector_analysis(before, after, reference_date=evidence_date)
+                    except (OSError, ValueError):
+                        result["sector_analysis"] = {"status": "unavailable", "reason": "sector_evidence_unusable"}
             if include_agent_commentary and search_alternatives and not pending_smaller_authorization:
                 if runtime is not None:
                     try:
@@ -586,6 +604,7 @@ async def run_case(
         return result
     finally:
         result.update(agent_outputs=dict(outputs), trace=list(trace), elapsed_ms=round((perf_counter() - started) * 1000))
+        apply_requirement_status(result, unassessed)
 
 
 def explain_audit(review, alternatives, policy):

@@ -72,7 +72,12 @@ def apply_requirement_status(report, unassessed=()):
             "needs_authorization" if report.get("needs_smaller_authorization") else "completed",
             evidence_ids=market_ids + issuer_ids)
     else:
-        add("alternatives", "Alternative funding search", "skipped_not_requested")
+        add("alternatives", "Alternative funding search",
+            "skipped_outside_scope" if unassessed else "skipped_not_requested")
+    if sector := report.get("sector_analysis"):
+        add("sector_analysis", "Descriptive equity sector analysis",
+            "completed" if sector.get("status") == "complete" else "insufficient_evidence",
+            evidence_ids=[f"sector:{ticker}:{row['as_of']}" for ticker, row in sector.get("evidence", {}).items()])
     for code in unassessed:
         add(code, UNASSESSED_LABELS[code], "unsupported", "unknown")
 
