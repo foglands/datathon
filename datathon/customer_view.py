@@ -21,9 +21,10 @@ def _reset(question=""):
     st.session_state.customer_question = question
     st.session_state.pop("customer_report", None)
     st.session_state.pop("customer_context", None)
+    st.session_state.pop("customer_state", None)
 
 
-def _run(question, market_loader=None):
+def _run(question, market_loader=None, *, continue_conversation=False):
     st.session_state.pop("customer_report", None)
     with st.status("Researching your idea…", expanded=True) as status:
         def progress(stage):
@@ -33,11 +34,13 @@ def _run(question, market_loader=None):
             market = market_loader() if market_loader else None
         except (OSError, ValueError):
             market = None
-        report = run_sync_action(research_question(question, runtime=customer_runtime(), progress=progress, market_data=market))
-        status.update(label="Your research is ready" if report["analyses"] else "A little more context or evidence is needed",
+        report = run_sync_action(research_question(question, runtime=customer_runtime(), progress=progress, market_data=market,
+            previous_state=st.session_state.get("customer_state") if continue_conversation else None))
+        status.update(label="Your research is ready" if report["status"] == "ready" else "Partial research · some questions remain open",
                       state="complete", expanded=False)
     st.session_state.customer_report = report
     st.session_state.customer_context = question
+    st.session_state.customer_state = report.get("conversation_state")
 
 
 def _charts(analyses):
@@ -176,6 +179,8 @@ def render_report(report):
     explanations = report["editor"].get("explanations", [])
     if analyses:
         with st.container(border=True):
+            if report["editor"].get("answer_status") in {"partial", "evidence_only"}:
+                st.info("Partial analysis: unresolved tasks or unsupported conclusions remain. Supported findings are retained below.")
             if explanations:
                 for section in explanations:
                     st.markdown("### " + section["heading"])
@@ -200,6 +205,15 @@ def render_report(report):
         st.caption("Extracted statements are interpretations of your wording. Correct them in the conversation; unknowns stay unknown.")
         for conflict in report.get("profile", {}).get("conflicts", []):
             st.warning(f"Conflicting {conflict['field'].replace('_', ' ')}: " + " / ".join(conflict["statements"]) + " " + conflict["impact"])
+    for resolution in report.get("resolutions", []):
+        if resolution.get("status") == "needs_confirmation":
+            st.warning("Please confirm the listing for " + resolution["query"])
+            st.dataframe(resolution["candidates"], hide_index=True)
+    with st.expander("Argument support and remaining tasks"):
+        st.json({"arguments": report["editor"].get("arguments", []), "tasks": report.get("tasks", []),
+                 "review": report["editor"].get("explanation_review", {}), "budget": report.get("execution_budget", {}),
+                 "updates": (report.get("conversation_state") or {}).get("events", [])}, expanded=False)
+        st.caption("Deterministic checks verify quantities and scope records. Semantic support is a separate, fallible model assessment.")
     with st.expander("Analysis questions and follow-up investigations"):
         for check in report.get("planning", {}).get("checks", []):
             st.write(check["question"])
@@ -271,7 +285,10 @@ def render_customer(market_loader=None):
     reset.button("New question", on_click=_reset)
     report = st.session_state.get("customer_report")
     if report:
-        if question.strip() != report["question"].split("\nUser clarification")[0].split("\nAdditional user-stated details")[0]:
+        messages = (report.get("conversation_state") or {}).get("messages", [])
+        original_question = messages[0]["text"] if messages else report["question"]
+        original_question = original_question.split("\nUser clarification")[0].split("\nAdditional user-stated details")[0]
+        if question.strip() != original_question:
             st.info("The report below belongs to the earlier question shown in Your idea, understood. Choose Research my idea to analyze your edited question.")
         render_report(report)
         st.subheader("Continue the conversation")
@@ -279,12 +296,8 @@ def render_customer(market_loader=None):
             st.write(report["plan"]["question"])
         followup = st.text_input("Add a condition, correct an assumption, or ask a follow-up", key="customer_followup", max_chars=1000)
         if st.button("Update my research") and followup.strip():
-            combined = st.session_state.customer_context + "\nUser clarification (takes precedence): " + followup.strip()
-            if len(combined.encode()) > 8000:
-                st.warning("Start a new question with your updated conditions so the research stays focused.")
-            else:
-                _run(combined, market_loader)
-                st.rerun()
+            _run(followup.strip(), market_loader, continue_conversation=True)
+            st.rerun()
     with st.expander("Add details in your own words · optional"):
         st.caption("Use only the fields relevant to your question. Leave everything else blank.")
         with st.form("customer_optional_profile"):
@@ -300,6 +313,6 @@ def render_customer(market_loader=None):
                     ("Withdrawal", withdrawal), ("Risk willingness", willingness), ("Loss capacity", capacity),
                     ("Current holdings", holdings), ("Preferences", preferences)) if value.strip()]
                 if question.strip() and additions:
-                    combined = question.strip() + "\nAdditional user-stated details:\n" + "\n".join(additions)
-                    _run(combined, market_loader)
+                    combined = ("Additional user-stated details:\n" if st.session_state.get("customer_state") else question.strip() + "\nAdditional user-stated details:\n") + "\n".join(additions)
+                    _run(combined, market_loader, continue_conversation=bool(st.session_state.get("customer_state")))
                     st.rerun()

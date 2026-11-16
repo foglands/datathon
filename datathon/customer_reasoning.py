@@ -14,6 +14,7 @@ from .runtime_budget import RuntimeBudgetExceeded, RuntimeLimits, run_bounded
 
 
 CATALOG = {
+    "product_comparison": "Compare standalone observed products on identical dates and currency.",
     "historical_market": "Observed returns, drawdown, recovery, rolling returns, stress and FX attribution.",
     "horizon_window": "Historical holding-period outcomes for an explicitly stated horizon; not a forecast.",
     "cash_needs": "Replay an explicitly stated withdrawal schedule; ask for missing fields.",
@@ -108,7 +109,9 @@ class Finding(TypedDict):
 
 
 def context_records(question, plan):
-    return {"user.request": question, **{f"user.{i}": row["excerpt"] for i, row in enumerate(plan["conditions"])}}
+    return {"user.request": question,
+            **{f"user.{i}": row["excerpt"] for i, row in enumerate(plan["conditions"])},
+            **{row["id"]: row["excerpt"] for row in plan["conditions"] if row.get("id")}}
 
 
 def validate_checks(checks, context, maximum=4):
@@ -120,7 +123,7 @@ def validate_checks(checks, context, maximum=4):
             raise ValueError("Ground each analysis question in known client context and a supported tool.")
 
 
-async def handoff(runtime, role, payload, name, handler):
+async def handoff(runtime, role, payload, name, handler, *, timeout_seconds=45):
     validation_errors = []
     instruction_record = []
     instructions_getter = getattr(type(runtime), "_role_instructions", None)
@@ -141,7 +144,7 @@ async def handoff(runtime, role, payload, name, handler):
     tool = ToolSpec(name, handler.__doc__, checked_handler, trace_fields=(), completes_handoff=True)
     try:
         run, usage = await run_bounded(runtime.run(role, {**payload, "required_tool": name},
-            tools=(tool,), stop_after_tool=name), RuntimeLimits(45, 2, 26000))
+            tools=(tool,), stop_after_tool=name), RuntimeLimits(timeout_seconds, 2, 26000))
         return {"ok": run.status == "ok", "trace": instruction_record + list(run.trace), "usage": usage, "stop_reason": run.stop_reason, "validation_errors": validation_errors}
     except RuntimeBudgetExceeded as exc:
         return {"ok": False, "trace": [], "failure": exc.reason}

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-16 — Task completion and argument support
+
+- Connected task contracts and claim-level semantic review to the customer workflow.
+- Allowed evidence retrieval after review rejection, with explicit time/call/retry limits and cached results.
+- Added versioned conversation corrections/retractions and traceable security candidates.
+- Separated complete, partial and evidence-only results in the page and exports.
+- Added code-authored adversarial coverage and an opt-in frozen-data before/after runner.
+- See `ANALYSIS_REQUIREMENTS_2209.md` and `submission/analysis-validation-2209.md` for evidence and limitations.
+
 ## 2026-11-16 · Contextual inquiry and conclusion-first reporting
 
 - Replace online report sorting with model-selected analysis questions, bounded follow-up evidence tools, synthesis and a separate answer review.

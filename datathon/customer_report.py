@@ -11,7 +11,7 @@ from .review_snapshot import fingerprint
 from .decision_replay import evaluate as evaluate_history, verify as verify_history
 
 
-METHOD = "customer-inquiry-v2"
+METHOD = "customer-inquiry-v3"
 
 
 def calculate(rows):
@@ -207,6 +207,8 @@ def report_markdown(report):
     plan, analyses = report["plan"], report["analyses"]
     lines = ["# Investment research report", "", report["question"], "",
              "Simulation and research · dated observations, not future-return estimates.", ""]
+    if report["editor"].get("answer_status") in {"partial", "evidence_only"}:
+        lines += ["**Partial analysis: unresolved tasks or unsupported conclusions remain.**", ""]
     if analyses:
         for section in report["editor"].get("explanations", []):
             lines += [f"## {section['heading']}", "", section["text"], "",
@@ -226,6 +228,16 @@ def report_markdown(report):
             lines += [f"- [{asset['symbol']} · {asset['source']}]({asset['source_url']}); retrieved {asset['retrieved_at']}."]
         if report.get("fx"):
             lines += [f"- [Bank of Canada FXUSDCAD]({report['fx']['source_url']}); retrieved {report['fx']['retrieved_at']}."]
+    if report.get("tasks"):
+        lines += ["", "## Task completion and remaining evidence", ""]
+        for task in report["tasks"]:
+            lines += [f"- {task['question']} — {task['status']}. {task['remaining_gap']}"]
+    if report["editor"].get("arguments"):
+        lines += ["", "## Argument support", "", "Semantic review is fallible; a supported label is not a correctness guarantee.", ""]
+        for row in report["editor"]["arguments"]:
+            lines += [f"- {row['id']} ({row['kind']}): {row['relevance']} Evidence: {', '.join(row['evidence_ids'])}.",
+                      "  Assumptions: " + ("; ".join(row["assumptions"]) or "None asserted."),
+                      "  Limits: " + ("; ".join(row["limitations"]) or "See the cited evidence scope.")]
     for error in report["errors"]:
         lines += ["", f"Missing evidence: {error}"]
     lines += ["", "## What would improve the answer", "", plan["question"] or "Add your withdrawal date, loss capacity and existing holdings."]
@@ -268,6 +280,8 @@ def report_html(report):
              '<main><small>ALPHAFORGE AI · INVESTMENT RESEARCH</small><h1>Your idea, examined with evidence.</h1>',
              f'<blockquote>{escape(report["question"])}</blockquote><small>Research and hypothetical scenarios. No transactions. '
              f'Created {escape(report["created_at"])}</small>']
+    if report["editor"].get("answer_status") in {"partial", "evidence_only"}:
+        parts += ['<p><strong>Partial analysis: unresolved tasks or unsupported conclusions remain.</strong></p>']
     for section in report["editor"].get("explanations", []):
         parts += [f'<h2>{escape(section["heading"])}</h2><p>{escape(section["text"])}</p>',
                   '<small>Model interpretation checked against: ' + escape("; ".join(report["blocks"][key]["title"] for key in section["evidence_ids"])) + '</small>']

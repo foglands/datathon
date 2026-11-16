@@ -14,17 +14,22 @@ def build_profile(plan, question=""):
     for condition in plan["conditions"]:
         fields[condition["kind"]].append({"value": condition["excerpt"], "excerpt": condition["excerpt"],
             "source_type": "user_statement", "category": condition.get("source_type", "current_request"),
-            "confirmation": "extracted_unconfirmed"})
+            "confirmation": "extracted_unconfirmed", "knowledge_status": condition.get("knowledge_status", "stated")})
     if plan.get("budget") and not fields["investment_amount"]:
         fields["investment_amount"].append({"value": plan["budget"]["excerpt"], "excerpt": plan["budget"]["excerpt"],
             "source_type": "user_statement", "category": "current_request", "confirmation": "extracted_unconfirmed"})
     conflicts = []
     # Multiple values in these single-valued fields remain visible until resolved.
-    for key in ("investment_amount", "base_currency", "willingness"):
-        values = {re.sub(r"\W+", " ", item["value"].lower()).strip() for item in fields[key]}
+    for key in ("investment_amount", "base_currency"):
+        from .customer_state import semantic_key
+        values = {semantic_key(key, item["value"]) for item in fields[key]}
         if len(values) > 1:
             conflicts.append({"field": key, "statements": [item["excerpt"] for item in fields[key]],
                               "impact": "This field is not used until the conflicting statements are resolved."})
+    for condition in plan["conditions"]:
+        if condition.get("operation") == "conflict":
+            conflicts.append({"field": condition["kind"], "statements": [x["excerpt"] for x in plan["conditions"] if x["kind"] == condition["kind"]],
+                              "impact": "The user supplied incompatible statements; clarify this field if material."})
     resolved_budget = None
     latest = question.rsplit("User clarification (takes precedence):", 1)
     if len(latest) == 2 and re.search(r"\b(?:use|confirm|confirmed|actually|correct amount)\b", latest[-1], re.I):
@@ -47,7 +52,7 @@ def build_profile(plan, question=""):
         conflicts.append({"field": "portfolio", "statements": [item["excerpt"] for item in fields["portfolio"]],
                           "impact": "Multiple complete allocations are retained separately; no combined portfolio is inferred."})
     return {"fields": fields, "weights": weights, "resolved_budget": resolved_budget,
-            "unknown": [key for key, values in fields.items() if not values], "conflicts": conflicts,
+            "unknown": [key for key, values in fields.items() if not values or all(x.get("knowledge_status") == "unknown" for x in values)], "conflicts": conflicts,
             "classification": "No persona class; no age, occupation or name inference.",
             "assumptions": ["Trailing public history is a retrospective, not a forecast.",
                             "Each asset is assessed separately unless complete portfolio weights are supplied."]}

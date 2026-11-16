@@ -1,0 +1,403 @@
+{
+  "intake_execution": {
+    "origin": "bedrock",
+    "failure": null,
+    "trace": [
+      {
+        "event": "agent_start",
+        "role": "customer_intake",
+        "run_id": "7096cefc65664409bbe8ef9b5ce8caf6",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "region": "us-east-1",
+        "kind": "bedrock",
+        "timeout_seconds": 29.99987354199402,
+        "max_turns": 5,
+        "max_total_tokens": 26000,
+        "max_output_tokens": 1800
+      },
+      {
+        "event": "bedrock",
+        "role": "customer_intake",
+        "run_id": "7096cefc65664409bbe8ef9b5ce8caf6",
+        "operation": "Converse",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "region": "us-east-1",
+        "status": "success",
+        "http_status": 200,
+        "request_id": "96284cbe-f49c-42eb-995f-1963f42ad3f1",
+        "retry_attempts": 0,
+        "throttled": false,
+        "error_code": null,
+        "input_tokens": 1855,
+        "output_tokens": 353,
+        "total_tokens": 2208,
+        "cache_read_input_tokens": 0,
+        "cache_write_input_tokens": 0
+      },
+      {
+        "event": "tool",
+        "role": "customer_intake",
+        "run_id": "7096cefc65664409bbe8ef9b5ce8caf6",
+        "tool_name": "plan_investment_research",
+        "tool_use_id": "tooluse_KSJYoCxLZEZ5939fChpEfC",
+        "input": {},
+        "status": "success",
+        "output": {
+          "status": "ok",
+          "summary": "Grounded investment research plan accepted."
+        },
+        "duration_ms": 11
+      },
+      {
+        "event": "agent_end",
+        "role": "customer_intake",
+        "run_id": "7096cefc65664409bbe8ef9b5ce8caf6",
+        "status": "ok",
+        "stop_reason": "end_turn",
+        "duration_ms": 3679
+      }
+    ],
+    "usage": {
+      "elapsed_ms": 3679.21,
+      "deadline_ms": 30000,
+      "http_attempts_started": 1,
+      "http_attempt_limit": 2,
+      "reported_response_retries": 0,
+      "responses_observed": 1,
+      "responses_with_usage": 1,
+      "final_throttled_responses": 0,
+      "reported_total_tokens": 2208,
+      "observed_token_threshold": 18000,
+      "limit_reached": null
+    }
+  },
+  "planning_execution": {
+    "origin": "unavailable",
+    "ok": false,
+    "trace": [
+      {
+        "event": "inquiry_contract",
+        "role": "customer_planner",
+        "instructions_sha256": "8a27e0666601e4a9eec7e39f30b1953bd39cc327d431c0ca15795664a0955356",
+        "inference_parameters": {
+          "temperature": 0.0
+        }
+      },
+      {
+        "event": "agent_start",
+        "role": "customer_planner",
+        "run_id": "78b3bf4238884d299aaa23b3219d0fa0",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "region": "us-east-1",
+        "kind": "bedrock",
+        "timeout_seconds": 79.9998776660068,
+        "max_turns": 5,
+        "max_total_tokens": 26000,
+        "max_output_tokens": 2400
+      },
+      {
+        "event": "bedrock",
+        "role": "customer_planner",
+        "run_id": "78b3bf4238884d299aaa23b3219d0fa0",
+        "operation": "Converse",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "region": "us-east-1",
+        "status": "success",
+        "http_status": 200,
+        "request_id": "ab9c051b-31e1-41e9-8afa-384fccbd8daa",
+        "retry_attempts": 0,
+        "throttled": false,
+        "error_code": null,
+        "input_tokens": 2538,
+        "output_tokens": 831,
+        "total_tokens": 3369,
+        "cache_read_input_tokens": 0,
+        "cache_write_input_tokens": 0
+      },
+      {
+        "event": "tool",
+        "role": "customer_planner",
+        "run_id": "78b3bf4238884d299aaa23b3219d0fa0",
+        "tool_name": "propose_analysis",
+        "tool_use_id": "tooluse_FMzUiYt8IQ7kWMpW8Lt860",
+        "input": {},
+        "status": "error",
+        "output": null,
+        "duration_ms": 2
+      },
+      {
+        "event": "bedrock",
+        "role": "customer_planner",
+        "run_id": "78b3bf4238884d299aaa23b3219d0fa0",
+        "operation": "Converse",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "region": "us-east-1",
+        "status": "success",
+        "http_status": 200,
+        "request_id": "857f8644-5273-4ea4-b97c-44b6306841bf",
+        "retry_attempts": 0,
+        "throttled": false,
+        "error_code": null,
+        "input_tokens": 3333,
+        "output_tokens": 839,
+        "total_tokens": 4172,
+        "cache_read_input_tokens": 0,
+        "cache_write_input_tokens": 0
+      },
+      {
+        "event": "tool",
+        "role": "customer_planner",
+        "run_id": "78b3bf4238884d299aaa23b3219d0fa0",
+        "tool_name": "propose_analysis",
+        "tool_use_id": "tooluse_BkU3LzWrJ0eh2so3RFh7SW",
+        "input": {},
+        "status": "error",
+        "output": null,
+        "duration_ms": 3
+      },
+      {
+        "event": "agent_exception",
+        "role": "customer_planner",
+        "run_id": "78b3bf4238884d299aaa23b3219d0fa0",
+        "error_type": "EventLoopException",
+        "error_code": null
+      },
+      {
+        "event": "agent_end",
+        "role": "customer_planner",
+        "run_id": "78b3bf4238884d299aaa23b3219d0fa0",
+        "status": "error",
+        "stop_reason": "invocation_error",
+        "duration_ms": 18567
+      }
+    ],
+    "usage": {
+      "elapsed_ms": 18566.82,
+      "deadline_ms": 80000,
+      "http_attempts_started": 2,
+      "http_attempt_limit": 2,
+      "reported_response_retries": 0,
+      "responses_observed": 2,
+      "responses_with_usage": 2,
+      "final_throttled_responses": 0,
+      "reported_total_tokens": 7541,
+      "observed_token_threshold": 26000,
+      "limit_reached": "http_attempts"
+    },
+    "failure": null,
+    "stop_reason": "invocation_error",
+    "validation_errors": [
+      "Link every task to the current user request.",
+      "Link every task to the current user request."
+    ]
+  },
+  "question": "I am considering 6200 USD in SCHB for graduate school costs in 3 years. I have not decided what loss I could absorb. Explain what the historical evidence establishes and what would remain uncertain about this plan.",
+  "conditions": [
+    {
+      "kind": "investment_amount",
+      "excerpt": "6200 USD",
+      "source_type": "current_request",
+      "operation": "add",
+      "targets": [],
+      "id": "statement.1.0",
+      "turn": 1,
+      "source": "user",
+      "interpretation": "bedrock"
+    },
+    {
+      "kind": "goal",
+      "excerpt": "graduate school costs",
+      "source_type": "current_request",
+      "operation": "add",
+      "targets": [],
+      "id": "statement.1.1",
+      "turn": 1,
+      "source": "user",
+      "interpretation": "bedrock"
+    },
+    {
+      "kind": "horizon",
+      "excerpt": "3 years",
+      "source_type": "current_request",
+      "operation": "add",
+      "targets": [],
+      "id": "statement.1.2",
+      "turn": 1,
+      "source": "user",
+      "interpretation": "bedrock"
+    }
+  ],
+  "analysis_questions": [],
+  "tools": [],
+  "tool_outcomes": [],
+  "execution_trace": [],
+  "analysis_steps": [],
+  "answer": [],
+  "review": {},
+  "metrics": [
+    {
+      "symbol": "SCHB",
+      "currency": "USD",
+      "return": 0.6479128255122799,
+      "drawdown": 0.25410600525936067
+    }
+  ],
+  "evidence": {
+    "SCHB.behavior": {
+      "title": "What the history says about SCHB",
+      "text": "Over 2021-11-15 to 2026-11-13, SCHB's adjusted-price series changed by +64.79% in USD. Its largest observed fall from a previous high was 25.41%. These describe different risks: finishing ahead does not mean the journey avoided large losses.",
+      "sources": [
+        "https://finance.yahoo.com/quote/SCHB/history/"
+      ],
+      "scope": {
+        "objects": [
+          "SCHB"
+        ],
+        "level": "asset",
+        "currency": "USD",
+        "start": "2021-11-15",
+        "end": "2026-11-13",
+        "as_of": "2026-11-13T21:00:00+00:00",
+        "recorded_at": "2026-11-16T03:31:46.598024+00:00",
+        "coverage": "observed adjusted-price rows; exchange completeness not certified",
+        "method": "verified buy-and-hold replay",
+        "sources": [
+          "https://finance.yahoo.com/quote/SCHB/history/"
+        ]
+      }
+    },
+    "SCHB.budget": {
+      "title": "What your amount represents in SCHB",
+      "text": "Used entirely for this one asset, USD 6,200.00 corresponds to approximately 213 whole shares at the observed price, leaving USD 18.74 before fees and currency spreads. This is an indicative sizing calculation, not an order or a forecast. This current-price whole-share estimate is separate from the historical replay, which invests the full stated amount in fractional units at its starting date. ",
+      "sources": [
+        "https://finance.yahoo.com/quote/SCHB/history/"
+      ],
+      "scope": {
+        "objects": [
+          "SCHB"
+        ],
+        "level": "asset",
+        "currency": "USD",
+        "start": null,
+        "end": null,
+        "as_of": "2026-11-13T21:00:00+00:00",
+        "recorded_at": "2026-11-16T03:31:46.598024+00:00",
+        "coverage": "observed adjusted-price rows; exchange completeness not certified",
+        "method": "current observed quote and explicit budget; whole shares before fees",
+        "sources": [
+          "https://finance.yahoo.com/quote/SCHB/history/"
+        ]
+      }
+    }
+  },
+  "report_digest": "f27d2b12563c706bdaf071388e74379704c7aa3830d88fd6c02a2871fcce9fd8",
+  "tasks": [],
+  "arguments": [],
+  "answer_status": "evidence_only",
+  "budget": {
+    "limits": {
+      "seconds": 240,
+      "model_calls": 10,
+      "tool_calls": 8,
+      "source_calls": 12,
+      "investigations": 3,
+      "format_repairs": 2,
+      "reviews": 2
+    },
+    "elapsed_seconds": 22.858,
+    "model_calls": 2,
+    "tool_calls": 0,
+    "source_calls": 1,
+    "stop_reason": null,
+    "reported_tokens": 9749,
+    "monetary_cost": null,
+    "cost_note": "Token usage where returned; no assumed token price."
+  },
+  "conversation_state": {
+    "version": 1,
+    "statements": [
+      {
+        "kind": "investment_amount",
+        "excerpt": "6200 USD",
+        "source_type": "current_request",
+        "operation": "add",
+        "targets": [],
+        "id": "statement.1.0",
+        "active": true,
+        "turn": 1,
+        "source": "user",
+        "interpretation": "bedrock"
+      },
+      {
+        "kind": "goal",
+        "excerpt": "graduate school costs",
+        "source_type": "current_request",
+        "operation": "add",
+        "targets": [],
+        "id": "statement.1.1",
+        "active": true,
+        "turn": 1,
+        "source": "user",
+        "interpretation": "bedrock"
+      },
+      {
+        "kind": "horizon",
+        "excerpt": "3 years",
+        "source_type": "current_request",
+        "operation": "add",
+        "targets": [],
+        "id": "statement.1.2",
+        "active": true,
+        "turn": 1,
+        "source": "user",
+        "interpretation": "bedrock"
+      }
+    ],
+    "events": [
+      {
+        "turn": 1,
+        "operation": "add",
+        "field": "investment_amount",
+        "targets": [],
+        "excerpt": "6200 USD"
+      },
+      {
+        "turn": 1,
+        "operation": "add",
+        "field": "goal",
+        "targets": [],
+        "excerpt": "graduate school costs"
+      },
+      {
+        "turn": 1,
+        "operation": "add",
+        "field": "horizon",
+        "targets": [],
+        "excerpt": "3 years"
+      }
+    ],
+    "assets": [
+      {
+        "query": "SCHB",
+        "excerpt": "6200 USD in SCHB",
+        "role": "consider"
+      }
+    ],
+    "budget": {
+      "amount": 6200.0,
+      "currency": "USD",
+      "excerpt": "6200 USD"
+    }
+  },
+  "resolutions": [
+    {
+      "symbol": "SCHB",
+      "query": "SCHB",
+      "method": "ticker hypothesis; chart identity must confirm",
+      "candidates": [],
+      "verified_exchange": "PCX",
+      "verified_currency": "USD",
+      "verified_type": "ETF"
+    }
+  ]
+}

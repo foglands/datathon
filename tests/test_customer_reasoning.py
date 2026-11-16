@@ -18,6 +18,33 @@ def sections(evidence="AMD.behavior"):
              "evidence_ids": [evidence], "context_ids": ["user.request"]} for heading in HEADINGS]
 
 
+def task(tool, question, output=None, scope="asset"):
+    from datathon.inquiry_contracts import tool_catalog
+    spec = tool_catalog()[tool]
+    return {"tool": tool, "question": question, "context_ids": ["user.request"],
+            "relevance": "Resolve a material part of the current request.", "required_inputs": spec["inputs"],
+            "required_outputs": [output] if output else spec["outputs"], "required_measures": spec["measures"][:1], "scope": scope,
+            "completion_condition": "Return verified evidence answering this question within the stated scope."}
+
+
+def claims(evidence="AMD.behavior", repaired=False):
+    return [{"id": "claim." + str(i), "heading": heading,
+             "text": ("Incomplete holdings prevent whole-portfolio conclusions; historical observations remain useful." if repaired else
+                      "The checked history informs the question, while future outcomes remain unknown."),
+             "kind": "limitation", "scope": "asset", "evidence_ids": [evidence], "context_ids": ["user.request"],
+             "relevance": "The evidence limits the available assessment.", "assumptions": [], "limitations": ["Future outcomes remain unknown."]}
+            for i,heading in enumerate(HEADINGS)]
+
+
+def audit(handle, payload, accepted=True, feedback="Supported within scope."):
+    handle(claim_reviews=[{"claim_id": row["id"], "status": "supported" if accepted else "insufficient",
+        "evidence_ids": row["evidence_ids"], "defect": "none" if accepted else "unsupported", "severity": "conclusion",
+        "reason": feedback, "repair": "none" if accepted else "narrow"} for row in payload["arguments"]],
+        task_reviews=[{"task_id": row["id"], "status": "complete" if not row["missing_outputs"] and row["scope_supported"] else "blocked",
+                       "reason": "Checked the actual output against the task condition."} for row in payload["tasks"]],
+        answers_question=accepted, requested_scope_complete=accepted, remaining_user_requests=[] if accepted else ["Resolve material evidence gap."], feedback=feedback)
+
+
 class InquiryTests(IsolatedAsyncioTestCase):
     async def test_tool_question_cannot_supply_unverified_numbers_to_evidence(self):
         p=plan()
@@ -40,23 +67,22 @@ class InquiryTests(IsolatedAsyncioTestCase):
             elif role == "customer_analyst":
                 attempt=sum(row[0]=="customer_analyst" for row in calls)
                 if not payload["tool_outcomes"]:
-                    handle(action="investigate", checks=[{"tool":"portfolio_context", "question":"Can incomplete holdings establish whole-portfolio effects?", "context_ids":["user.request"]}], sections=[], follow_up="")
+                    handle(action="investigate", checks=[task("portfolio_context", "Can incomplete holdings establish whole-portfolio effects?", scope="client_context")], claims=[], follow_up="")
                 elif attempt==2:
-                    handle(action="investigate",checks=[{"tool":"historical_market","question":"What observed drawdown evidence can qualify the answer?","context_ids":["user.request"]}],sections=[],follow_up="")
+                    handle(action="investigate",checks=[task("historical_market", "What observed drawdown evidence can qualify the answer?")],claims=[],follow_up="")
                 elif attempt in (3,4):
                     try:
-                        handle(action="conclude",checks=[],sections=sections("missing.evidence"),follow_up="")
+                        handle(action="conclude",checks=[],claims=claims("missing.evidence"),follow_up="")
                     except ValueError:
                         return AgentRun("error",{})
                 else:
                     self.assertIn("Complete portfolio weights were not supplied", payload["verified_evidence"]["analysis.portfolio"]["text"])
                     if audits:
-                        self.assertIn("Address incomplete holdings", payload["review_feedback"])
-                    handle(action="conclude", checks=[], sections=sections("analysis.portfolio"), follow_up="What are your existing holdings and weights?")
+                        self.assertIn("Address incomplete holdings", str(payload["review_feedback"]))
+                    handle(action="conclude", checks=[], claims=claims("analysis.portfolio", repaired=bool(audits)), follow_up="What are your existing holdings and weights?")
             elif role == "customer_auditor":
                 accepted = bool(audits)
-                handle(answers_question=True, uses_context=accepted, grounded_claims=True, balanced_evidence=True,
-                       bounded_scope=True, feedback="Supported." if accepted else "Address incomplete holdings explicitly.")
+                audit(handle, payload, accepted, "Supported." if accepted else "Address incomplete holdings explicitly.")
                 audits.append(accepted)
             return AgentRun("ok", {})
         runtime.run.side_effect = run
@@ -81,16 +107,15 @@ class InquiryTests(IsolatedAsyncioTestCase):
                 self.assertTrue(any(key.startswith("explicit_rule") for key in payload["verified_evidence"]))
                 # There is no required_takeaway or predetermined largest-risk lead.
                 self.assertNotIn("required_takeaway", payload)
-                handle(action="conclude", checks=[], sections=sections(), follow_up="")
+                handle(action="conclude", checks=[], claims=claims(repaired=bool(payload["previous_answer"])), follow_up="")
             else:
                 self.assertIn("Maximum drawdown", str(payload["user_context"]))
-                handle(answers_question=True,uses_context=False,grounded_claims=True,balanced_evidence=False,bounded_scope=True,
-                       feedback="The conclusion ignores the user's explicit loss capacity.")
+                audit(handle, payload, False, "The conclusion ignores the user's explicit loss capacity.")
             return AgentRun("ok",{})
         runtime.run.side_effect=run
         with patch("datathon.customer_workflow.understand",AsyncMock(return_value=request)):
             result=await research_question("Maximum drawdown must not exceed 1%.",runtime=runtime,provider=provider)
-        self.assertNotIn("explanations",result["editor"])
+        self.assertFalse(result["editor"].get("explanations"))
         self.assertEqual(len([step for step in result["editor"]["analysis_steps"] if step["action"]=="review"]),2)
 
     async def test_full_optional_context_reaches_planner_and_not_only_the_intake_labels(self):
@@ -112,8 +137,8 @@ class EvidenceDisciplineTests(TestCase):
     def test_analysis_transport_budget_is_separate_from_legacy_roles(self):
         from datathon.customer_agents import CustomerAgents
         runtime=CustomerAgents()
-        self.assertEqual(runtime._read_timeout("customer_analyst"),40)
-        self.assertEqual(runtime._read_timeout("customer_auditor"),40)
+        self.assertEqual(runtime._read_timeout("customer_analyst"),75)
+        self.assertEqual(runtime._read_timeout("customer_auditor"),75)
         self.assertEqual(runtime._read_timeout("profile"),12)
         self.assertEqual(runtime._inference_parameters("customer_analyst"),{"temperature":0.0})
         self.assertEqual(runtime._inference_parameters("profile"),{})

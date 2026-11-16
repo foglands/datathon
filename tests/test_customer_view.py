@@ -32,7 +32,7 @@ class CustomerViewTests(unittest.TestCase):
              patch("datathon.customer_view.research_question", AsyncMock(return_value=report)):
             next(button for button in self.app.button if button.label == "Research my idea").click().run()
         self.assertFalse(self.app.exception)
-        self.assertEqual(self.app.session_state["customer_report"]["status"], "ready")
+        self.assertEqual(self.app.session_state["customer_report"]["status"], "partial")
         self.assertEqual(len(self.app.metric), 3)
         self.assertTrue(any(button.label == "Update my research" for button in self.app.button))
         self.assertFalse(any(button.label == "Confirm and run historical review" for button in self.app.button))

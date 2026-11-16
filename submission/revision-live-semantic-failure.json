@@ -1,0 +1,7 @@
+{
+  "question": "I am considering putting 4800 USD into SCHX for a professional course in 2 years. I have not decided what loss I can absorb. Explain what the historical evidence supports about this plan and what remains uncertain.",
+  "observation": "Actual customer page displayed Your research is ready and a model-reviewed conclusion with dated prices and charts.",
+  "unsupported_assertion": "the $4800 amount was 0.001116% of average daily trading volume, indicating execution feasibility.",
+  "manual_assessment": "The ratio is checked but cannot establish execution feasibility. The evidence explicitly excludes spread, depth and price impact. Model semantic review missed this substitution.",
+  "response": "Added a deterministic capability-boundary check for positive execution/impact assertions from the volume proxy, with a non-assertion regression case. This is a bounded guard, not a guarantee that all paraphrases are detected."
+}

@@ -1,5 +1,8 @@
 # Contextual reasoning: requested changes and acceptance
 
+> Current analysis-contract revision: [22.09 requirements and implementation](ANALYSIS_REQUIREMENTS_2209.md). Validation and remaining gaps: [revision validation](submission/analysis-validation-2209.md). Earlier acceptance records below describe their recorded revision, not a claim of current universal correctness.
+
+
 This records the user's latest product direction and supersedes earlier persona-driven or fixed risk-priority choices. Product language remains English. Amira, Mateo and Robert are test inputs only.
 
 ## User problem

@@ -52,14 +52,19 @@ class FrozenResearch:
 
 
 def compact_report(report):
-    return {"question": report["question"], "conditions": report["plan"]["conditions"],
+    return {"intake_execution": {key: report["plan"].get(key) for key in ("origin", "failure", "trace", "usage")},
+        "planning_execution": {key: report.get("planning", {}).get(key) for key in ("origin", "ok", "trace", "usage", "failure", "stop_reason", "validation_errors")},
+        "question": report["question"], "conditions": report["plan"]["conditions"],
         "analysis_questions": report.get("planning", {}).get("checks", []),
         "tools": report.get("executed_tools", []), "tool_outcomes": report.get("tool_outcomes", []),
         "execution_trace": report["editor"].get("trace", []), "analysis_steps": report["editor"].get("analysis_steps", []),
         "answer": report["editor"].get("explanations", []), "review": report["editor"].get("explanation_review", {}),
         "metrics": [{"symbol": row["asset"]["symbol"], "currency": row["basis"],
             "return": row["metrics"]["return"], "drawdown": row["metrics"]["drawdown"]} for row in report["analyses"]],
-        "evidence": report["blocks"], "report_digest": report["report_digest"]}
+        "evidence": report["blocks"], "report_digest": report["report_digest"],
+        "tasks": report.get("tasks", []), "arguments": report["editor"].get("arguments", []),
+        "answer_status": report["editor"].get("answer_status"), "budget": report.get("execution_budget"),
+        "conversation_state": report.get("conversation_state"), "resolutions": report.get("resolutions", [])}
 
 
 def comparison_evidence(case):
@@ -71,7 +76,7 @@ async def evaluate_generalization(runtime, progress=lambda text: None, provider=
     provider = provider or FrozenResearch()
     reports, checks = {}, {}
     for name, question in CASES.items():
-        progress("Running unseen case: " + name)
+        progress("Running development case: " + name)
         reports[name] = compact_report(await research_question(question, runtime=runtime, provider=provider, market_data=market_data))
         Path(tempfile.gettempdir(), "alphaforge-inquiry-progress.json").write_text(json.dumps(reports, indent=2))
     for name in list(CASES)[1:]:
@@ -100,14 +105,34 @@ def render_acceptance(market_loader=None):
     from .customer_agents import customer_runtime
     from .runtime_budget import run_sync_action
     st.subheader("General customer reasoning acceptance")
-    st.write("Five unseen fictional requests: baseline, renamed, paraphrased, unrelated detail, and a material tuition withdrawal. Public observations are held fixed. Independent model comparisons evaluate meaning, not identical wording.")
+    st.write("Five development requests used in earlier testing: baseline, renamed, paraphrased, unrelated detail, and a material tuition withdrawal. Public observations are held fixed. Independent model comparisons evaluate meaning, not identical wording.")
     diagnostic_question = st.text_area("Diagnostic question", value=BASE, key="inquiry_diagnostic_question")
+    if st.button("Check follow-up state only"):
+        from .customer_agents import understand
+        with st.status("Checking the conversation-state contract", expanded=True):
+            state_check = run_sync_action(understand(diagnostic_question, customer_runtime(),
+                previous_state=st.session_state.get("customer_state")))
+        Path(tempfile.gettempdir(), "alphaforge-state-check.json").write_text(json.dumps(state_check, indent=2))
+        st.json(state_check)
+    if st.button("Compare before and after on this question"):
+        from .revision_validation import compare_revision
+        with st.status("Comparing revisions on the same observations", expanded=True):
+            comparison = run_sync_action(compare_revision(diagnostic_question, progress=st.write))
+        Path(tempfile.gettempdir(), "alphaforge-revision-comparison.json").write_text(json.dumps(comparison, indent=2))
+        st.session_state.revision_comparison = comparison
+        st.json(comparison)
+    if st.button("Collect fresh paired reliability cases"):
+        from .revision_validation import collect_reliability_cases
+        with st.status("Collecting paired evidence for independent assessment", expanded=True):
+            paired = run_sync_action(collect_reliability_cases(progress=st.write))
+        st.json(paired.get("calculation_checks", {}))
     if st.button("Run one diagnostic question"):
         with st.status("Checking one complete inquiry", expanded=True):
             report = run_sync_action(research_question(diagnostic_question, runtime=customer_runtime(), progress=st.write,
                 market_data=market_loader() if market_loader else None))
         st.session_state.customer_report = report
         st.session_state.customer_context = diagnostic_question
+        st.session_state.customer_state = report.get("conversation_state")
         st.session_state.customer_question = diagnostic_question
         Path(tempfile.gettempdir(), "alphaforge-inquiry-diagnostic.json").write_text(json.dumps(compact_report(report), indent=2))
         st.json(report["editor"])

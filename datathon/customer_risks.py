@@ -307,7 +307,7 @@ def risk_blocks(risks):
                 sources.extend(value["source_url"] for value in row["coefficients"].values() if value.get("source_url"))
             elif risk["id"] == "historical_market":
                 metric = row["metrics"]
-                parts = [f"{symbol}: terminal loss {metric['terminal_loss']:.2%}"]
+                parts = [f"{symbol}: terminal return {metric['terminal_return']:+.2%}; terminal loss {metric['terminal_loss']:.2%}; maximum drawdown {metric['max_drawdown']:.2%}"]
                 if row.get("volatility_basis") == "withheld":
                     parts.append("annualized volatility withheld because this instrument trades on a different calendar")
                 else:

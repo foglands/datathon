@@ -1,0 +1,25 @@
+{
+  "before": {
+    "role_calls": 5,
+    "http_responses": 7,
+    "reported_tokens": 26706,
+    "elapsed_seconds": 45.978,
+    "status": "ready",
+    "task_states": {},
+    "cost": null
+  },
+  "after": {
+    "role_calls": 5,
+    "http_responses": 6,
+    "reported_tokens": 51181,
+    "elapsed_seconds": 72.629,
+    "status": "partial",
+    "task_states": {
+      "task.0": "complete",
+      "task.1": "complete",
+      "task.2": "complete",
+      "task.3": "blocked"
+    },
+    "cost": null
+  }
+}

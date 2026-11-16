@@ -1,0 +1,1428 @@
+{
+  "intake_execution": {
+    "origin": "bedrock",
+    "failure": null,
+    "trace": [
+      {
+        "event": "agent_start",
+        "role": "customer_intake",
+        "run_id": "6fcd46a0106c47948aef7ad897ae0ca5",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "region": "us-east-1",
+        "kind": "bedrock",
+        "timeout_seconds": 29.999215166986687,
+        "max_turns": 5,
+        "max_total_tokens": 26000,
+        "max_output_tokens": 1800
+      },
+      {
+        "event": "bedrock",
+        "role": "customer_intake",
+        "run_id": "6fcd46a0106c47948aef7ad897ae0ca5",
+        "operation": "Converse",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "region": "us-east-1",
+        "status": "success",
+        "http_status": 200,
+        "request_id": "62b82274-a863-4c3f-a3da-5595723adead",
+        "retry_attempts": 0,
+        "throttled": false,
+        "error_code": null,
+        "input_tokens": 1905,
+        "output_tokens": 446,
+        "total_tokens": 2351,
+        "cache_read_input_tokens": 0,
+        "cache_write_input_tokens": 0
+      },
+      {
+        "event": "tool",
+        "role": "customer_intake",
+        "run_id": "6fcd46a0106c47948aef7ad897ae0ca5",
+        "tool_name": "plan_investment_research",
+        "tool_use_id": "tooluse_TKcxImSy3xnxsNGKhZbotN",
+        "input": {},
+        "status": "success",
+        "output": {
+          "status": "ok",
+          "summary": "Grounded investment research plan accepted."
+        },
+        "duration_ms": 6
+      },
+      {
+        "event": "agent_end",
+        "role": "customer_intake",
+        "run_id": "6fcd46a0106c47948aef7ad897ae0ca5",
+        "status": "ok",
+        "stop_reason": "end_turn",
+        "duration_ms": 4469
+      }
+    ],
+    "usage": {
+      "elapsed_ms": 4469.94,
+      "deadline_ms": 30000,
+      "http_attempts_started": 1,
+      "http_attempt_limit": 2,
+      "reported_response_retries": 0,
+      "responses_observed": 1,
+      "responses_with_usage": 1,
+      "final_throttled_responses": 0,
+      "reported_total_tokens": 2351,
+      "observed_token_threshold": 18000,
+      "limit_reached": null
+    }
+  },
+  "planning_execution": {
+    "origin": "bedrock",
+    "ok": true,
+    "trace": [
+      {
+        "event": "inquiry_contract",
+        "role": "customer_planner",
+        "instructions_sha256": "29d876ba307ad9f6deb6e23471c1b610e354b9028ecf4508f8d8927b27603585",
+        "inference_parameters": {
+          "temperature": 0.0
+        }
+      },
+      {
+        "event": "agent_start",
+        "role": "customer_planner",
+        "run_id": "3a3d1461d5de46f99014ceef20c1cad9",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "region": "us-east-1",
+        "kind": "bedrock",
+        "timeout_seconds": 79.99991329200566,
+        "max_turns": 5,
+        "max_total_tokens": 26000,
+        "max_output_tokens": 2400
+      },
+      {
+        "event": "bedrock",
+        "role": "customer_planner",
+        "run_id": "3a3d1461d5de46f99014ceef20c1cad9",
+        "operation": "Converse",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "region": "us-east-1",
+        "status": "success",
+        "http_status": 200,
+        "request_id": "f34d3707-1b5b-4d0d-b021-996efb803900",
+        "retry_attempts": 0,
+        "throttled": false,
+        "error_code": null,
+        "input_tokens": 2887,
+        "output_tokens": 899,
+        "total_tokens": 3786,
+        "cache_read_input_tokens": 0,
+        "cache_write_input_tokens": 0
+      },
+      {
+        "event": "tool",
+        "role": "customer_planner",
+        "run_id": "3a3d1461d5de46f99014ceef20c1cad9",
+        "tool_name": "propose_analysis",
+        "tool_use_id": "tooluse_be1Q02YVXOcgn0N6lJAUkS",
+        "input": {},
+        "status": "success",
+        "output": {
+          "status": "ok",
+          "summary": "Task contracts recorded, not yet completed."
+        },
+        "duration_ms": 7
+      },
+      {
+        "event": "agent_end",
+        "role": "customer_planner",
+        "run_id": "3a3d1461d5de46f99014ceef20c1cad9",
+        "status": "ok",
+        "stop_reason": "end_turn",
+        "duration_ms": 13119
+      }
+    ],
+    "usage": {
+      "elapsed_ms": 13118.99,
+      "deadline_ms": 80000,
+      "http_attempts_started": 1,
+      "http_attempt_limit": 2,
+      "reported_response_retries": 0,
+      "responses_observed": 1,
+      "responses_with_usage": 1,
+      "final_throttled_responses": 0,
+      "reported_total_tokens": 3786,
+      "observed_token_threshold": 26000,
+      "limit_reached": null
+    },
+    "failure": null,
+    "stop_reason": "end_turn",
+    "validation_errors": []
+  },
+  "question": "I am considering 6200 USD in SCHB for graduate school costs in 3 years. I have not decided what loss I could absorb. Explain what the historical evidence establishes and what would remain uncertain about this plan.",
+  "conditions": [
+    {
+      "kind": "investment_amount",
+      "excerpt": "6200 USD",
+      "source_type": "current_request",
+      "knowledge_status": "stated",
+      "operation": "add",
+      "targets": [],
+      "id": "statement.1.0",
+      "turn": 1,
+      "source": "user",
+      "interpretation": "bedrock"
+    },
+    {
+      "kind": "goal",
+      "excerpt": "graduate school costs",
+      "source_type": "current_request",
+      "knowledge_status": "stated",
+      "operation": "add",
+      "targets": [],
+      "id": "statement.1.1",
+      "turn": 1,
+      "source": "user",
+      "interpretation": "bedrock"
+    },
+    {
+      "kind": "horizon",
+      "excerpt": "3 years",
+      "source_type": "current_request",
+      "knowledge_status": "stated",
+      "operation": "add",
+      "targets": [],
+      "id": "statement.1.2",
+      "turn": 1,
+      "source": "user",
+      "interpretation": "bedrock"
+    },
+    {
+      "kind": "loss",
+      "excerpt": "I have not decided what loss I could absorb",
+      "source_type": "current_request",
+      "knowledge_status": "unknown",
+      "operation": "add",
+      "targets": [],
+      "id": "statement.1.3",
+      "turn": 1,
+      "source": "user",
+      "interpretation": "bedrock"
+    }
+  ],
+  "analysis_questions": [
+    {
+      "tool": "historical_market",
+      "question": "What are the historical return and volatility metrics for SCHB over its available price history?",
+      "context_ids": [
+        "statement.1.0",
+        "statement.1.2"
+      ],
+      "relevance": "Establishes the observed single-asset behavior of SCHB, including mean return, volatility, and drawdown history. This provides baseline evidence about past performance but does not predict future outcomes or assess suitability for the 3-year horizon.",
+      "required_inputs": [
+        "verified adjusted prices for SCHB"
+      ],
+      "required_outputs": [
+        "historical_metrics"
+      ],
+      "scope": "asset",
+      "completion_condition": "historical_metrics output is returned showing annualized return, volatility, maximum drawdown, and other summary statistics for SCHB"
+    },
+    {
+      "tool": "horizon_window",
+      "question": "What were the historical outcomes for all overlapping 3-year holding periods in SCHB's price history?",
+      "context_ids": [
+        "statement.1.2"
+      ],
+      "relevance": "Directly addresses the 3-year horizon by showing the distribution of historical rolling 3-year returns. Reveals both favorable and unfavorable historical outcomes at this specific duration, establishing what has happened in the past but not what will happen in the future.",
+      "required_inputs": [
+        "3 years duration",
+        "sufficient SCHB price history"
+      ],
+      "required_outputs": [
+        "holding_period_outcomes"
+      ],
+      "scope": "asset",
+      "completion_condition": "holding_period_outcomes output is returned showing the range, percentiles, and distribution of all historical 3-year holding period returns for SCHB, or a gap is identified if insufficient price history exists"
+    },
+    {
+      "tool": "cash_needs",
+      "question": "What would have happened historically if 6200 USD were invested in SCHB and then fully withdrawn after 3 years across all possible start dates?",
+      "context_ids": [
+        "statement.1.0",
+        "statement.1.1",
+        "statement.1.2"
+      ],
+      "relevance": "Simulates the specific plan (6200 USD, 3-year horizon, full withdrawal for graduate school) against historical data. Shows the range of terminal values that would have resulted, including scenarios where the amount grew and scenarios where it declined. Does not predict future withdrawal success.",
+      "required_inputs": [
+        "6200 USD budget",
+        "3 years timing",
+        "full withdrawal amount",
+        "SCHB price history"
+      ],
+      "required_outputs": [
+        "withdrawal_replay"
+      ],
+      "scope": "asset",
+      "completion_condition": "withdrawal_replay output is returned showing historical terminal values after 3 years for each start date, or a gap is identified if the tool cannot process the withdrawal pattern"
+    },
+    {
+      "tool": "tail_loss",
+      "question": "What are the certified worst-case daily or short-term losses observed in SCHB's complete exchange session history?",
+      "context_ids": [
+        "statement.1.3"
+      ],
+      "relevance": "Addresses the unknown loss tolerance by establishing the historical tail risk of SCHB. Shows the magnitude of severe historical drawdowns, which helps frame what losses have occurred in the past. User has not decided acceptable loss, so both supporting evidence (moderate historical tails) and weakening evidence (severe historical tails) are relevant. Does not predict future maximum loss.",
+      "required_inputs": [
+        "certified complete exchange sessions for SCHB"
+      ],
+      "required_outputs": [
+        "tail_estimate"
+      ],
+      "scope": "asset",
+      "completion_condition": "tail_estimate output is returned showing historical worst-case loss metrics, or the tool withholds output due to insufficient coverage certification"
+    }
+  ],
+  "tools": [
+    "historical_market",
+    "horizon_window",
+    "cash_needs",
+    "tail_loss"
+  ],
+  "tool_outcomes": [
+    {
+      "tool": "historical_market",
+      "question": "What are the historical return and volatility metrics for SCHB over its available price history?",
+      "context_ids": [
+        "statement.1.0",
+        "statement.1.2"
+      ],
+      "relevance": "Establishes the observed single-asset behavior of SCHB, including mean return, volatility, and drawdown history. This provides baseline evidence about past performance but does not predict future outcomes or assess suitability for the 3-year horizon.",
+      "required_inputs": [
+        "verified adjusted prices for SCHB"
+      ],
+      "required_outputs": [
+        "historical_metrics"
+      ],
+      "scope": "asset",
+      "completion_condition": "historical_metrics output is returned showing annualized return, volatility, maximum drawdown, and other summary statistics for SCHB",
+      "status": "assessed",
+      "evidence_ids": [
+        "risk.historical_market"
+      ],
+      "outcome": "SCHB: terminal loss 0.00%; annualized observed volatility 17.51% (252-observation convention; session coverage uncertified); worst complete monthly return -9.27% (2022-09); worst rolling 12m return -21.09%; worst rolling 36m return 13.08%; maximum-drawdown recovery 721 calendar days from its peak; 2022 market decline: return -19.46%, drawdown 25.41%; Early 2025: return -15.61%, drawdown 19.34%. History cannot establish a future loss limit or achieve a long-term goal.",
+      "produced_outputs": [
+        "historical_metrics"
+      ]
+    },
+    {
+      "tool": "horizon_window",
+      "question": "What were the historical outcomes for all overlapping 3-year holding periods in SCHB's price history?",
+      "context_ids": [
+        "statement.1.2"
+      ],
+      "relevance": "Directly addresses the 3-year horizon by showing the distribution of historical rolling 3-year returns. Reveals both favorable and unfavorable historical outcomes at this specific duration, establishing what has happened in the past but not what will happen in the future.",
+      "required_inputs": [
+        "3 years duration",
+        "sufficient SCHB price history"
+      ],
+      "required_outputs": [
+        "holding_period_outcomes"
+      ],
+      "scope": "asset",
+      "completion_condition": "holding_period_outcomes output is returned showing the range, percentiles, and distribution of all historical 3-year holding period returns for SCHB, or a gap is identified if insufficient price history exists",
+      "evidence_ids": [
+        "analysis.horizon"
+      ],
+      "outcome": "SCHB: 502 overlapping observed 36-month windows in USD; worst change +13.08%, best change +93.46%. End observations are on or before the anniversary within seven days. These overlapping historical outcomes are not future probabilities or guaranteed bounds.",
+      "status": "assessed",
+      "produced_outputs": [
+        "holding_period_outcomes"
+      ]
+    },
+    {
+      "tool": "cash_needs",
+      "question": "What would have happened historically if 6200 USD were invested in SCHB and then fully withdrawn after 3 years across all possible start dates?",
+      "context_ids": [
+        "statement.1.0",
+        "statement.1.1",
+        "statement.1.2"
+      ],
+      "relevance": "Simulates the specific plan (6200 USD, 3-year horizon, full withdrawal for graduate school) against historical data. Shows the range of terminal values that would have resulted, including scenarios where the amount grew and scenarios where it declined. Does not predict future withdrawal success.",
+      "required_inputs": [
+        "6200 USD budget",
+        "3 years timing",
+        "full withdrawal amount",
+        "SCHB price history"
+      ],
+      "required_outputs": [
+        "withdrawal_replay"
+      ],
+      "scope": "asset",
+      "completion_condition": "withdrawal_replay output is returned showing historical terminal values after 3 years for each start date, or a gap is identified if the tool cannot process the withdrawal pattern",
+      "status": "missing_market_data",
+      "evidence_ids": [
+        "risk.cash_needs"
+      ],
+      "outcome": "Replay an explicitly stated withdrawal schedule; ask for missing fields. Add the withdrawal amount, currency, timing and frequency. This is a funding-needs check, not a complete market-liquidity analysis.",
+      "produced_outputs": []
+    },
+    {
+      "tool": "tail_loss",
+      "question": "What are the certified worst-case daily or short-term losses observed in SCHB's complete exchange session history?",
+      "context_ids": [
+        "statement.1.3"
+      ],
+      "relevance": "Addresses the unknown loss tolerance by establishing the historical tail risk of SCHB. Shows the magnitude of severe historical drawdowns, which helps frame what losses have occurred in the past. User has not decided acceptable loss, so both supporting evidence (moderate historical tails) and weakening evidence (severe historical tails) are relevant. Does not predict future maximum loss.",
+      "required_inputs": [
+        "certified complete exchange sessions for SCHB"
+      ],
+      "required_outputs": [
+        "tail_estimate"
+      ],
+      "scope": "asset",
+      "completion_condition": "tail_estimate output is returned showing historical worst-case loss metrics, or the tool withholds output due to insufficient coverage certification",
+      "status": "missing_market_data",
+      "evidence_ids": [
+        "risk.tail_loss"
+      ],
+      "outcome": "Check whether observation coverage qualifies VaR/ES; withhold if uncertified. Exchange-session completeness is not certified. Daily VaR/ES are withheld rather than treating gaps as daily returns.",
+      "produced_outputs": []
+    }
+  ],
+  "execution_trace": [
+    {
+      "event": "inquiry_contract",
+      "role": "customer_analyst",
+      "instructions_sha256": "356374ff3ff20240caf31c6fb29bd51e970374cc6dabe17ff2133b45d197ebea",
+      "inference_parameters": {
+        "temperature": 0.0
+      }
+    },
+    {
+      "event": "agent_start",
+      "role": "customer_analyst",
+      "run_id": "f9bf44bab3ac44d29fad79564100227f",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "kind": "bedrock",
+      "timeout_seconds": 79.99991537499591,
+      "max_turns": 5,
+      "max_total_tokens": 26000,
+      "max_output_tokens": 3600
+    },
+    {
+      "event": "bedrock",
+      "role": "customer_analyst",
+      "run_id": "f9bf44bab3ac44d29fad79564100227f",
+      "operation": "Converse",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "status": "success",
+      "http_status": 200,
+      "request_id": "12ce1dd2-1af1-45c6-9ef4-8d10c6a84db2",
+      "retry_attempts": 0,
+      "throttled": false,
+      "error_code": null,
+      "input_tokens": 8281,
+      "output_tokens": 1151,
+      "total_tokens": 9432,
+      "cache_read_input_tokens": 0,
+      "cache_write_input_tokens": 0
+    },
+    {
+      "event": "tool",
+      "role": "customer_analyst",
+      "run_id": "f9bf44bab3ac44d29fad79564100227f",
+      "tool_name": "advance_analysis",
+      "tool_use_id": "tooluse_4aoFr9lmd618x5bjXqZDxQ",
+      "input": {},
+      "status": "error",
+      "output": null,
+      "duration_ms": 4
+    },
+    {
+      "event": "bedrock",
+      "role": "customer_analyst",
+      "run_id": "f9bf44bab3ac44d29fad79564100227f",
+      "operation": "Converse",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "status": "success",
+      "http_status": 200,
+      "request_id": "2cb62074-66bf-4db2-b5b3-3ce47d7c4e30",
+      "retry_attempts": 0,
+      "throttled": false,
+      "error_code": null,
+      "input_tokens": 9416,
+      "output_tokens": 1005,
+      "total_tokens": 10421,
+      "cache_read_input_tokens": 0,
+      "cache_write_input_tokens": 0
+    },
+    {
+      "event": "tool",
+      "role": "customer_analyst",
+      "run_id": "f9bf44bab3ac44d29fad79564100227f",
+      "tool_name": "advance_analysis",
+      "tool_use_id": "tooluse_GzIGeTBeGauaKznqmZBmX4",
+      "input": {},
+      "status": "error",
+      "output": null,
+      "duration_ms": 2
+    },
+    {
+      "event": "agent_exception",
+      "role": "customer_analyst",
+      "run_id": "f9bf44bab3ac44d29fad79564100227f",
+      "error_type": "EventLoopException",
+      "error_code": null
+    },
+    {
+      "event": "agent_end",
+      "role": "customer_analyst",
+      "run_id": "f9bf44bab3ac44d29fad79564100227f",
+      "status": "error",
+      "stop_reason": "invocation_error",
+      "duration_ms": 28010
+    },
+    {
+      "event": "inquiry_contract",
+      "role": "customer_analyst",
+      "instructions_sha256": "356374ff3ff20240caf31c6fb29bd51e970374cc6dabe17ff2133b45d197ebea",
+      "inference_parameters": {
+        "temperature": 0.0
+      }
+    },
+    {
+      "event": "agent_start",
+      "role": "customer_analyst",
+      "run_id": "2b0a9b8114af44efa21610bd107c4d72",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "kind": "bedrock",
+      "timeout_seconds": 79.99985520797782,
+      "max_turns": 5,
+      "max_total_tokens": 26000,
+      "max_output_tokens": 3600
+    },
+    {
+      "event": "bedrock",
+      "role": "customer_analyst",
+      "run_id": "2b0a9b8114af44efa21610bd107c4d72",
+      "operation": "Converse",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "status": "success",
+      "http_status": 200,
+      "request_id": "baf1e810-7417-4775-8605-f8f47bd9d0f7",
+      "retry_attempts": 0,
+      "throttled": false,
+      "error_code": null,
+      "input_tokens": 8350,
+      "output_tokens": 1256,
+      "total_tokens": 9606,
+      "cache_read_input_tokens": 0,
+      "cache_write_input_tokens": 0
+    },
+    {
+      "event": "tool",
+      "role": "customer_analyst",
+      "run_id": "2b0a9b8114af44efa21610bd107c4d72",
+      "tool_name": "advance_analysis",
+      "tool_use_id": "tooluse_GdSvn7itWGjdssO0SMf4o6",
+      "input": {},
+      "status": "error",
+      "output": null,
+      "duration_ms": 4
+    },
+    {
+      "event": "bedrock",
+      "role": "customer_analyst",
+      "run_id": "2b0a9b8114af44efa21610bd107c4d72",
+      "operation": "Converse",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "status": "success",
+      "http_status": 200,
+      "request_id": "3f17ab00-bdab-47e1-8b3a-17c76504d778",
+      "retry_attempts": 0,
+      "throttled": false,
+      "error_code": null,
+      "input_tokens": 9589,
+      "output_tokens": 1157,
+      "total_tokens": 10746,
+      "cache_read_input_tokens": 0,
+      "cache_write_input_tokens": 0
+    },
+    {
+      "event": "tool",
+      "role": "customer_analyst",
+      "run_id": "2b0a9b8114af44efa21610bd107c4d72",
+      "tool_name": "advance_analysis",
+      "tool_use_id": "tooluse_2N8CtLTNUhJlSvGQguIBnl",
+      "input": {},
+      "status": "error",
+      "output": null,
+      "duration_ms": 3
+    },
+    {
+      "event": "agent_exception",
+      "role": "customer_analyst",
+      "run_id": "2b0a9b8114af44efa21610bd107c4d72",
+      "error_type": "EventLoopException",
+      "error_code": null
+    },
+    {
+      "event": "agent_end",
+      "role": "customer_analyst",
+      "run_id": "2b0a9b8114af44efa21610bd107c4d72",
+      "status": "error",
+      "stop_reason": "invocation_error",
+      "duration_ms": 27213
+    },
+    {
+      "event": "inquiry_contract",
+      "role": "customer_analyst",
+      "instructions_sha256": "356374ff3ff20240caf31c6fb29bd51e970374cc6dabe17ff2133b45d197ebea",
+      "inference_parameters": {
+        "temperature": 0.0
+      }
+    },
+    {
+      "event": "agent_start",
+      "role": "customer_analyst",
+      "run_id": "37dd24a232954a329934a97b6c03b8f4",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "kind": "bedrock",
+      "timeout_seconds": 79.99988170800498,
+      "max_turns": 5,
+      "max_total_tokens": 26000,
+      "max_output_tokens": 3600
+    },
+    {
+      "event": "bedrock",
+      "role": "customer_analyst",
+      "run_id": "37dd24a232954a329934a97b6c03b8f4",
+      "operation": "Converse",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "status": "success",
+      "http_status": 200,
+      "request_id": "d6470d82-c9e1-4e6b-b680-dc40fc77dc23",
+      "retry_attempts": 0,
+      "throttled": false,
+      "error_code": null,
+      "input_tokens": 8376,
+      "output_tokens": 1161,
+      "total_tokens": 9537,
+      "cache_read_input_tokens": 0,
+      "cache_write_input_tokens": 0
+    },
+    {
+      "event": "tool",
+      "role": "customer_analyst",
+      "run_id": "37dd24a232954a329934a97b6c03b8f4",
+      "tool_name": "advance_analysis",
+      "tool_use_id": "tooluse_0MzAYvXBfWB8PcllpWJcUv",
+      "input": {},
+      "status": "error",
+      "output": null,
+      "duration_ms": 3
+    },
+    {
+      "event": "bedrock",
+      "role": "customer_analyst",
+      "run_id": "37dd24a232954a329934a97b6c03b8f4",
+      "operation": "Converse",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "status": "success",
+      "http_status": 200,
+      "request_id": "850b9565-210d-47cf-be67-85ca1c132153",
+      "retry_attempts": 0,
+      "throttled": false,
+      "error_code": null,
+      "input_tokens": 9520,
+      "output_tokens": 1039,
+      "total_tokens": 10559,
+      "cache_read_input_tokens": 0,
+      "cache_write_input_tokens": 0
+    },
+    {
+      "event": "tool",
+      "role": "customer_analyst",
+      "run_id": "37dd24a232954a329934a97b6c03b8f4",
+      "tool_name": "advance_analysis",
+      "tool_use_id": "tooluse_xI86abHWvJPuHtJ4IjBhfO",
+      "input": {},
+      "status": "error",
+      "output": null,
+      "duration_ms": 2
+    },
+    {
+      "event": "agent_exception",
+      "role": "customer_analyst",
+      "run_id": "37dd24a232954a329934a97b6c03b8f4",
+      "error_type": "EventLoopException",
+      "error_code": null
+    },
+    {
+      "event": "agent_end",
+      "role": "customer_analyst",
+      "run_id": "37dd24a232954a329934a97b6c03b8f4",
+      "status": "error",
+      "stop_reason": "invocation_error",
+      "duration_ms": 25315
+    }
+  ],
+  "analysis_steps": [
+    {
+      "action": "unavailable",
+      "details": {
+        "ok": false,
+        "trace": [
+          {
+            "event": "inquiry_contract",
+            "role": "customer_analyst",
+            "instructions_sha256": "356374ff3ff20240caf31c6fb29bd51e970374cc6dabe17ff2133b45d197ebea",
+            "inference_parameters": {
+              "temperature": 0.0
+            }
+          },
+          {
+            "event": "agent_start",
+            "role": "customer_analyst",
+            "run_id": "f9bf44bab3ac44d29fad79564100227f",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "kind": "bedrock",
+            "timeout_seconds": 79.99991537499591,
+            "max_turns": 5,
+            "max_total_tokens": 26000,
+            "max_output_tokens": 3600
+          },
+          {
+            "event": "bedrock",
+            "role": "customer_analyst",
+            "run_id": "f9bf44bab3ac44d29fad79564100227f",
+            "operation": "Converse",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "status": "success",
+            "http_status": 200,
+            "request_id": "12ce1dd2-1af1-45c6-9ef4-8d10c6a84db2",
+            "retry_attempts": 0,
+            "throttled": false,
+            "error_code": null,
+            "input_tokens": 8281,
+            "output_tokens": 1151,
+            "total_tokens": 9432,
+            "cache_read_input_tokens": 0,
+            "cache_write_input_tokens": 0
+          },
+          {
+            "event": "tool",
+            "role": "customer_analyst",
+            "run_id": "f9bf44bab3ac44d29fad79564100227f",
+            "tool_name": "advance_analysis",
+            "tool_use_id": "tooluse_4aoFr9lmd618x5bjXqZDxQ",
+            "input": {},
+            "status": "error",
+            "output": null,
+            "duration_ms": 4
+          },
+          {
+            "event": "bedrock",
+            "role": "customer_analyst",
+            "run_id": "f9bf44bab3ac44d29fad79564100227f",
+            "operation": "Converse",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "status": "success",
+            "http_status": 200,
+            "request_id": "2cb62074-66bf-4db2-b5b3-3ce47d7c4e30",
+            "retry_attempts": 0,
+            "throttled": false,
+            "error_code": null,
+            "input_tokens": 9416,
+            "output_tokens": 1005,
+            "total_tokens": 10421,
+            "cache_read_input_tokens": 0,
+            "cache_write_input_tokens": 0
+          },
+          {
+            "event": "tool",
+            "role": "customer_analyst",
+            "run_id": "f9bf44bab3ac44d29fad79564100227f",
+            "tool_name": "advance_analysis",
+            "tool_use_id": "tooluse_GzIGeTBeGauaKznqmZBmX4",
+            "input": {},
+            "status": "error",
+            "output": null,
+            "duration_ms": 2
+          },
+          {
+            "event": "agent_exception",
+            "role": "customer_analyst",
+            "run_id": "f9bf44bab3ac44d29fad79564100227f",
+            "error_type": "EventLoopException",
+            "error_code": null
+          },
+          {
+            "event": "agent_end",
+            "role": "customer_analyst",
+            "run_id": "f9bf44bab3ac44d29fad79564100227f",
+            "status": "error",
+            "stop_reason": "invocation_error",
+            "duration_ms": 28010
+          }
+        ],
+        "usage": {
+          "elapsed_ms": 28009.72,
+          "deadline_ms": 80000,
+          "http_attempts_started": 2,
+          "http_attempt_limit": 2,
+          "reported_response_retries": 0,
+          "responses_observed": 2,
+          "responses_with_usage": 2,
+          "final_throttled_responses": 0,
+          "reported_total_tokens": 19853,
+          "observed_token_threshold": 26000,
+          "limit_reached": "http_attempts"
+        },
+        "stop_reason": "invocation_error",
+        "validation_errors": [
+          "Claim claim.1: uncited numeric literals ['+13.08%', '+93.46%']. Use a scoped verified_facts token, or cite the extracted user condition that states the input.",
+          "Use an allowed heading and a concise argument."
+        ]
+      }
+    },
+    {
+      "action": "unavailable",
+      "details": {
+        "ok": false,
+        "trace": [
+          {
+            "event": "inquiry_contract",
+            "role": "customer_analyst",
+            "instructions_sha256": "356374ff3ff20240caf31c6fb29bd51e970374cc6dabe17ff2133b45d197ebea",
+            "inference_parameters": {
+              "temperature": 0.0
+            }
+          },
+          {
+            "event": "agent_start",
+            "role": "customer_analyst",
+            "run_id": "2b0a9b8114af44efa21610bd107c4d72",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "kind": "bedrock",
+            "timeout_seconds": 79.99985520797782,
+            "max_turns": 5,
+            "max_total_tokens": 26000,
+            "max_output_tokens": 3600
+          },
+          {
+            "event": "bedrock",
+            "role": "customer_analyst",
+            "run_id": "2b0a9b8114af44efa21610bd107c4d72",
+            "operation": "Converse",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "status": "success",
+            "http_status": 200,
+            "request_id": "baf1e810-7417-4775-8605-f8f47bd9d0f7",
+            "retry_attempts": 0,
+            "throttled": false,
+            "error_code": null,
+            "input_tokens": 8350,
+            "output_tokens": 1256,
+            "total_tokens": 9606,
+            "cache_read_input_tokens": 0,
+            "cache_write_input_tokens": 0
+          },
+          {
+            "event": "tool",
+            "role": "customer_analyst",
+            "run_id": "2b0a9b8114af44efa21610bd107c4d72",
+            "tool_name": "advance_analysis",
+            "tool_use_id": "tooluse_GdSvn7itWGjdssO0SMf4o6",
+            "input": {},
+            "status": "error",
+            "output": null,
+            "duration_ms": 4
+          },
+          {
+            "event": "bedrock",
+            "role": "customer_analyst",
+            "run_id": "2b0a9b8114af44efa21610bd107c4d72",
+            "operation": "Converse",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "status": "success",
+            "http_status": 200,
+            "request_id": "3f17ab00-bdab-47e1-8b3a-17c76504d778",
+            "retry_attempts": 0,
+            "throttled": false,
+            "error_code": null,
+            "input_tokens": 9589,
+            "output_tokens": 1157,
+            "total_tokens": 10746,
+            "cache_read_input_tokens": 0,
+            "cache_write_input_tokens": 0
+          },
+          {
+            "event": "tool",
+            "role": "customer_analyst",
+            "run_id": "2b0a9b8114af44efa21610bd107c4d72",
+            "tool_name": "advance_analysis",
+            "tool_use_id": "tooluse_2N8CtLTNUhJlSvGQguIBnl",
+            "input": {},
+            "status": "error",
+            "output": null,
+            "duration_ms": 3
+          },
+          {
+            "event": "agent_exception",
+            "role": "customer_analyst",
+            "run_id": "2b0a9b8114af44efa21610bd107c4d72",
+            "error_type": "EventLoopException",
+            "error_code": null
+          },
+          {
+            "event": "agent_end",
+            "role": "customer_analyst",
+            "run_id": "2b0a9b8114af44efa21610bd107c4d72",
+            "status": "error",
+            "stop_reason": "invocation_error",
+            "duration_ms": 27213
+          }
+        ],
+        "usage": {
+          "elapsed_ms": 27213.55,
+          "deadline_ms": 80000,
+          "http_attempts_started": 2,
+          "http_attempt_limit": 2,
+          "reported_response_retries": 0,
+          "responses_observed": 2,
+          "responses_with_usage": 2,
+          "final_throttled_responses": 0,
+          "reported_total_tokens": 20352,
+          "observed_token_threshold": 26000,
+          "limit_reached": "http_attempts"
+        },
+        "stop_reason": "invocation_error",
+        "validation_errors": [
+          "Claim claim.1: uncited numeric literals ['13.08%', '93.46%']. Use a scoped verified_facts token, or cite the extracted user condition that states the input.",
+          "Claim claim.1: uncited numeric literals ['502', '36']. Use a scoped verified_facts token, or cite the extracted user condition that states the input."
+        ]
+      }
+    },
+    {
+      "action": "unavailable",
+      "details": {
+        "ok": false,
+        "trace": [
+          {
+            "event": "inquiry_contract",
+            "role": "customer_analyst",
+            "instructions_sha256": "356374ff3ff20240caf31c6fb29bd51e970374cc6dabe17ff2133b45d197ebea",
+            "inference_parameters": {
+              "temperature": 0.0
+            }
+          },
+          {
+            "event": "agent_start",
+            "role": "customer_analyst",
+            "run_id": "37dd24a232954a329934a97b6c03b8f4",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "kind": "bedrock",
+            "timeout_seconds": 79.99988170800498,
+            "max_turns": 5,
+            "max_total_tokens": 26000,
+            "max_output_tokens": 3600
+          },
+          {
+            "event": "bedrock",
+            "role": "customer_analyst",
+            "run_id": "37dd24a232954a329934a97b6c03b8f4",
+            "operation": "Converse",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "status": "success",
+            "http_status": 200,
+            "request_id": "d6470d82-c9e1-4e6b-b680-dc40fc77dc23",
+            "retry_attempts": 0,
+            "throttled": false,
+            "error_code": null,
+            "input_tokens": 8376,
+            "output_tokens": 1161,
+            "total_tokens": 9537,
+            "cache_read_input_tokens": 0,
+            "cache_write_input_tokens": 0
+          },
+          {
+            "event": "tool",
+            "role": "customer_analyst",
+            "run_id": "37dd24a232954a329934a97b6c03b8f4",
+            "tool_name": "advance_analysis",
+            "tool_use_id": "tooluse_0MzAYvXBfWB8PcllpWJcUv",
+            "input": {},
+            "status": "error",
+            "output": null,
+            "duration_ms": 3
+          },
+          {
+            "event": "bedrock",
+            "role": "customer_analyst",
+            "run_id": "37dd24a232954a329934a97b6c03b8f4",
+            "operation": "Converse",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "status": "success",
+            "http_status": 200,
+            "request_id": "850b9565-210d-47cf-be67-85ca1c132153",
+            "retry_attempts": 0,
+            "throttled": false,
+            "error_code": null,
+            "input_tokens": 9520,
+            "output_tokens": 1039,
+            "total_tokens": 10559,
+            "cache_read_input_tokens": 0,
+            "cache_write_input_tokens": 0
+          },
+          {
+            "event": "tool",
+            "role": "customer_analyst",
+            "run_id": "37dd24a232954a329934a97b6c03b8f4",
+            "tool_name": "advance_analysis",
+            "tool_use_id": "tooluse_xI86abHWvJPuHtJ4IjBhfO",
+            "input": {},
+            "status": "error",
+            "output": null,
+            "duration_ms": 2
+          },
+          {
+            "event": "agent_exception",
+            "role": "customer_analyst",
+            "run_id": "37dd24a232954a329934a97b6c03b8f4",
+            "error_type": "EventLoopException",
+            "error_code": null
+          },
+          {
+            "event": "agent_end",
+            "role": "customer_analyst",
+            "run_id": "37dd24a232954a329934a97b6c03b8f4",
+            "status": "error",
+            "stop_reason": "invocation_error",
+            "duration_ms": 25315
+          }
+        ],
+        "usage": {
+          "elapsed_ms": 25315.19,
+          "deadline_ms": 80000,
+          "http_attempts_started": 2,
+          "http_attempt_limit": 2,
+          "reported_response_retries": 0,
+          "responses_observed": 2,
+          "responses_with_usage": 2,
+          "final_throttled_responses": 0,
+          "reported_total_tokens": 20096,
+          "observed_token_threshold": 26000,
+          "limit_reached": "http_attempts"
+        },
+        "stop_reason": "invocation_error",
+        "validation_errors": [
+          "Claim claim.1: uncited numeric literals ['13.08%', '93.46%']. Use a scoped verified_facts token, or cite the extracted user condition that states the input.",
+          "Use an allowed heading and a concise argument."
+        ]
+      }
+    }
+  ],
+  "answer": [],
+  "review": {
+    "accepted": false,
+    "feedback": "Review could not be completed within the available budget."
+  },
+  "metrics": [
+    {
+      "symbol": "SCHB",
+      "currency": "USD",
+      "return": 0.6479128255122799,
+      "drawdown": 0.25410608705523663
+    }
+  ],
+  "evidence": {
+    "SCHB.behavior": {
+      "title": "What the history says about SCHB",
+      "text": "Over 2021-11-15 to 2026-11-13, SCHB's adjusted-price series changed by +64.79% in USD. Its largest observed fall from a previous high was 25.41%. These describe different risks: finishing ahead does not mean the journey avoided large losses.",
+      "sources": [
+        "https://finance.yahoo.com/quote/SCHB/history/"
+      ],
+      "scope": {
+        "objects": [
+          "SCHB"
+        ],
+        "level": "asset",
+        "currency": "USD",
+        "start": "2021-11-15",
+        "end": "2026-11-13",
+        "as_of": "2026-11-13T21:00:00+00:00",
+        "recorded_at": "2026-11-16T03:33:08.653908+00:00",
+        "coverage": "observed adjusted-price rows; exchange completeness not certified",
+        "method": "verified buy-and-hold replay",
+        "sources": [
+          "https://finance.yahoo.com/quote/SCHB/history/"
+        ]
+      }
+    },
+    "SCHB.budget": {
+      "title": "What your amount represents in SCHB",
+      "text": "Used entirely for this one asset, USD 6,200.00 corresponds to approximately 213 whole shares at the observed price, leaving USD 18.74 before fees and currency spreads. This is an indicative sizing calculation, not an order or a forecast. This current-price whole-share estimate is separate from the historical replay, which invests the full stated amount in fractional units at its starting date. ",
+      "sources": [
+        "https://finance.yahoo.com/quote/SCHB/history/"
+      ],
+      "scope": {
+        "objects": [
+          "SCHB"
+        ],
+        "level": "asset",
+        "currency": "USD",
+        "start": null,
+        "end": null,
+        "as_of": "2026-11-13T21:00:00+00:00",
+        "recorded_at": "2026-11-16T03:33:08.653908+00:00",
+        "coverage": "observed adjusted-price rows; exchange completeness not certified",
+        "method": "current observed quote and explicit budget; whole shares before fees",
+        "sources": [
+          "https://finance.yahoo.com/quote/SCHB/history/"
+        ]
+      }
+    },
+    "risk.historical_market": {
+      "title": "Historical market \u00b7 assessed evidence",
+      "text": "SCHB: terminal loss 0.00%; annualized observed volatility 17.51% (252-observation convention; session coverage uncertified); worst complete monthly return -9.27% (2022-09); worst rolling 12m return -21.09%; worst rolling 36m return 13.08%; maximum-drawdown recovery 721 calendar days from its peak; 2022 market decline: return -19.46%, drawdown 25.41%; Early 2025: return -15.61%, drawdown 19.34%. History cannot establish a future loss limit or achieve a long-term goal.",
+      "sources": [],
+      "scope": {
+        "objects": [],
+        "level": "limited_check",
+        "currency": null,
+        "start": null,
+        "end": null,
+        "as_of": null,
+        "recorded_at": "2026-11-16T03:33:08.653908+00:00",
+        "coverage": "See the tool-specific result; do not inherit another block's period.",
+        "method": "tool-specific evidence text",
+        "sources": []
+      }
+    },
+    "analysis.horizon": {
+      "title": "Evidence for your stated holding period",
+      "text": "SCHB: 502 overlapping observed 36-month windows in USD; worst change +13.08%, best change +93.46%. End observations are on or before the anniversary within seven days. These overlapping historical outcomes are not future probabilities or guaranteed bounds.",
+      "sources": [
+        "https://finance.yahoo.com/quote/SCHB/history/"
+      ],
+      "scope": {
+        "objects": [],
+        "level": "limited_check",
+        "currency": null,
+        "start": null,
+        "end": null,
+        "as_of": null,
+        "recorded_at": "2026-11-16T03:33:08.653908+00:00",
+        "coverage": "See the tool-specific result; do not inherit another block's period.",
+        "method": "tool-specific evidence text",
+        "sources": [
+          "https://finance.yahoo.com/quote/SCHB/history/"
+        ]
+      }
+    },
+    "risk.cash_needs": {
+      "title": "Cash needs \u00b7 evidence gap",
+      "text": "Replay an explicitly stated withdrawal schedule; ask for missing fields. Add the withdrawal amount, currency, timing and frequency. This is a funding-needs check, not a complete market-liquidity analysis.",
+      "sources": [],
+      "scope": {
+        "objects": [],
+        "level": "limited_check",
+        "currency": null,
+        "start": null,
+        "end": null,
+        "as_of": null,
+        "recorded_at": "2026-11-16T03:33:08.653908+00:00",
+        "coverage": "See the tool-specific result; do not inherit another block's period.",
+        "method": "tool-specific evidence text",
+        "sources": []
+      }
+    },
+    "risk.tail_loss": {
+      "title": "Tail loss \u00b7 evidence gap",
+      "text": "Check whether observation coverage qualifies VaR/ES; withhold if uncertified. Exchange-session completeness is not certified. Daily VaR/ES are withheld rather than treating gaps as daily returns.",
+      "sources": [],
+      "scope": {
+        "objects": [],
+        "level": "limited_check",
+        "currency": null,
+        "start": null,
+        "end": null,
+        "as_of": null,
+        "recorded_at": "2026-11-16T03:33:08.653908+00:00",
+        "coverage": "See the tool-specific result; do not inherit another block's period.",
+        "method": "tool-specific evidence text",
+        "sources": []
+      }
+    }
+  },
+  "report_digest": "42ae3677a4adbd538389b7598f4fe395b3805a38ef5760bf6d576efff91b00b0",
+  "tasks": [
+    {
+      "tool": "historical_market",
+      "question": "What are the historical return and volatility metrics for SCHB over its available price history?",
+      "context_ids": [
+        "statement.1.0",
+        "statement.1.2"
+      ],
+      "relevance": "Establishes the observed single-asset behavior of SCHB, including mean return, volatility, and drawdown history. This provides baseline evidence about past performance but does not predict future outcomes or assess suitability for the 3-year horizon.",
+      "required_inputs": [
+        "verified adjusted prices for SCHB"
+      ],
+      "required_outputs": [
+        "historical_metrics"
+      ],
+      "scope": "asset",
+      "completion_condition": "historical_metrics output is returned showing annualized return, volatility, maximum drawdown, and other summary statistics for SCHB",
+      "id": "task.0",
+      "evidence_ids": [
+        "risk.historical_market"
+      ],
+      "actual_result": "SCHB: terminal loss 0.00%; annualized observed volatility 17.51% (252-observation convention; session coverage uncertified); worst complete monthly return -9.27% (2022-09); worst rolling 12m return -21.09%; worst rolling 36m return 13.08%; maximum-drawdown recovery 721 calendar days from its peak; 2022 market decline: return -19.46%, drawdown 25.41%; Early 2025: return -15.61%, drawdown 19.34%. History cannot establish a future loss limit or achieve a long-term goal.",
+      "missing_outputs": [],
+      "scope_supported": true,
+      "status": "evidence_ready",
+      "remaining_gap": "",
+      "completion_review": "pending"
+    },
+    {
+      "tool": "horizon_window",
+      "question": "What were the historical outcomes for all overlapping 3-year holding periods in SCHB's price history?",
+      "context_ids": [
+        "statement.1.2"
+      ],
+      "relevance": "Directly addresses the 3-year horizon by showing the distribution of historical rolling 3-year returns. Reveals both favorable and unfavorable historical outcomes at this specific duration, establishing what has happened in the past but not what will happen in the future.",
+      "required_inputs": [
+        "3 years duration",
+        "sufficient SCHB price history"
+      ],
+      "required_outputs": [
+        "holding_period_outcomes"
+      ],
+      "scope": "asset",
+      "completion_condition": "holding_period_outcomes output is returned showing the range, percentiles, and distribution of all historical 3-year holding period returns for SCHB, or a gap is identified if insufficient price history exists",
+      "id": "task.1",
+      "evidence_ids": [
+        "analysis.horizon"
+      ],
+      "actual_result": "SCHB: 502 overlapping observed 36-month windows in USD; worst change +13.08%, best change +93.46%. End observations are on or before the anniversary within seven days. These overlapping historical outcomes are not future probabilities or guaranteed bounds.",
+      "missing_outputs": [],
+      "scope_supported": true,
+      "status": "evidence_ready",
+      "remaining_gap": "",
+      "completion_review": "pending"
+    },
+    {
+      "tool": "cash_needs",
+      "question": "What would have happened historically if 6200 USD were invested in SCHB and then fully withdrawn after 3 years across all possible start dates?",
+      "context_ids": [
+        "statement.1.0",
+        "statement.1.1",
+        "statement.1.2"
+      ],
+      "relevance": "Simulates the specific plan (6200 USD, 3-year horizon, full withdrawal for graduate school) against historical data. Shows the range of terminal values that would have resulted, including scenarios where the amount grew and scenarios where it declined. Does not predict future withdrawal success.",
+      "required_inputs": [
+        "6200 USD budget",
+        "3 years timing",
+        "full withdrawal amount",
+        "SCHB price history"
+      ],
+      "required_outputs": [
+        "withdrawal_replay"
+      ],
+      "scope": "asset",
+      "completion_condition": "withdrawal_replay output is returned showing historical terminal values after 3 years for each start date, or a gap is identified if the tool cannot process the withdrawal pattern",
+      "id": "task.2",
+      "evidence_ids": [
+        "risk.cash_needs"
+      ],
+      "actual_result": "Replay an explicitly stated withdrawal schedule; ask for missing fields. Add the withdrawal amount, currency, timing and frequency. This is a funding-needs check, not a complete market-liquidity analysis.",
+      "missing_outputs": [
+        "withdrawal_replay"
+      ],
+      "scope_supported": true,
+      "status": "blocked",
+      "remaining_gap": "Required outputs or scope were not established by this tool.",
+      "completion_review": "pending"
+    },
+    {
+      "tool": "tail_loss",
+      "question": "What are the certified worst-case daily or short-term losses observed in SCHB's complete exchange session history?",
+      "context_ids": [
+        "statement.1.3"
+      ],
+      "relevance": "Addresses the unknown loss tolerance by establishing the historical tail risk of SCHB. Shows the magnitude of severe historical drawdowns, which helps frame what losses have occurred in the past. User has not decided acceptable loss, so both supporting evidence (moderate historical tails) and weakening evidence (severe historical tails) are relevant. Does not predict future maximum loss.",
+      "required_inputs": [
+        "certified complete exchange sessions for SCHB"
+      ],
+      "required_outputs": [
+        "tail_estimate"
+      ],
+      "scope": "asset",
+      "completion_condition": "tail_estimate output is returned showing historical worst-case loss metrics, or the tool withholds output due to insufficient coverage certification",
+      "id": "task.3",
+      "evidence_ids": [
+        "risk.tail_loss"
+      ],
+      "actual_result": "Check whether observation coverage qualifies VaR/ES; withhold if uncertified. Exchange-session completeness is not certified. Daily VaR/ES are withheld rather than treating gaps as daily returns.",
+      "missing_outputs": [
+        "tail_estimate"
+      ],
+      "scope_supported": true,
+      "status": "blocked",
+      "remaining_gap": "Required outputs or scope were not established by this tool.",
+      "completion_review": "pending"
+    }
+  ],
+  "arguments": [],
+  "answer_status": "evidence_only",
+  "budget": {
+    "limits": {
+      "seconds": 240,
+      "model_calls": 10,
+      "tool_calls": 8,
+      "source_calls": 12,
+      "investigations": 3,
+      "format_repairs": 2,
+      "reviews": 2
+    },
+    "elapsed_seconds": 98.441,
+    "model_calls": 5,
+    "tool_calls": 4,
+    "source_calls": 1,
+    "stop_reason": null,
+    "reported_tokens": 66438,
+    "monetary_cost": null,
+    "cost_note": "Token usage where returned; no assumed token price."
+  },
+  "conversation_state": {
+    "version": 1,
+    "statements": [
+      {
+        "kind": "investment_amount",
+        "excerpt": "6200 USD",
+        "source_type": "current_request",
+        "knowledge_status": "stated",
+        "operation": "add",
+        "targets": [],
+        "id": "statement.1.0",
+        "active": true,
+        "turn": 1,
+        "source": "user",
+        "interpretation": "bedrock"
+      },
+      {
+        "kind": "goal",
+        "excerpt": "graduate school costs",
+        "source_type": "current_request",
+        "knowledge_status": "stated",
+        "operation": "add",
+        "targets": [],
+        "id": "statement.1.1",
+        "active": true,
+        "turn": 1,
+        "source": "user",
+        "interpretation": "bedrock"
+      },
+      {
+        "kind": "horizon",
+        "excerpt": "3 years",
+        "source_type": "current_request",
+        "knowledge_status": "stated",
+        "operation": "add",
+        "targets": [],
+        "id": "statement.1.2",
+        "active": true,
+        "turn": 1,
+        "source": "user",
+        "interpretation": "bedrock"
+      },
+      {
+        "kind": "loss",
+        "excerpt": "I have not decided what loss I could absorb",
+        "source_type": "current_request",
+        "knowledge_status": "unknown",
+        "operation": "add",
+        "targets": [],
+        "id": "statement.1.3",
+        "active": true,
+        "turn": 1,
+        "source": "user",
+        "interpretation": "bedrock"
+      }
+    ],
+    "events": [
+      {
+        "turn": 1,
+        "operation": "add",
+        "field": "investment_amount",
+        "targets": [],
+        "excerpt": "6200 USD"
+      },
+      {
+        "turn": 1,
+        "operation": "add",
+        "field": "goal",
+        "targets": [],
+        "excerpt": "graduate school costs"
+      },
+      {
+        "turn": 1,
+        "operation": "add",
+        "field": "horizon",
+        "targets": [],
+        "excerpt": "3 years"
+      },
+      {
+        "turn": 1,
+        "operation": "add",
+        "field": "loss",
+        "targets": [],
+        "excerpt": "I have not decided what loss I could absorb"
+      }
+    ],
+    "assets": [
+      {
+        "query": "SCHB",
+        "excerpt": "SCHB",
+        "role": "consider"
+      }
+    ],
+    "budget": {
+      "amount": 6200.0,
+      "currency": "USD",
+      "excerpt": "6200 USD"
+    },
+    "messages": [
+      {
+        "turn": 1,
+        "text": "I am considering 6200 USD in SCHB for graduate school costs in 3 years. I have not decided what loss I could absorb. Explain what the historical evidence establishes and what would remain uncertain about this plan."
+      }
+    ]
+  },
+  "resolutions": [
+    {
+      "symbol": "SCHB",
+      "query": "SCHB",
+      "method": "ticker hypothesis; chart identity must confirm",
+      "candidates": [],
+      "verified_exchange": "PCX",
+      "verified_currency": "USD",
+      "verified_type": "ETF"
+    }
+  ]
+}

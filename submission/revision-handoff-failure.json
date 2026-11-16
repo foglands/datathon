@@ -1,0 +1,942 @@
+{
+  "intake_execution": {
+    "origin": "bedrock",
+    "failure": null,
+    "trace": [
+      {
+        "event": "agent_start",
+        "role": "customer_intake",
+        "run_id": "8b470b7515d943d28ca9fa3d8ad084b2",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "region": "us-east-1",
+        "kind": "bedrock",
+        "timeout_seconds": 29.99970683301217,
+        "max_turns": 5,
+        "max_total_tokens": 26000,
+        "max_output_tokens": 1800
+      },
+      {
+        "event": "bedrock",
+        "role": "customer_intake",
+        "run_id": "8b470b7515d943d28ca9fa3d8ad084b2",
+        "operation": "Converse",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "region": "us-east-1",
+        "status": "success",
+        "http_status": 200,
+        "request_id": "07cd1e28-34f7-4ea1-92ba-a8edd1518f0d",
+        "retry_attempts": 0,
+        "throttled": false,
+        "error_code": null,
+        "input_tokens": 1768,
+        "output_tokens": 449,
+        "total_tokens": 2217,
+        "cache_read_input_tokens": 0,
+        "cache_write_input_tokens": 0
+      },
+      {
+        "event": "tool",
+        "role": "customer_intake",
+        "run_id": "8b470b7515d943d28ca9fa3d8ad084b2",
+        "tool_name": "plan_investment_research",
+        "tool_use_id": "tooluse_iK8lv53dYg8vlWWhziuQDE",
+        "input": {},
+        "status": "success",
+        "output": {
+          "status": "ok",
+          "summary": "Grounded investment research plan accepted."
+        },
+        "duration_ms": 8
+      },
+      {
+        "event": "agent_end",
+        "role": "customer_intake",
+        "run_id": "8b470b7515d943d28ca9fa3d8ad084b2",
+        "status": "ok",
+        "stop_reason": "end_turn",
+        "duration_ms": 4666
+      }
+    ],
+    "usage": {
+      "elapsed_ms": 4666.23,
+      "deadline_ms": 30000,
+      "http_attempts_started": 1,
+      "http_attempt_limit": 2,
+      "reported_response_retries": 0,
+      "responses_observed": 1,
+      "responses_with_usage": 1,
+      "final_throttled_responses": 0,
+      "reported_total_tokens": 2217,
+      "observed_token_threshold": 18000,
+      "limit_reached": null
+    }
+  },
+  "planning_execution": {
+    "origin": "bedrock",
+    "ok": true,
+    "trace": [
+      {
+        "event": "inquiry_contract",
+        "role": "customer_planner",
+        "instructions_sha256": "8a27e0666601e4a9eec7e39f30b1953bd39cc327d431c0ca15795664a0955356",
+        "inference_parameters": {
+          "temperature": 0.0
+        }
+      },
+      {
+        "event": "agent_start",
+        "role": "customer_planner",
+        "run_id": "b035d9ecf6c549288345d99eea532619",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "region": "us-east-1",
+        "kind": "bedrock",
+        "timeout_seconds": 79.99989508400904,
+        "max_turns": 5,
+        "max_total_tokens": 26000,
+        "max_output_tokens": 2400
+      },
+      {
+        "event": "bedrock",
+        "role": "customer_planner",
+        "run_id": "b035d9ecf6c549288345d99eea532619",
+        "operation": "Converse",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "region": "us-east-1",
+        "status": "success",
+        "http_status": 200,
+        "request_id": "a8a051db-285e-4594-9a64-40780a4a668f",
+        "retry_attempts": 0,
+        "throttled": false,
+        "error_code": null,
+        "input_tokens": 2506,
+        "output_tokens": 1021,
+        "total_tokens": 3527,
+        "cache_read_input_tokens": 0,
+        "cache_write_input_tokens": 0
+      },
+      {
+        "event": "tool",
+        "role": "customer_planner",
+        "run_id": "b035d9ecf6c549288345d99eea532619",
+        "tool_name": "propose_analysis",
+        "tool_use_id": "tooluse_vWdiHDLVWK14gLH18pKH8K",
+        "input": {},
+        "status": "error",
+        "output": null,
+        "duration_ms": 11
+      },
+      {
+        "event": "bedrock",
+        "role": "customer_planner",
+        "run_id": "b035d9ecf6c549288345d99eea532619",
+        "operation": "Converse",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "region": "us-east-1",
+        "status": "success",
+        "http_status": 200,
+        "request_id": "b89c603e-0c85-44a7-8529-cce3f83fee38",
+        "retry_attempts": 0,
+        "throttled": false,
+        "error_code": null,
+        "input_tokens": 3471,
+        "output_tokens": 786,
+        "total_tokens": 4257,
+        "cache_read_input_tokens": 0,
+        "cache_write_input_tokens": 0
+      },
+      {
+        "event": "tool",
+        "role": "customer_planner",
+        "run_id": "b035d9ecf6c549288345d99eea532619",
+        "tool_name": "propose_analysis",
+        "tool_use_id": "tooluse_5pv7q0SDybkPOcE6dZKvQ1",
+        "input": {},
+        "status": "success",
+        "output": {
+          "status": "ok",
+          "summary": "Task contracts recorded, not yet completed."
+        },
+        "duration_ms": 1
+      },
+      {
+        "event": "agent_end",
+        "role": "customer_planner",
+        "run_id": "b035d9ecf6c549288345d99eea532619",
+        "status": "ok",
+        "stop_reason": "end_turn",
+        "duration_ms": 18632
+      }
+    ],
+    "usage": {
+      "elapsed_ms": 18632.42,
+      "deadline_ms": 80000,
+      "http_attempts_started": 2,
+      "http_attempt_limit": 2,
+      "reported_response_retries": 0,
+      "responses_observed": 2,
+      "responses_with_usage": 2,
+      "final_throttled_responses": 0,
+      "reported_total_tokens": 7784,
+      "observed_token_threshold": 26000,
+      "limit_reached": null
+    },
+    "failure": null,
+    "stop_reason": "end_turn",
+    "validation_errors": [
+      "Link every task to the current user request."
+    ]
+  },
+  "question": "Compare IJR and VEA for a possible 4600 CAD investment. I want growth for a home deposit in 4 years. I already own a Canadian equity fund but do not know its weight. What can you establish about these two choices and their effect on my whole portfolio?",
+  "conditions": [
+    {
+      "kind": "investment_amount",
+      "excerpt": "4600 CAD",
+      "source_type": "current_request",
+      "operation": "add",
+      "targets": [],
+      "id": "statement.1.0",
+      "turn": 1,
+      "source": "user",
+      "interpretation": "bedrock"
+    },
+    {
+      "kind": "goal",
+      "excerpt": "growth for a home deposit",
+      "source_type": "current_request",
+      "operation": "add",
+      "targets": [],
+      "id": "statement.1.1",
+      "turn": 1,
+      "source": "user",
+      "interpretation": "bedrock"
+    },
+    {
+      "kind": "horizon",
+      "excerpt": "4 years",
+      "source_type": "current_request",
+      "operation": "add",
+      "targets": [],
+      "id": "statement.1.2",
+      "turn": 1,
+      "source": "user",
+      "interpretation": "bedrock"
+    }
+  ],
+  "analysis_questions": [
+    {
+      "tool": "product_comparison",
+      "question": "How do IJR and VEA compare on historical return, volatility, and drawdown metrics over common periods in CAD terms?",
+      "context_ids": [
+        "user.0",
+        "user.2"
+      ],
+      "relevance": "Direct comparison of the two candidate assets on observable risk-return characteristics in the user's currency, establishing baseline differences between US small-cap and developed international equity exposure.",
+      "required_inputs": [
+        "IJR price history in CAD",
+        "VEA price history in CAD",
+        "common date alignment"
+      ],
+      "required_outputs": [
+        "aligned_comparison"
+      ],
+      "scope": "product_comparison",
+      "completion_condition": "aligned_comparison output shows CAD-denominated metrics for both IJR and VEA over identical periods, including return, volatility, and maximum drawdown statistics."
+    },
+    {
+      "tool": "horizon_window",
+      "question": "What were the historical 4-year holding period outcomes for IJR in CAD terms?",
+      "context_ids": [
+        "user.2"
+      ],
+      "relevance": "User has explicit 4-year horizon for home deposit goal. Historical 4-year windows show range of outcomes (positive and negative) that occurred over this specific duration, revealing both favorable and unfavorable scenarios.",
+      "required_inputs": [
+        "IJR price history in CAD",
+        "4-year duration",
+        "sufficient historical coverage"
+      ],
+      "required_outputs": [
+        "holding_period_outcomes"
+      ],
+      "scope": "asset",
+      "completion_condition": "holding_period_outcomes output displays distribution of all overlapping 4-year returns for IJR, including minimum, maximum, median, and negative outcome frequency. Insufficient coverage is reported as a gap."
+    },
+    {
+      "tool": "horizon_window",
+      "question": "What were the historical 4-year holding period outcomes for VEA in CAD terms?",
+      "context_ids": [
+        "user.2"
+      ],
+      "relevance": "User has explicit 4-year horizon for home deposit goal. Historical 4-year windows show range of outcomes (positive and negative) that occurred over this specific duration, revealing both favorable and unfavorable scenarios.",
+      "required_inputs": [
+        "VEA price history in CAD",
+        "4-year duration",
+        "sufficient historical coverage"
+      ],
+      "required_outputs": [
+        "holding_period_outcomes"
+      ],
+      "scope": "asset",
+      "completion_condition": "holding_period_outcomes output displays distribution of all overlapping 4-year returns for VEA, including minimum, maximum, median, and negative outcome frequency. Insufficient coverage is reported as a gap."
+    },
+    {
+      "tool": "portfolio_context",
+      "question": "What portfolio inputs are missing to assess the effect of adding IJR or VEA to the existing Canadian equity fund holding?",
+      "context_ids": [
+        "user.0"
+      ],
+      "relevance": "User explicitly asks about effect on whole portfolio. Canadian equity fund weight is unknown. This check identifies the specific missing inputs required for before/after portfolio analysis, exposing the gap between available information and portfolio-level assessment.",
+      "required_inputs": [
+        "current holdings list",
+        "current weights",
+        "proposed addition amount and allocation"
+      ],
+      "required_outputs": [
+        "portfolio_input_check"
+      ],
+      "scope": "client_context",
+      "completion_condition": "portfolio_input_check output lists missing required inputs (Canadian equity fund weight, total portfolio value, complete holdings) that prevent portfolio-level comparison. Does NOT compute portfolio effects."
+    }
+  ],
+  "tools": [
+    "product_comparison",
+    "horizon_window",
+    "portfolio_context"
+  ],
+  "tool_outcomes": [
+    {
+      "tool": "product_comparison",
+      "question": "How do IJR and VEA compare on historical return, volatility, and drawdown metrics over common periods in CAD terms?",
+      "context_ids": [
+        "user.0",
+        "user.2"
+      ],
+      "relevance": "Direct comparison of the two candidate assets on observable risk-return characteristics in the user's currency, establishing baseline differences between US small-cap and developed international equity exposure.",
+      "required_inputs": [
+        "IJR price history in CAD",
+        "VEA price history in CAD",
+        "common date alignment"
+      ],
+      "required_outputs": [
+        "aligned_comparison"
+      ],
+      "scope": "product_comparison",
+      "completion_condition": "aligned_comparison output shows CAD-denominated metrics for both IJR and VEA over identical periods, including return, volatility, and maximum drawdown statistics.",
+      "evidence_ids": [
+        "analysis.comparison"
+      ],
+      "outcome": "Comparable observed histories: IJR: adjusted-price change +44.93%, largest peak-to-trough fall 26.99%; VEA: adjusted-price change +75.38%, largest peak-to-trough fall 22.86%. All use CAD over 2021-11-15 to 2026-11-13. Independent Python checks passed. These are standalone historical outcomes, not a portfolio allocation or a prediction.",
+      "status": "assessed",
+      "produced_outputs": [
+        "aligned_comparison"
+      ]
+    },
+    {
+      "tool": "horizon_window",
+      "question": "What were the historical 4-year holding period outcomes for IJR in CAD terms?",
+      "context_ids": [
+        "user.2"
+      ],
+      "relevance": "User has explicit 4-year horizon for home deposit goal. Historical 4-year windows show range of outcomes (positive and negative) that occurred over this specific duration, revealing both favorable and unfavorable scenarios.",
+      "required_inputs": [
+        "IJR price history in CAD",
+        "4-year duration",
+        "sufficient historical coverage"
+      ],
+      "required_outputs": [
+        "holding_period_outcomes"
+      ],
+      "scope": "asset",
+      "completion_condition": "holding_period_outcomes output displays distribution of all overlapping 4-year returns for IJR, including minimum, maximum, median, and negative outcome frequency. Insufficient coverage is reported as a gap.",
+      "evidence_ids": [
+        "analysis.horizon"
+      ],
+      "outcome": "IJR: 242 overlapping observed 48-month windows in CAD; worst change +14.35%, best change +88.67%. End observations are on or before the anniversary within seven days. These overlapping historical outcomes are not future probabilities or guaranteed bounds. VEA: 242 overlapping observed 48-month windows in CAD; worst change +44.16%, best change +130.80%. End observations are on or before the anniversary within seven days. These overlapping historical outcomes are not future probabilities or guaranteed bounds.",
+      "status": "assessed",
+      "produced_outputs": [
+        "holding_period_outcomes"
+      ]
+    },
+    {
+      "tool": "portfolio_context",
+      "question": "What portfolio inputs are missing to assess the effect of adding IJR or VEA to the existing Canadian equity fund holding?",
+      "context_ids": [
+        "user.0"
+      ],
+      "relevance": "User explicitly asks about effect on whole portfolio. Canadian equity fund weight is unknown. This check identifies the specific missing inputs required for before/after portfolio analysis, exposing the gap between available information and portfolio-level assessment.",
+      "required_inputs": [
+        "current holdings list",
+        "current weights",
+        "proposed addition amount and allocation"
+      ],
+      "required_outputs": [
+        "portfolio_input_check"
+      ],
+      "scope": "client_context",
+      "completion_condition": "portfolio_input_check output lists missing required inputs (Canadian equity fund weight, total portfolio value, complete holdings) that prevent portfolio-level comparison. Does NOT compute portfolio effects.",
+      "evidence_ids": [
+        "analysis.portfolio"
+      ],
+      "outcome": "Complete portfolio weights were not supplied. Standalone purchase results do not establish its impact on the whole portfolio. Existing holdings and the proposed before/after allocation must be confirmed for an impact comparison; no weights or funding were invented.",
+      "produced_outputs": [
+        "portfolio_input_check"
+      ]
+    }
+  ],
+  "execution_trace": [
+    {
+      "event": "inquiry_contract",
+      "role": "customer_analyst",
+      "instructions_sha256": "356374ff3ff20240caf31c6fb29bd51e970374cc6dabe17ff2133b45d197ebea",
+      "inference_parameters": {
+        "temperature": 0.0
+      }
+    },
+    {
+      "event": "agent_start",
+      "role": "customer_analyst",
+      "run_id": "11235b5a56af4973b0075dca98b31ae1",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "kind": "bedrock",
+      "timeout_seconds": 79.99993225000799,
+      "max_turns": 5,
+      "max_total_tokens": 26000,
+      "max_output_tokens": 3600
+    },
+    {
+      "event": "bedrock",
+      "role": "customer_analyst",
+      "run_id": "11235b5a56af4973b0075dca98b31ae1",
+      "operation": "Converse",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "status": "success",
+      "http_status": 200,
+      "request_id": "dcf2c7b5-dad7-4767-9dd6-4edf106aea3b",
+      "retry_attempts": 0,
+      "throttled": false,
+      "error_code": null,
+      "input_tokens": 9215,
+      "output_tokens": 1376,
+      "total_tokens": 10591,
+      "cache_read_input_tokens": 0,
+      "cache_write_input_tokens": 0
+    },
+    {
+      "event": "agent_end",
+      "role": "customer_analyst",
+      "run_id": "11235b5a56af4973b0075dca98b31ae1",
+      "status": "error",
+      "stop_reason": "tool_not_completed",
+      "duration_ms": 21910
+    }
+  ],
+  "analysis_steps": [
+    {
+      "action": "unavailable",
+      "details": {
+        "ok": false,
+        "trace": [
+          {
+            "event": "inquiry_contract",
+            "role": "customer_analyst",
+            "instructions_sha256": "356374ff3ff20240caf31c6fb29bd51e970374cc6dabe17ff2133b45d197ebea",
+            "inference_parameters": {
+              "temperature": 0.0
+            }
+          },
+          {
+            "event": "agent_start",
+            "role": "customer_analyst",
+            "run_id": "11235b5a56af4973b0075dca98b31ae1",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "kind": "bedrock",
+            "timeout_seconds": 79.99993225000799,
+            "max_turns": 5,
+            "max_total_tokens": 26000,
+            "max_output_tokens": 3600
+          },
+          {
+            "event": "bedrock",
+            "role": "customer_analyst",
+            "run_id": "11235b5a56af4973b0075dca98b31ae1",
+            "operation": "Converse",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "status": "success",
+            "http_status": 200,
+            "request_id": "dcf2c7b5-dad7-4767-9dd6-4edf106aea3b",
+            "retry_attempts": 0,
+            "throttled": false,
+            "error_code": null,
+            "input_tokens": 9215,
+            "output_tokens": 1376,
+            "total_tokens": 10591,
+            "cache_read_input_tokens": 0,
+            "cache_write_input_tokens": 0
+          },
+          {
+            "event": "agent_end",
+            "role": "customer_analyst",
+            "run_id": "11235b5a56af4973b0075dca98b31ae1",
+            "status": "error",
+            "stop_reason": "tool_not_completed",
+            "duration_ms": 21910
+          }
+        ],
+        "usage": {
+          "elapsed_ms": 21910.88,
+          "deadline_ms": 80000,
+          "http_attempts_started": 1,
+          "http_attempt_limit": 2,
+          "reported_response_retries": 0,
+          "responses_observed": 1,
+          "responses_with_usage": 1,
+          "final_throttled_responses": 0,
+          "reported_total_tokens": 10591,
+          "observed_token_threshold": 26000,
+          "limit_reached": null
+        },
+        "stop_reason": "tool_not_completed",
+        "validation_errors": []
+      }
+    }
+  ],
+  "answer": [],
+  "review": {
+    "accepted": false,
+    "feedback": "Review could not be completed within the available budget."
+  },
+  "metrics": [
+    {
+      "symbol": "IJR",
+      "currency": "CAD",
+      "return": 0.44932416422315224,
+      "drawdown": 0.2699200964474082
+    },
+    {
+      "symbol": "VEA",
+      "currency": "CAD",
+      "return": 0.7537653831343285,
+      "drawdown": 0.22863487854344067
+    }
+  ],
+  "evidence": {
+    "IJR.behavior": {
+      "title": "What the history says about IJR",
+      "text": "Over 2021-11-15 to 2026-11-13, IJR's adjusted-price series changed by +44.93% in CAD. Its largest observed fall from a previous high was 26.99%. These describe different risks: finishing ahead does not mean the journey avoided large losses.",
+      "sources": [
+        "https://finance.yahoo.com/quote/IJR/history/"
+      ],
+      "scope": {
+        "objects": [
+          "IJR"
+        ],
+        "level": "asset",
+        "currency": "CAD",
+        "start": "2021-11-15",
+        "end": "2026-11-13",
+        "as_of": "2026-11-13T21:00:00+00:00",
+        "recorded_at": "2026-11-16T03:29:45.587171+00:00",
+        "coverage": "observed adjusted-price rows; exchange completeness not certified",
+        "method": "verified buy-and-hold replay",
+        "sources": [
+          "https://finance.yahoo.com/quote/IJR/history/"
+        ]
+      }
+    },
+    "IJR.budget": {
+      "title": "What your amount represents in IJR",
+      "text": "If the full amount were used for this asset alone, CAD 4,600.00 corresponds to approximately 22 whole shares at the observed price, leaving CAD 189.40 before fees and currency spreads. This is an indicative sizing calculation, not an order or a forecast. This current-price whole-share estimate is separate from the historical replay, which invests the full stated amount in fractional units at its starting date. It uses the Bank of Canada daily exchange rate dated 2026-11-13; the FX and equity observations are not simultaneous.",
+      "sources": [
+        "https://finance.yahoo.com/quote/IJR/history/",
+        "https://www.bankofcanada.ca/rates/exchange/daily-exchange-rates/"
+      ],
+      "scope": {
+        "objects": [
+          "IJR"
+        ],
+        "level": "asset",
+        "currency": "CAD",
+        "start": null,
+        "end": null,
+        "as_of": "2026-11-13T21:00:00+00:00",
+        "recorded_at": "2026-11-16T03:29:45.587171+00:00",
+        "coverage": "observed adjusted-price rows; exchange completeness not certified",
+        "method": "current observed quote and explicit budget; whole shares before fees",
+        "sources": [
+          "https://finance.yahoo.com/quote/IJR/history/",
+          "https://www.bankofcanada.ca/rates/exchange/daily-exchange-rates/"
+        ]
+      }
+    },
+    "VEA.behavior": {
+      "title": "What the history says about VEA",
+      "text": "Over 2021-11-15 to 2026-11-13, VEA's adjusted-price series changed by +75.38% in CAD. Its largest observed fall from a previous high was 22.86%. These describe different risks: finishing ahead does not mean the journey avoided large losses.",
+      "sources": [
+        "https://finance.yahoo.com/quote/VEA/history/"
+      ],
+      "scope": {
+        "objects": [
+          "VEA"
+        ],
+        "level": "asset",
+        "currency": "CAD",
+        "start": "2021-11-15",
+        "end": "2026-11-13",
+        "as_of": "2026-11-13T21:00:00+00:00",
+        "recorded_at": "2026-11-16T03:29:45.587171+00:00",
+        "coverage": "observed adjusted-price rows; exchange completeness not certified",
+        "method": "verified buy-and-hold replay",
+        "sources": [
+          "https://finance.yahoo.com/quote/VEA/history/"
+        ]
+      }
+    },
+    "VEA.budget": {
+      "title": "What your amount represents in VEA",
+      "text": "If the full amount were used for this asset alone, CAD 4,600.00 corresponds to approximately 46 whole shares at the observed price, leaving CAD 45.97 before fees and currency spreads. This is an indicative sizing calculation, not an order or a forecast. This current-price whole-share estimate is separate from the historical replay, which invests the full stated amount in fractional units at its starting date. It uses the Bank of Canada daily exchange rate dated 2026-11-13; the FX and equity observations are not simultaneous.",
+      "sources": [
+        "https://finance.yahoo.com/quote/VEA/history/",
+        "https://www.bankofcanada.ca/rates/exchange/daily-exchange-rates/"
+      ],
+      "scope": {
+        "objects": [
+          "VEA"
+        ],
+        "level": "asset",
+        "currency": "CAD",
+        "start": null,
+        "end": null,
+        "as_of": "2026-11-13T21:00:00+00:00",
+        "recorded_at": "2026-11-16T03:29:45.587171+00:00",
+        "coverage": "observed adjusted-price rows; exchange completeness not certified",
+        "method": "current observed quote and explicit budget; whole shares before fees",
+        "sources": [
+          "https://finance.yahoo.com/quote/VEA/history/",
+          "https://www.bankofcanada.ca/rates/exchange/daily-exchange-rates/"
+        ]
+      }
+    },
+    "portfolio_gap": {
+      "title": "Your existing portfolio has not been combined with this idea",
+      "text": "The charts assess each researched asset separately. Existing holdings, any proposed sale, taxes, cash needs and allocation weights have not been combined into a before-and-after portfolio. The full stated amount is used only as an illustration for each asset, not allocated repeatedly.",
+      "sources": [],
+      "scope": {
+        "objects": [],
+        "level": "limited_check",
+        "currency": null,
+        "start": null,
+        "end": null,
+        "as_of": null,
+        "recorded_at": "2026-11-16T03:29:45.587171+00:00",
+        "coverage": "See the tool-specific result; do not inherit another block's period.",
+        "method": "tool-specific evidence text",
+        "sources": []
+      }
+    },
+    "analysis.comparison": {
+      "title": "Comparable product evidence",
+      "text": "Comparable observed histories: IJR: adjusted-price change +44.93%, largest peak-to-trough fall 26.99%; VEA: adjusted-price change +75.38%, largest peak-to-trough fall 22.86%. All use CAD over 2021-11-15 to 2026-11-13. Independent Python checks passed. These are standalone historical outcomes, not a portfolio allocation or a prediction.",
+      "sources": [
+        "https://finance.yahoo.com/quote/IJR/history/",
+        "https://finance.yahoo.com/quote/VEA/history/"
+      ],
+      "scope": {
+        "level": "product_comparison",
+        "objects": [
+          "IJR",
+          "VEA"
+        ],
+        "currency": "CAD",
+        "start": "2021-11-15",
+        "end": "2026-11-13",
+        "method": "common-date adjusted-price buy-and-hold replay"
+      }
+    },
+    "analysis.horizon": {
+      "title": "Evidence for your stated holding period",
+      "text": "IJR: 242 overlapping observed 48-month windows in CAD; worst change +14.35%, best change +88.67%. End observations are on or before the anniversary within seven days. These overlapping historical outcomes are not future probabilities or guaranteed bounds. VEA: 242 overlapping observed 48-month windows in CAD; worst change +44.16%, best change +130.80%. End observations are on or before the anniversary within seven days. These overlapping historical outcomes are not future probabilities or guaranteed bounds.",
+      "sources": [
+        "https://finance.yahoo.com/quote/IJR/history/",
+        "https://finance.yahoo.com/quote/VEA/history/"
+      ],
+      "scope": {
+        "objects": [],
+        "level": "limited_check",
+        "currency": null,
+        "start": null,
+        "end": null,
+        "as_of": null,
+        "recorded_at": "2026-11-16T03:29:45.587171+00:00",
+        "coverage": "See the tool-specific result; do not inherit another block's period.",
+        "method": "tool-specific evidence text",
+        "sources": [
+          "https://finance.yahoo.com/quote/IJR/history/",
+          "https://finance.yahoo.com/quote/VEA/history/"
+        ]
+      }
+    },
+    "analysis.portfolio": {
+      "title": "Scope of portfolio evidence",
+      "text": "Complete portfolio weights were not supplied. Standalone purchase results do not establish its impact on the whole portfolio. Existing holdings and the proposed before/after allocation must be confirmed for an impact comparison; no weights or funding were invented.",
+      "sources": [],
+      "scope": {
+        "objects": [],
+        "level": "limited_check",
+        "currency": null,
+        "start": null,
+        "end": null,
+        "as_of": null,
+        "recorded_at": "2026-11-16T03:29:45.587171+00:00",
+        "coverage": "See the tool-specific result; do not inherit another block's period.",
+        "method": "tool-specific evidence text",
+        "sources": []
+      }
+    }
+  },
+  "report_digest": "f9d85542a96aa474c32f3bb2de91de5ce9e2758e84c3ab2e9c3a798963fd7fcf",
+  "tasks": [
+    {
+      "tool": "product_comparison",
+      "question": "How do IJR and VEA compare on historical return, volatility, and drawdown metrics over common periods in CAD terms?",
+      "context_ids": [
+        "user.0",
+        "user.2"
+      ],
+      "relevance": "Direct comparison of the two candidate assets on observable risk-return characteristics in the user's currency, establishing baseline differences between US small-cap and developed international equity exposure.",
+      "required_inputs": [
+        "IJR price history in CAD",
+        "VEA price history in CAD",
+        "common date alignment"
+      ],
+      "required_outputs": [
+        "aligned_comparison"
+      ],
+      "scope": "product_comparison",
+      "completion_condition": "aligned_comparison output shows CAD-denominated metrics for both IJR and VEA over identical periods, including return, volatility, and maximum drawdown statistics.",
+      "id": "task.0",
+      "evidence_ids": [
+        "analysis.comparison"
+      ],
+      "actual_result": "Comparable observed histories: IJR: adjusted-price change +44.93%, largest peak-to-trough fall 26.99%; VEA: adjusted-price change +75.38%, largest peak-to-trough fall 22.86%. All use CAD over 2021-11-15 to 2026-11-13. Independent Python checks passed. These are standalone historical outcomes, not a portfolio allocation or a prediction.",
+      "missing_outputs": [],
+      "scope_supported": true,
+      "status": "evidence_ready",
+      "remaining_gap": "",
+      "completion_review": "pending"
+    },
+    {
+      "tool": "horizon_window",
+      "question": "What were the historical 4-year holding period outcomes for IJR in CAD terms?",
+      "context_ids": [
+        "user.2"
+      ],
+      "relevance": "User has explicit 4-year horizon for home deposit goal. Historical 4-year windows show range of outcomes (positive and negative) that occurred over this specific duration, revealing both favorable and unfavorable scenarios.",
+      "required_inputs": [
+        "IJR price history in CAD",
+        "4-year duration",
+        "sufficient historical coverage"
+      ],
+      "required_outputs": [
+        "holding_period_outcomes"
+      ],
+      "scope": "asset",
+      "completion_condition": "holding_period_outcomes output displays distribution of all overlapping 4-year returns for IJR, including minimum, maximum, median, and negative outcome frequency. Insufficient coverage is reported as a gap.",
+      "id": "task.1",
+      "evidence_ids": [
+        "analysis.horizon"
+      ],
+      "actual_result": "IJR: 242 overlapping observed 48-month windows in CAD; worst change +14.35%, best change +88.67%. End observations are on or before the anniversary within seven days. These overlapping historical outcomes are not future probabilities or guaranteed bounds. VEA: 242 overlapping observed 48-month windows in CAD; worst change +44.16%, best change +130.80%. End observations are on or before the anniversary within seven days. These overlapping historical outcomes are not future probabilities or guaranteed bounds.",
+      "missing_outputs": [],
+      "scope_supported": true,
+      "status": "evidence_ready",
+      "remaining_gap": "",
+      "completion_review": "pending"
+    },
+    {
+      "tool": "horizon_window",
+      "question": "What were the historical 4-year holding period outcomes for VEA in CAD terms?",
+      "context_ids": [
+        "user.2"
+      ],
+      "relevance": "User has explicit 4-year horizon for home deposit goal. Historical 4-year windows show range of outcomes (positive and negative) that occurred over this specific duration, revealing both favorable and unfavorable scenarios.",
+      "required_inputs": [
+        "VEA price history in CAD",
+        "4-year duration",
+        "sufficient historical coverage"
+      ],
+      "required_outputs": [
+        "holding_period_outcomes"
+      ],
+      "scope": "asset",
+      "completion_condition": "holding_period_outcomes output displays distribution of all overlapping 4-year returns for VEA, including minimum, maximum, median, and negative outcome frequency. Insufficient coverage is reported as a gap.",
+      "id": "task.2",
+      "evidence_ids": [
+        "analysis.horizon"
+      ],
+      "actual_result": "IJR: 242 overlapping observed 48-month windows in CAD; worst change +14.35%, best change +88.67%. End observations are on or before the anniversary within seven days. These overlapping historical outcomes are not future probabilities or guaranteed bounds. VEA: 242 overlapping observed 48-month windows in CAD; worst change +44.16%, best change +130.80%. End observations are on or before the anniversary within seven days. These overlapping historical outcomes are not future probabilities or guaranteed bounds.",
+      "missing_outputs": [],
+      "scope_supported": true,
+      "status": "evidence_ready",
+      "remaining_gap": "",
+      "completion_review": "pending"
+    },
+    {
+      "tool": "portfolio_context",
+      "question": "What portfolio inputs are missing to assess the effect of adding IJR or VEA to the existing Canadian equity fund holding?",
+      "context_ids": [
+        "user.0"
+      ],
+      "relevance": "User explicitly asks about effect on whole portfolio. Canadian equity fund weight is unknown. This check identifies the specific missing inputs required for before/after portfolio analysis, exposing the gap between available information and portfolio-level assessment.",
+      "required_inputs": [
+        "current holdings list",
+        "current weights",
+        "proposed addition amount and allocation"
+      ],
+      "required_outputs": [
+        "portfolio_input_check"
+      ],
+      "scope": "client_context",
+      "completion_condition": "portfolio_input_check output lists missing required inputs (Canadian equity fund weight, total portfolio value, complete holdings) that prevent portfolio-level comparison. Does NOT compute portfolio effects.",
+      "id": "task.3",
+      "evidence_ids": [
+        "analysis.portfolio"
+      ],
+      "actual_result": "Complete portfolio weights were not supplied. Standalone purchase results do not establish its impact on the whole portfolio. Existing holdings and the proposed before/after allocation must be confirmed for an impact comparison; no weights or funding were invented.",
+      "missing_outputs": [],
+      "scope_supported": true,
+      "status": "evidence_ready",
+      "remaining_gap": "",
+      "completion_review": "pending"
+    }
+  ],
+  "arguments": [],
+  "answer_status": "evidence_only",
+  "budget": {
+    "limits": {
+      "seconds": 240,
+      "model_calls": 10,
+      "tool_calls": 8,
+      "source_calls": 12,
+      "investigations": 3,
+      "format_repairs": 2,
+      "reviews": 2
+    },
+    "elapsed_seconds": 45.87,
+    "model_calls": 3,
+    "tool_calls": 3,
+    "source_calls": 3,
+    "stop_reason": null,
+    "reported_tokens": 20592,
+    "monetary_cost": null,
+    "cost_note": "Token usage where returned; no assumed token price."
+  },
+  "conversation_state": {
+    "version": 1,
+    "statements": [
+      {
+        "kind": "investment_amount",
+        "excerpt": "4600 CAD",
+        "source_type": "current_request",
+        "operation": "add",
+        "targets": [],
+        "id": "statement.1.0",
+        "active": true,
+        "turn": 1,
+        "source": "user",
+        "interpretation": "bedrock"
+      },
+      {
+        "kind": "goal",
+        "excerpt": "growth for a home deposit",
+        "source_type": "current_request",
+        "operation": "add",
+        "targets": [],
+        "id": "statement.1.1",
+        "active": true,
+        "turn": 1,
+        "source": "user",
+        "interpretation": "bedrock"
+      },
+      {
+        "kind": "horizon",
+        "excerpt": "4 years",
+        "source_type": "current_request",
+        "operation": "add",
+        "targets": [],
+        "id": "statement.1.2",
+        "active": true,
+        "turn": 1,
+        "source": "user",
+        "interpretation": "bedrock"
+      }
+    ],
+    "events": [
+      {
+        "turn": 1,
+        "operation": "add",
+        "field": "investment_amount",
+        "targets": [],
+        "excerpt": "4600 CAD"
+      },
+      {
+        "turn": 1,
+        "operation": "add",
+        "field": "goal",
+        "targets": [],
+        "excerpt": "growth for a home deposit"
+      },
+      {
+        "turn": 1,
+        "operation": "add",
+        "field": "horizon",
+        "targets": [],
+        "excerpt": "4 years"
+      }
+    ],
+    "assets": [
+      {
+        "query": "IJR",
+        "excerpt": "IJR",
+        "role": "consider"
+      },
+      {
+        "query": "VEA",
+        "excerpt": "VEA",
+        "role": "consider"
+      },
+      {
+        "query": "Canadian equity fund",
+        "excerpt": "Canadian equity fund",
+        "role": "holding"
+      }
+    ],
+    "budget": {
+      "amount": 4600.0,
+      "currency": "CAD",
+      "excerpt": "4600 CAD"
+    }
+  },
+  "resolutions": [
+    {
+      "symbol": "IJR",
+      "query": "IJR",
+      "method": "ticker hypothesis; chart identity must confirm",
+      "candidates": [],
+      "verified_exchange": "PCX",
+      "verified_currency": "USD",
+      "verified_type": "ETF"
+    },
+    {
+      "symbol": "VEA",
+      "query": "VEA",
+      "method": "ticker hypothesis; chart identity must confirm",
+      "candidates": [],
+      "verified_exchange": "PCX",
+      "verified_currency": "USD",
+      "verified_type": "ETF"
+    }
+  ]
+}

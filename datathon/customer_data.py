@@ -19,6 +19,13 @@ from .live_market_data import _NoRedirects
 from .review_snapshot import fingerprint
 
 
+class ResearchAmbiguous(ValueError):
+    """A security name needs a listing choice, with traceable candidates."""
+    def __init__(self, query, candidates, source_url):
+        super().__init__("Confirm the ticker and exchange: this name does not identify a unique supported security.")
+        self.query, self.candidates, self.source_url = query, candidates, source_url
+
+
 class ResearchUnavailable(ValueError):
     """A public, credential-free explanation of missing research evidence."""
 
@@ -59,39 +66,57 @@ class PublicResearch:
         self.transport = transport
         self.clock = clock or (lambda: datetime.now(timezone.utc))
 
-    def resolve(self, query, *, search=False):
+    def resolve_security(self, query, *, search=False):
+        from difflib import SequenceMatcher
         query = query.strip().removeprefix("$")
         if not search and re.fullmatch(r"[A-Za-z][A-Za-z0-9.^=\-]{0,11}", query) and (query.isupper() or query.islower()):
-            return query.upper()
-        url = "https://query1.finance.yahoo.com/v1/finance/search?" + urlencode({"q": query, "quotesCount": 4, "newsCount": 0})
+            return {"symbol": query.upper(), "query": query, "method": "ticker hypothesis; chart identity must confirm", "candidates": []}
+        url = "https://query1.finance.yahoo.com/v1/finance/search?" + urlencode({"q": query, "quotesCount": 8, "newsCount": 0})
         payload = self.transport(url)
         if not isinstance(payload, dict) or not isinstance(payload.get("quotes", []), list):
             raise ResearchUnavailable("The instrument search returned an invalid response. Add a ticker to your question.")
-        choices = [item for item in payload.get("quotes", [])
-                   if isinstance(item, dict) and item.get("quoteType") in {"EQUITY", "ETF", "CRYPTOCURRENCY", "MUTUALFUND"}
+        choices = [{"symbol": item["symbol"], "name": item.get("longname") or item.get("shortname", ""),
+                    "exchange": item.get("exchDisp") or item.get("exchange"), "currency": item.get("currency"),
+                    "product_type": item["quoteType"], "source_url": url}
+                   for item in payload.get("quotes", []) if isinstance(item, dict)
+                   and item.get("quoteType") in {"EQUITY", "ETF", "CRYPTOCURRENCY", "MUTUALFUND"}
                    and re.fullmatch(r"[A-Z0-9.^=\-]{1,16}", item.get("symbol", ""))]
-        # Prefer an exact company-name/ticker match. Ambiguous names need a ticker.
-        exact = [item for item in choices if query.casefold() in
-                 {str(item.get(key, "")).casefold() for key in ("symbol", "shortname", "longname")}]
-        if len(exact) == 1:
-            return exact[0]["symbol"]
-        if len(choices) == 1:
-            return choices[0]["symbol"]
-        raise ResearchUnavailable("This name has multiple listings or no clear match. Add the ticker and exchange to your question.")
+        exact_symbol = [item for item in choices if query.casefold() == item["symbol"].casefold()]
+        def normalized(text):
+            return re.sub(r"\b(?:inc|corporation|corp|ltd|limited|plc|company)\b|[^a-z0-9 ]", "", text.casefold()).strip()
+        def plausible(item):
+            name, asked = normalized(item["name"]), normalized(query)
+            return (asked == name or (len(asked) >= 4 and name.startswith(asked + " ")) or asked == "".join(x[0] for x in name.split() if x)
+                    or (len(asked) >= 5 and SequenceMatcher(None, asked, name).ratio() >= .78))
+        matches = exact_symbol or [item for item in choices if plausible(item)]
+        if len(matches) != 1:
+            raise ResearchAmbiguous(query, choices, url)
+        return {"symbol": matches[0]["symbol"], "query": query, "method": "public security search; chart identity must confirm",
+                "candidates": choices, "source_url": url, "retrieved_at": self.clock().isoformat()}
+
+    def resolve(self, query, *, search=False):
+        try:
+            return self.resolve_security(query, search=search)["symbol"]
+        except ResearchAmbiguous as exc:
+            raise ResearchUnavailable(str(exc)) from None
 
     def asset(self, query):
-        symbol = self.resolve(query)
+        resolution = self.resolve_security(query)
+        symbol = resolution["symbol"]
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol, safe='')}?" + urlencode(
             {"range": "5y", "interval": "1d", "events": "div,splits", "includeAdjustedClose": "true"})
         try:
             payload = self.transport(url)
         except ResearchUnavailable as exc:
-            if "did not return this instrument" not in str(exc) or query.isupper():
+            if "did not return this instrument" not in str(exc):
                 raise
-            resolved = self.resolve(query, search=True)
-            if resolved == symbol:
+            searched = self.resolve_security(query, search=True)
+            if searched["symbol"] == symbol:
                 raise
-            return self.asset(resolved)
+            result = self.asset(searched["symbol"])
+            result["resolution"] = {**searched, "verified_exchange": result["exchange"], "verified_currency": result["currency"], "verified_type": result["instrument_type"]}
+            result["digest"] = fingerprint({k: v for k, v in result.items() if k != "digest"})
+            return result
         retrieved = self.clock()
         try:
             result = payload["chart"]["result"][0]
@@ -138,6 +163,8 @@ class PublicResearch:
                 "terms_url": "https://legal.yahoo.com/us/en/yahoo/terms/otos/index.html",
                 "limitations": "Unofficial research interface; prices may be delayed. Exchange-calendar completeness has not been certified.",
             }
+            result["resolution"] = {**resolution, "verified_exchange": result["exchange"],
+                "verified_currency": result["currency"], "verified_type": result["instrument_type"]}
             result["digest"] = fingerprint(result)
             return result
         except (AttributeError, KeyError, IndexError, TypeError, ValueError, OverflowError) as exc:
@@ -190,3 +217,28 @@ class PublicResearch:
                     "vintage": "latest available; publication vintages unavailable"}
         except (AttributeError, KeyError, TypeError, ValueError):
             raise ResearchUnavailable("Usable Canadian CPI observations were unavailable. Purchasing-power results are withheld.") from None
+
+
+class BudgetedResearch:
+    """Request-local public-data cache and explicit source-call allowance."""
+    def __init__(self, source, budget):
+        from threading import Lock
+        self.source, self.budget = source, budget
+        self.cache, self.lock = {}, Lock()
+
+    def _get(self, method, *args):
+        from copy import deepcopy
+        key = (method, *args)
+        with self.lock:
+            if key in self.cache:
+                return deepcopy(self.cache[key])
+            if not self.budget.take("source_calls"):
+                raise ResearchUnavailable("The source-call budget was exhausted; existing evidence was retained.")
+        result = getattr(self.source, method)(*args)
+        with self.lock:
+            self.cache[key] = deepcopy(result)
+        return result
+
+    def asset(self, query): return self._get("asset", query)
+    def fx(self): return self._get("fx")
+    def cpi(self): return self._get("cpi")

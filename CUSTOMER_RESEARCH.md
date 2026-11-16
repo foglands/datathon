@@ -1,5 +1,8 @@
 # Conversational investment research
 
+> Current analysis-contract revision: [22.09 requirements and implementation](ANALYSIS_REQUIREMENTS_2209.md). Validation and remaining gaps: [revision validation](submission/analysis-validation-2209.md). Earlier acceptance records below describe their recorded revision, not a claim of current universal correctness.
+
+
 The default customer workspace implements the current product direction and the November 16 general-profile/risk requirements. The historical workbench remains available for regression validation and explicitly authorized funding searches.
 
 ## Inquiry and synthesis

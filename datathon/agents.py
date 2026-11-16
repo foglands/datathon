@@ -1020,6 +1020,15 @@ class StrandsAgents:
         )
         needed_handoffs = terminal_requirements or ({terminal_tool} if terminal_tool else set())
 
+        if terminal_tool and role.startswith("customer_") and "anthropic.claude-sonnet-4-5-" in self.model_id:
+            def require_customer_handoff(params: dict, **_: Any) -> None:
+                # Converse supports a named tool choice for Claude. This prevents a
+                # free-text answer from bypassing the customer's validated handoff.
+                config = params.get("toolConfig", {})
+                if any(item.get("toolSpec", {}).get("name") == terminal_tool for item in config.get("tools", [])):
+                    config["toolChoice"] = {"tool": {"name": terminal_tool}}
+            model.client.meta.events.register("before-parameter-build.bedrock-runtime.Converse", require_customer_handoff)
+
         def inline_handler(handler: Callable[..., Any]) -> Callable[..., Awaitable[Any]]:
             @wraps(handler)
             async def invoke(**arguments: Any) -> Any:
