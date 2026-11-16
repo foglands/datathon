@@ -341,7 +341,13 @@ def _conclusion(report):
                 _section(section, False)
         else:
             st.html('<h1 class="conclusion-unavailable">A conclusion is not available yet.</h1>')
-            if report.get("blocks"):
+            disclosure = next((block for key, block in report.get("blocks", {}).items() if key.endswith(".disclosure")), None)
+            if disclosure:
+                st.markdown("**" + disclosure["title"] + "**")
+                st.write(disclosure["text"])
+                for url in disclosure["sources"]:
+                    st.markdown("[Source](" + url + ")")
+            elif report.get("blocks"):
                 st.write("Checked evidence is available below. The written assessment could not be verified.")
             elif report.get("source_issues"):
                 st.write(report["source_issues"][0]["reason"])

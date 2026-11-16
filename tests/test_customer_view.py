@@ -90,6 +90,18 @@ class CustomerViewTests(unittest.TestCase):
         self.assertIn('Supporting evidence', values)
         self.assertNotIn('Counterpoints &amp; risks', values)
 
+    def test_checked_disclosure_is_visible_at_top_if_model_conclusion_fails(self):
+        from datathon.product_disclosures import disclosure_evidence
+
+        report = deepcopy(self.base)
+        report['editor']['explanations'] = []
+        report['editor']['answer_status'] = 'evidence_only'
+        report['blocks'].update(disclosure_evidence(['SPY', 'NVDA']))
+        self.show(report)
+        values = [str(getattr(node.proto, 'body', '')) for node in self.app.main if hasattr(node, 'proto')]
+        finding = report['blocks']['SPY-NVDA.disclosure']
+        self.assertLess(values.index(finding['text']), values.index(report['question']))
+
     def test_tampered_report_does_not_release_its_conclusion(self):
         report = seal(deepcopy(self.base))
         report['editor']['explanations'] = sections()

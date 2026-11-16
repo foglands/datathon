@@ -12,7 +12,7 @@ from .review_snapshot import fingerprint
 from .decision_replay import evaluate as evaluate_history, verify as verify_history
 
 
-METHOD = "customer-inquiry-v6"
+METHOD = "customer-inquiry-v7"
 
 
 def calculate(rows):

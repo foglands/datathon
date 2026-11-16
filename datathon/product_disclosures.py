@@ -6,6 +6,7 @@ from decimal import Decimal
 _SPY_PROSPECTUS = "https://www.sec.gov/Archives/edgar/data/884394/000119312523017928/d449477d497.htm"
 _SPY_HOLDINGS = "https://www.sec.gov/Archives/edgar/data/884394/000141036826089410/NPORT_J905_66407841_0626.htm"
 _ESGU_RETURNS = "https://www.sec.gov/Archives/edgar/data/1100663/000119312525327016/R300.htm"
+_ESGU_SCREEN = "https://www.ishares.com/us/literature/product-brief/ishares-esg-aware-equity-brief.pdf"
 _TSLA_PRICES = "https://www.sec.gov/Archives/edgar/data/1114446/000111444623000724/tc8172999f_1fwp.htm"
 
 _PRODUCTS = {
@@ -14,7 +15,7 @@ _PRODUCTS = {
         "iShares describes screens for specified involvement in controversial weapons, civilian firearms, tobacco, "
         "thermal coal and oil sands, and for controversies rated very severe under MSCI's methodology. "
         "Checking whether a particular company is currently held or screened out requires dated holdings and issuer-level records.",
-        ("https://www.ishares.com/us/literature/product-brief/ishares-esg-aware-equity-brief.pdf",),
+        (_ESGU_SCREEN,),
     ),
     "ESGV": (
         "ESGV · Index screening policy",
@@ -42,6 +43,24 @@ def disclosure_evidence(symbols):
     """Return evidence for referenced instruments, independent of price availability."""
     symbols = set(symbols)
     blocks = {}
+    if {"SPY", "NVDA"} <= symbols:
+        blocks["SPY-NVDA.disclosure"] = {
+            "title": "SPY and NVDA · Disclosed holding overlap",
+            "text": "The June 30, 2026 SPY filing lists NVIDIA. A direct NVDA purchase overlaps with SPY's disclosed NVIDIA "
+                    "exposure. The effect today depends on the holding still being present, its weight and the proposed allocation.",
+            "sources": [_SPY_HOLDINGS],
+            "scope": {"level": "product_comparison", "objects": ["SPY", "NVDA"], "as_of": "2026-06-30",
+                      "method": "one fund position disclosed by the issuer, compared with direct company exposure"},
+        }
+    if {"ESGU", "SPY"} <= symbols:
+        blocks["ESGU-SPY.screening.disclosure"] = {
+            "title": "ESGU and SPY · Disclosed investment methods",
+            "text": "ESGU's disclosed index method screens some business activities and controversies rated very severe "
+                    "by MSCI. SPY's prospectus states that it tracks the S&P 500. To verify which companies a fund currently "
+                    "holds or excludes, use dated holdings and the relevant screening records.",
+            "sources": [_ESGU_SCREEN, _SPY_PROSPECTUS],
+            "scope": {"level": "product_comparison", "objects": ["ESGU", "SPY"], "method": "side-by-side issuer disclosures"},
+        }
     for symbol, (title, description, sources) in _PRODUCTS.items():
         if symbol in symbols:
             blocks[f"{symbol}.disclosure"] = {"title": title, "text": description, "sources": list(sources),
