@@ -1,5 +1,21 @@
 # Final repository verification
 
+## Daily price archive and customer report verification
+
+The approved-archive workflow validates and packages daily prices, Bank of Canada USD/CAD data and source metadata. It computes the common observation window for each of the three examples. An end-to-end local Streamlit check with synthetic prices for all five instruments displayed both historical charts in every example. IBIT's later start shortened the common window as expected.
+
+The public retest on [`c2e9e3b`](https://github.com/foglands/datathon/commit/c2e9e3bc40c67a0b400a1a5a3dfc71f178c7b94c) used filings and issuer materials while daily prices were unconfigured. The original questions were submitted individually.
+
+| Case | Result |
+| --- | --- |
+| AI and Bitcoin | Displayed SPY's dated NVIDIA overlap at the top of the report while withholding the model's written conclusion. Portfolio weights and current holdings are needed to quantify the change. |
+| Growth with ESG preferences | Displayed the ESGU screening and SPY objective comparison at the top while withholding the model's written conclusion. Dated holdings and screening records are needed for issuer-level verification. |
+| A stock before retirement | Generated a partial written assessment backed by a documented TSLA decline. The language overstated how representative that single episode is. Daily data is required to measure recovery and rolling results. |
+
+All three reports clearly identified the unconfigured price source. The hosted data path still needs an authorized daily price export. See the [preparation and deployment instructions](../docs/DEPLOYMENT.md#prepare-and-verify-the-snapshot).
+
+**587 local regression tests passed.** CI passed on the [default branch](https://github.com/foglands/datathon/actions/runs/43829053200) and the [deployment branch](https://github.com/foglands/datathon/actions/runs/43829044903).
+
 ## Hosted Bedrock and public-source evidence (November 16, 2026)
 
 After the operator saved Streamlit Secrets, the hosted `f637000` revision reached Bedrock planning, analysis and review in all three cases. The ESG case returned a partial price comparison. The diversification case retained findings without a lead conclusion. The retirement case selected the wrong security despite the supplied TSLA ticker. Those observed results describe the pre-fix revision.
