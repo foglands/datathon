@@ -24,7 +24,8 @@ from tests.test_issuer_reaudit import configured_catalog, synthetic_disclosure
 from tests.test_tool_routing import select_tool_arguments
 
 
-APP = Path(__file__).resolve().parents[1] / "app.py"
+CUSTOMER_APP = Path(__file__).resolve().parents[1] / "app.py"
+APP = CUSTOMER_APP.with_name("validation_app.py")
 CONFIRM = "Confirm inputs and run audit"
 COMPARE = "Confirm this change and compare"
 INTERPRET = "Interpret request with Bedrock"

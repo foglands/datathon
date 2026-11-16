@@ -1,52 +1,39 @@
-# AlphaForge AI · Customer research demonstration
+# AlphaForge AI: current customer demonstration
 
-This is the current five-minute recording plan. The existing MP4 and PDFs document the earlier workbench; they are not recordings or rendered deliverables for this revision. See [current validation](customer-validation.md) for actual runs.
+Five-minute recording plan for `app.py`. This script is current; `alphaforge-demo.mp4` still records an earlier workbench revision. Use fictional inputs and actual displayed results. Do not show credentials or substitute an older successful run for a failed current one.
 
-## 0:00–0:40 · Start with an idea
+## 0:00-0:40: One question
 
-Open the Investment assistant. Show the single question field and optional profile details.
+Show the customer homepage: no example buttons, persona choices or Reference cases navigation.
 
-> Describe your investment idea in your own words. AlphaForge researches public observations, computes the evidence and explains what it supports. You do not need to choose an analytical method or match a predefined investor type.
+Enter: `I am considering investing 3000 CAD in AMD. I may need the money in two years. What should I understand?`
 
-Enter: `I am considering investing 3000 CAD in AMD. I am comfortable taking high investment risk. My goal is to fund living costs. I need to withdraw 500 CAD monthly for 24 months, starting next month.`
+Explain that unknown conditions remain unknown and optional context is interpreted in relation to the question.
 
-## 0:40–1:30 · Follow the research
+## 0:40-1:30: Observable analysis
 
-Show the actual progress stages and source dates. Explain that the price is a latest public observation and may be delayed. Show the extracted original wording, with willingness and withdrawal requirements retained separately.
+Show the stages: understanding, task planning, evidence collection, Python calculations, synthesis and independent review. Open task details after completion to show a question, required measure and actual output. A successful tool call alone does not establish task completion.
 
-> The model extracts the question. The data tools retrieve prices, official FX and CPI. Python computes the results and independent implementations check them. Being comfortable with risk does not establish the capacity to fund withdrawals.
+Explain that the market price is a dated observation and may be delayed.
 
-## 1:30–2:50 · Explain the evidence
+## 1:30-2:40: Conclusion, then evidence
 
-Show the conclusion, indexed historical path, drawdown and withdrawal paths. Use the figures actually displayed by this run. Expand the withdrawal events and purchasing-power comparison.
+Start with the conclusion and its support, counterevidence and limits. Show the indexed history/drawdown charts and cited values. Use only the numbers displayed by this run.
 
-> A positive return from the beginning to the end can coexist with a depleted withdrawal portfolio. The timing of cash needs changes what evidence matters. This replay invests the initial amount in fractional units; the separate current-price whole-share estimate uses a different convention. Neither is an executed order or a forecast.
+If the result is partial or the interpretation is withheld, explain the specific unresolved task or review feedback. Checked evidence is not relabeled as an accepted personalized answer.
 
-Show any withheld model explanation honestly. A rejected explanation is replaced by checked evidence, not silently relabeled as model prose.
+## 2:40-3:40: Change a material condition
 
-## 2:50–3:40 · A material condition changes the analysis
+Add a fictional follow-up: `Correction: I need to withdraw 2500 CAD in six months for tuition, and I have no other money for that payment.`
 
-Show the five unseen-question results under Reference cases → Reasoning acceptance. Compare the original growth question with the same proposed investment plus a tuition withdrawal and no other tuition funds. Show how the analysis questions, selected evidence and conclusion respond. Names, paraphrases and an unrelated hobby should not change the substantive judgment. Use the actual accepted outputs; do not script a refusal or force a different verdict.
+Show which active facts changed, which persisted, and how the tasks or conclusion respond. Do not script a predetermined rejection or different verdict. Missing schedule details may legitimately cause a focused question.
 
-## 3:40–4:25 · Evidence and AWS
+## 3:40-4:25: Evidence and AWS
 
-Open Sources and How the assistant reached this report. Show actual Bedrock intake, report and explanation-review traces. Distinguish a successful live call from unavailable or local execution. Show Python calculations and the report fingerprint.
+Open source dates, evidence references and model activity. Identify actual Bedrock calls and distinguish local calculations from model judgment. Explain that financial values come from Python and semantic review is a separate, fallible model invocation. Download the HTML report with charts.
 
-> The model explains evidence; it cannot manufacture the financial numbers or overrule an explicit checked constraint. Unknown coverage, unavailable measures and conflicting statements stay visible.
+## 4:25-5:00: Limits and reproducibility
 
-Download the HTML report with charts. Show its sources and limitations. Do not include credentials or raw provider extracts in the recording.
+State the missing data coverage and generalization limits. Explain that official personas are tests only. Point to the README, current validation and technical PDF.
 
-## 4:25–5:00 · What remains unknown
-
-Show one missing-data or unsupported check. Explain that historical data alone does not establish today's valuation, future goal success, complete ESG coverage or execution liquidity. Official personas are test fixtures only; no model routes or assumptions depend on their names.
-
-> The useful result is a traceable assessment of the idea: what the evidence says, why the stated conditions matter, what is missing and what to clarify next.
-
-## Recording acceptance
-
-- Record the exact code revision and UTC time alongside the video.
-- Capture a real run; do not substitute scripted financial numbers.
-- Keep latest quotes, dated disclosures and historical retrospectives distinct.
-- Show both quantitative evidence and a material limitation.
-- Retain separate authorization for any alternative funding search in the historical workbench.
-- Do not claim the existing video or PDFs depict this customer workspace.
+Developer tests and historical cases run separately with `python -m streamlit run validation_app.py`. They do not belong in the customer tour. If showing them in a technical appendix, label them validation and distinguish recorded failed pairs from passed ones.

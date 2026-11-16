@@ -1,29 +1,28 @@
 # AlphaForge AI
-
 ## An investment idea, examined with evidence
 
-Investors can describe an idea and their conditions in ordinary language. AlphaForge researches public financial data, calculates the relevant trade-offs and returns an understandable report with charts, dated sources and explicit evidence gaps. No predefined persona or professional workflow selection is required.
+**PolyFinances Datathon 2026 | Banque Nationale and AWS**
 
-**Describe the idea → research the evidence → inspect the conclusion.**
+### Problem and value
 
-A fictional user considers AMD with CAD 3,000 and recurring withdrawals. High willingness to take risk does not remove the cash requirement. The report separates observed returns from drawdown, withdrawal shortfalls and inflation-adjusted purchasing power. A second bond-fund question activates duration and underlying credit disclosures. The same calculation rules apply to every user; only the stated inputs and relevant questions change.
+Investment questions begin with an idea and real conditions, not a professional risk dashboard. AlphaForge lets a user describe what they are considering, what the money is for and what is unknown. It returns a conclusion with evidence, charts, counterarguments and important gaps. The customer interface has one question field and optional context; validation tools live in a separate developer app.
 
-### Agentic work with checked calculations
+### Agentic analysis
 
-Amazon Bedrock extracts source-linked asset and condition statements, then proposes the analytical questions and relevant tools. Public-data tools retrieve dated prices, adjusted history and Bank of Canada FX/CPI. Python computes the financial results; separate implementations verify them. The analyst can request further evidence after seeing tool results, then synthesizes supporting and opposing evidence into a contextual answer. A separate reviewer checks relevance, use of client conditions, claim support, balance and scope; a failed answer gets one repair attempt. Failed explanation checks retain the verified evidence and disclose the missing interpretation. Observable traces show actual calls and local fallback separately.
+The workflow understands the question, plans the analysis, calls evidence tools, synthesizes a judgment and independently reviews it. Amazon Bedrock performs the language tasks through Strands handoffs. The analyst can request further evidence after seeing results; missing holdings or unsupported measures can narrow the answer or prompt clarification. Task completion is checked against actual outputs.
 
-### What the report can establish
+### Evidence discipline
 
-Historical return, maximum drawdown, observed volatility, rolling returns, recovery, selected stress replays, CAD/FX effects, explicit-weight portfolio behavior, fixed withdrawal paths and CPI purchasing power. Qualified issuer disclosures support first-order duration illustrations and underlying credit buckets. Exposure bounds preserve unknown holdings; transaction size relative to observed traded value is only a liquidity proxy.
+Financial calculations belong to Python and receive separate numerical checks. Claims cite checked results or the user's own statements. Unprovided information remains unknown. Goals, willingness to take risk, loss capacity and withdrawal needs are separate; a name or persona never supplies a threshold or dictates a conclusion. Failed semantic review withholds the interpretation while retaining checked evidence.
 
-### What it cannot establish
+### Data and demonstration
 
-Past observations do not prove future performance or suitability. Complete calendar coverage, comprehensive ETF look-through, unrestricted ESG research, current fundamentals/news and arbitrary bond disclosures are unavailable. Initial bond coverage is a dated AGG snapshot. VaR/ES are withheld without certified observation coverage. No transactions are placed; alternative portfolio searches require separate authorization.
+Dated public adjusted prices, Bank of Canada FX/CPI and qualified disclosures support historical risk, CAD conversion, explicit-weight portfolios, fixed withdrawal paths, purchasing power and selected bond measures. A fictional user considering CAD 3,000 in AMD can add a near-term withdrawal need; the assistant should explain which evidence becomes relevant without imposing a preset verdict. HTML export preserves charts and source references.
 
-### Practical value
+### Honest limits and validation
 
-The user sees a conclusion, its numerical support, the conditions that matter and a focused next question. The downloadable HTML preserves charts and sources. Three official investor personas serve only as test cases alongside arbitrary profiles, conflicting inputs and injected calculation failures.
+Quotes may be delayed. Historical observations do not predict performance or establish suitability. Complete fund look-through, fundamentals/news and unrestricted ESG research are unavailable; initial duration/credit coverage is a dated AGG extract. A volume ratio does not establish execution feasibility. No trades are placed.
 
-[Code and reproduction](https://github.com/foglands/datathon/tree/architecture-completion-20261115) · [Current technical guide](../CUSTOMER_RESEARCH.md) · [Current validation](customer-validation.md)
+Automated regression covers calculations, source/state contracts, authorization, tampering and interface behavior. Live generalization remains partial: paraphrase consistency and fallible semantic review are documented limitations. Official personas are test fixtures alongside other fictional questions, not production routes.
 
-This Markdown describes the revised product. The earlier PDF and video artifacts remain historical until regenerated and checked.
+[Code and setup](https://github.com/foglands/datathon/tree/architecture-completion-20261115) | [Technical guide](technical-summary.md) | [Validation](final-verification.md)

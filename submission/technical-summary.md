@@ -1,116 +1,103 @@
-# AlphaForge AI · Technical documentation
+# AlphaForge AI
+## Technical documentation
 
-**Current customer workspace:** see [Conversational investment research](../CUSTOMER_RESEARCH.md) for question understanding, model-led analysis planning, selected evidence tools, contextual synthesis and independent answer review. The conclusion comes first; optional client details are available at every reasoning stage. See [current acceptance](reasoning-validation.md) for tests and live observations. The document below describes the preserved historical workbench. Official personas are validation fixtures only.
+PolyFinances Datathon 2026 | Banque Nationale and AWS | Finalization: November 16, 2026
 
-PolyFinances Datathon 2026 · Banque Nationale × AWS
+AlphaForge is a conversational investment-research prototype. A user describes an idea and relevant conditions; the system plans an inquiry, collects public evidence, calculates results and produces a reviewed explanation. This document describes the current customer route. The [historical workbench](../docs/historical-workbench.md) is retained separately for development and reproducible reference audits.
 
-AlphaForge shows which of the user's confirmed rules a hypothetical investment decision meets, what caused a breach, and which evidence could change the conclusion. Historical results support self-assessment; the application neither executes orders nor predicts future performance.
+## 1. Customer experience and scope
 
-## 1. Problem and implemented workflow
+Run `app.py` for the customer interface: one question field, a research action, optional free-text context and follow-up conversation. It exposes no persona buttons, professional mode selector or Reference cases navigation. The separate `validation_app.py` is for developers.
 
-Buying the same asset can have different portfolio consequences depending on the holding sold, the investor's explicit limit, and the meaning of “loss.” A name or risk persona alone cannot determine those rules. AlphaForge separates profile context, proposed action, binding policy and evidence, then exposes the calculation and its review.
+The report begins with the conclusion, then supporting evidence, counterevidence and important gaps. Context, task status, figures, sources and traces are available below. Downloadable HTML includes vector charts; Markdown provides a text version. A partial result is labeled partial. When review fails, checked evidence remains available without a fabricated personalized conclusion.
 
-The general workspace has three actions: **Compare** two assets or allocations, **Evaluate** one allocation, and **Audit** a trade. Each uses an editable draft followed by explicit confirmation. An original-trade audit does not launch a funding search. The user separately specifies the permitted source holdings and smaller-size permission after seeing the original result.
+Profiles supply context, not verdicts. Goals, willingness, loss capacity, withdrawal needs, holdings and explicit rules are separate facts. Names, ages and the official personas do not supply default thresholds. Changing context may change the investigation or interpretation; identical numerical inputs must preserve their calculations.
+
+## 2. Architecture and actual model roles
 
 ```mermaid
 flowchart TD
-    A["Question or structured inputs"] --> B["Draft and explicit confirmation"]
-    B --> C["Frozen market and dated disclosures"]
-    C --> D["Historical replay and rule checks"]
-    D --> E["Independent numerical review"]
-    E --> F["Bound report and two display views"]
-    F --> G["JSON, PDF and optional versioned S3"]
-    F --> H["Separately authorized funding search"]
-    H --> E
+    U["Question and sourced context"] --> P["Analysis tasks"]
+    P --> T["Evidence tools and Python checks"]
+    T --> S["Claim synthesis"]
+    S --> R["Independent claim and task review"]
+    R -->|"Evidence gap"| T
+    R -->|"Revise scope or wording"| S
+    R -->|"Accepted or bounded partial result"| O["Conclusion and supporting report"]
 ```
 
-The preserved reference workspace and CLI reproduce the earlier NVDA funding demonstration. Under **Reference cases → Earlier assistant validation**, the preserved assistant can retrieve read-only Alpaca observations; its current quotes are not fed into the frozen historical decision.
-
-## 2. Models, tools and handoffs
-
-| Decision or operation | Actual implementation | Boundary |
+| Stage | Responsibility | Main modules |
 | --- | --- | --- |
-| Question understanding | Sonnet through Strands/Bedrock proposes an intent and structured fields linked to original-language excerpts | Python validates literal values and structure; the user confirms before calculation. Offline drafts are explicitly labeled and have narrower language coverage. |
-| Evidence qualification | Python checks dates, source metadata, classifications and interval evidence | No claim of a general model choosing among arbitrary financial documents |
-| Replay, exposure and funding | Versioned Python functions compute metrics, bounds and certificates | The model cannot supply a financial value or change a confirmed threshold |
-| Independent review | Separate calculation procedures and certificate checks | Any failed numerical or version check withholds the affected publication |
-| Explanation | Optional Bedrock call composes at most 120 words from one or two approved finding references | Every sentence must exactly match an approved sentence or fixed allowed transition; all sentences of each selected reference are required. Failed prose is withdrawn while the deterministic explanation remains |
-| General follow-up challenge | Report-only explanations or a separately confirmed one-field change, bounded to three rounds | Each replay starts from the original inputs; a changed verdict stops the sequence. Changed policies require their own funding authorization. |
-| Legacy delegated Review | Nova selects a supported one-assumption check or evidence request | Preserved reference workflow; do not imply this live evidence covers the new challenge selector |
+| Understanding | Extract source-linked instruments and statements; preserve corrections, retractions, conflicts and unknowns | customer_agents, customer_state, customer_profile |
+| Planning | Propose up to four relevant tasks with inputs, measures, scope and observable completion conditions | inquiry_engine, inquiry_contracts |
+| Execution | Resolve listings, retrieve dated observations and run selected calculations with numerical checks | customer_data, customer_tools, customer_risks, customer_bonds |
+| Synthesis | Produce checkable claims; request additional feasible evidence; distinguish asset, product and portfolio scope | inquiry_engine |
+| Review | Check claim support, material context, task completion, scope and counterevidence; request repair or narrow the answer | inquiry_engine |
+| Publication | Preserve provenance, review results and content fingerprint in the displayed/exported report | customer_workflow, customer_report, customer_view |
 
-The new workflow is not described as eight autonomous agents. Data loading, optimization and numerical verification are tools and controls. Existing staged reference runs record typed role handoffs and real Bedrock request IDs. Independent numerical review remains a Python authority in every execution mode.
+Amazon Bedrock through Strands supplies the language-model calls. Intake, planner, analyst and reviewer use the configured profile model; the default is `global.anthropic.claude-sonnet-4-5-20250929-v1:0` in `us-east-1`. The reviewer is a separate invocation with its own contract, not an independently trained model. Semantic review can be wrong; Python calculation checks are a different control.
 
-## 3. Evidence and calculation methods
+A model may call catalog tools, not execute arbitrary Python or invent a provider. A successful call does not by itself complete a task. Required outputs are compared with actual measures and supported scope. Missing portfolio weights cannot be replaced with a single stock's history and called portfolio analysis.
 
-### Source ledger
+## 3. Evidence and calculation contracts
 
-| Source | Dates and transformation | Limitations and use |
+Each substantive claim has evidence/context references, scope, assumptions and limitations. Numeric literals must match cited Python evidence or literal user-stated inputs. An investment budget, future target and withdrawal amount are distinct fields. Citation and exact-value checks establish origin, not semantic entailment; the independent review checks meaning but is fallible.
+
+The workflow can retrieve additional evidence after an analyst request or review rejection. If no feasible tool can close a gap, it narrows scope, asks a focused question or retains a partial result. It does not force a short-horizon refusal, a risk-label conclusion or a largest-risk ranking.
+
+Conversation changes are source-linked. Exact repetitions of active facts retain their earlier provenance; new or changed facts require quotations from the current message. Corrections replace the identified fact, and retractions keep the field unknown. User and provider text are treated as evidence, not authority to change tool contracts.
+
+The shared default inquiry budget is 240 seconds, 10 model-role calls, 8 tool calls and 12 source calls. It permits up to three investigation rounds, two format repairs and two review attempts, subject to remaining budget. Inquiry-stage calls are capped at 80 seconds within the remaining time. These are stopping rules, not guaranteed response times. Usage records observed calls/tokens; no dollar cost is inferred.
+
+## 4. Data sources and qualification
+
+| Source | Treatment | Boundary |
 | --- | --- | --- |
-| Organizer `prices_daily.csv` | Dated adjusted closes; source-file hash and CSV row references retained | Back-adjusted retrieved snapshot, not a point-in-time historical vintage. Do not apply listed splits again. |
-| Organizer `fx_usdcad_daily.csv` / Bank of Canada | Same-date USD/CAD multiplied into USD prices; CAD prices retained | Missing fixings reduce common dates. Price and FX availability dates are checked independently. |
-| Organizer asset and source metadata | Asset classifications, source retrieval dates and provenance | A fund wrapper label does not establish underlying sector or issuer weights. Original reuse terms continue to apply. |
-| SPY / QQQ SEC N-PORT | Holdings observed June 30, 2026; filed August 28, 2026 | NVIDIA common-equity fractions, not complete universal issuer coverage. Public filing content retains its source attribution. |
-| Qualified issuer/sector disclosures | Observation date, publication date, denominator, taxonomy and source locator | Incomplete coverage becomes an interval. A mandate bound is not a holdings audit. Stale or conflicting records are excluded. |
-| NBIM GPFG list | Dated named-company checks; exclusions distinguished from observation | A policy-specific list, not an ESG rating. Direct issuers have limited named coverage; ETF constituents remain incompletely screened. NBIM source terms do not grant unrestricted redistribution. |
-| Supplementary prices | User-provided `ticker,date,adj_close,currency` CSV plus public URL and publication date | User-declared origin; hashed and validated through the same currency/date pipeline. Existing eligible organizer series are retained. |
+| Yahoo Finance chart/search | Listing-resolution provenance, daily adjusted observations, timestamps and completed dates; request-local caching | Unofficial interface; may be delayed, throttled or changed; up to five years; no execution quote |
+| Bank of Canada Valet | FXUSDCAD, expressed as CAD per USD; compatible dates for historical conversion | FX and equity observations need not be simultaneous for latest-price sizing |
+| Canadian CPI via Bank of Canada | Statistics Canada all-items Canada series V41690973; align month-end observed prices to CPI reference months | Latest vintage, not point-in-time releases or forecast inflation |
+| Bond disclosure catalog | Dated issuer extract with locators, observation/as-of dates and eligibility checks | Initial AGG coverage only; older than 31 days or observed after research date is rejected |
+| Qualified issuer/sector and GPFG evidence | Dated classifications and exposure bounds; unknown weight retained | Partial look-through; a named controversy list is not a comprehensive ESG rating |
+| Organizer starter archive | Frozen CSV hashes, row references and date qualification in historical tools | Optional for public-price research; required for full reference replay; not redistributed |
 
-The knowledge date excludes sources that were not yet available and observations after the cutoff. Its default is the latest required source-availability date. This intentionally differs from using the last price observation as proof that a subsequently retrieved adjusted series was already available. The named windows are retrospective simulations.
+Source URLs are retained in reports and catalogs. [CUSTOMER_RESEARCH.md](../CUSTOMER_RESEARCH.md), [DECISION_EVIDENCE.md](../DECISION_EVIDENCE.md) and [bond_disclosures.json](../datathon/bond_disclosures.json) give source-specific qualifications. Availability/publication, observation and retrieval dates are distinct. A currently retrieved adjusted series is retrospective evidence, not proof of what an investor knew on an earlier date.
 
-### Historical metrics
+Raw downloaded market arrays and the organizer archive are not committed. The repository license does not grant third-party redistribution rights.
 
-For starting weights w and adjusted CAD prices P, the buy-and-hold value path is `V(t) = sum(w[i] * P[i,t] / P[i,0])`. Positions drift with prices; there is no within-window rebalancing. Returns use the vendor-adjusted-close series, not a separately reconstructed distribution cash-flow ledger. The replay adds no transaction costs, tax, inflation adjustment or execution model. Terminal return is `V(end)/V(start)-1`; terminal loss is its negative part. Drawdown compares each value with the prior maximum, retaining the selected peak and trough dates.
+## 5. Financial methods
 
-Recovery records the calendar time from the selected maximum-drawdown peak until that peak value is recovered. An unrecovered path retains time underwater and an unresolved recovery value. Rolling 12/36-month returns use calendar anniversaries and the last eligible observation at or before the anniversary. Complete calendar-month changes omit a trailing partial month. Volatility uses the sample standard deviation of close-to-close returns multiplied by `sqrt(252)`; this is a stated convention, including for assets observed on a different trading calendar. Signed return and drawdown contributions reconcile with the portfolio result. FX decomposition retains the interaction between local price performance and currency movement.
+For complete stated weights w and adjusted prices P in a common currency, buy-and-hold value is `V(t) = sum(w[i] * P[i,t] / P[i,0])`. Holdings drift; no daily rebalancing is assumed. Vendor adjustments are not applied twice. Price-based replay adds no taxes, execution costs or separate distribution cash-flow ledger.
 
-Named stress-window percentile context compares the reset starting allocation with comparable rolling periods. It describes the available historical sample and does not estimate a future event probability. Short or incomplete histories leave unsupported measures unavailable.
+Terminal return is the ending/start value ratio minus one; terminal loss is its nonnegative negative part. Maximum drawdown is the largest fall below an earlier peak. Separate computations verify the path and relevant metrics. Volatility uses daily sample standard deviation and a 252-session annualization convention. Rolling, calendar-month and recovery measures retain their actual windows and eligibility limits; insufficient history stays unavailable.
 
-Full shared history and custom windows can be calculated without claiming independent exchange-calendar coverage. Such windows are marked accordingly and cannot establish that a binding risk rule passed or support a confirmed ranking. Named archived windows use pinned coverage checks. Missing required sessions remain a reason to withhold a decision on that window.
+USD history is converted with same-date CAD-per-USD FX; CAD assets are not converted again. Return decomposition separates local price, FX and interaction. CPI-adjusted change uses the ratio of nominal growth to CPI growth over its own aligned interval, which may differ from the full price-history period.
 
-### Rules and funding
+Current whole-share sizing uses the latest observed price and separately dated FX, leaving a cash residual. Historical illustration instead invests the full amount in fractional units at the first observation. These are distinct conventions and neither is an order.
 
-A policy carries exposure selectors `{asset_set, min, max}`, risk limits `{metric, cap, windows}`, and an optional trade. Direct ticker bounds are exact. Issuer, sector, asset-class and exclusion-list rules use qualified exposure intervals: a lower bound above a maximum proves failure; a qualified upper bound below it can establish passage; overlapping uncertainty yields unknown. Profile context never silently creates a financial threshold. An unsupported binding condition is always unknown, even when its wording resembles an allowed label; user-provided portfolio labels cannot change the disposition. Disclosure-based, mandate-bounded and unassessed portfolio weights are recorded separately from the weighted interval width; one minus the interval width is not complete holdings coverage.
+A fully specified single or fixed monthly withdrawal schedule can be replayed through observed history using fractional unit sales, funding shortfalls and remaining assets. Relative future timing is mapped to a historical path. This is not a future success probability; weekly, quarterly, variable and multiple simultaneous schedules remain unsupported.
 
-The general funding engine accepts an arbitrary named target and one or more authorized source holdings. It optimizes permitted purchase size with a two-phase simplex implemented using Python `Fraction` arithmetic. This is an exact-rational implementation, rather than the SciPy solver proposed in the target design. Maximum-drawdown and rolling-loss restrictions generate path constraints. The result includes a dual optimality or Farkas infeasibility certificate checked independently; the exported report retains the complete certificate and resolved risk limits so that verification can be repeated. Each reported source range is a marginal range at the funded size; combining all reported minima or maxima need not produce a feasible joint allocation.
+Holding-period analysis uses the explicitly stated horizon and independently checks overlapping historical windows. It does not extrapolate a ten-year result from five years of data or treat overlapping outcomes as future probabilities.
 
-Recovery-time search and exposure rules without verified solver coefficients are explicitly unassessed. The system does not remove them from the problem. An undecided smaller-size scope cannot publish an unauthorized smaller allocation. Exact-source and zero-purchase edge cases are tested separately.
+Duration uses first-order negative duration times yield change with labeled system scenarios; it omits convexity, spread and FX responses. Credit buckets describe underlying holdings, not the ETF's credit rating or repayment guarantee. Transaction amount divided by recent observed traded value is a volume proxy only, not a measurement of spread, impact, depth or execution certainty.
 
-### Recalculation and publication
+## 6. Publication, status and limitations
 
-Market review reconstructs CAD series from frozen source fields. The replay checker uses a separately implemented path calculation and metric traversal. An evidence-context digest rejects changed qualification records. Exposure products and sums receive an exact-rational numerical check; this does not independently establish the truth of a source disclosure. Funding certificates are verified without trusting the solver's claimed feasible value.
+The report fingerprint binds its contents and is checked before display/export. Numerical verification does not prove data-provider accuracy, disclosure truth or investment suitability. Original-proposal audit and alternative-funding authorization are separate in the historical workbench; the customer route does not silently run a funding solver.
 
-Confirmation is a detached immutable snapshot. Review binds input, rule, method and fact hashes. The published object is checked again before UI display and before JSON, PDF or S3 export; a changed binding blocks release. A valid breach is publishable; an unsupported or uncertain rule remains visible. Publication approval is not approval to invest.
+An observed breach of an explicit cap can be reported. A sample below the cap cannot certify a pass without the necessary coverage and confirmed scope. Incomplete holdings remain unknown exposure. VaR/Expected Shortfall are withheld without certified consecutive-session coverage. Fundamentals, valuation, news, complete ETF overlap and comprehensive ESG research are not provided.
 
-### A result-to-row trace
+A separate reviewer may reject valid conditional wording or miss an unsupported inference. Deterministic evidence-boundary checks catch specific failure patterns but cannot recognize every paraphrase. An answer marked reviewed is not a guarantee of correctness. Remaining tasks and restricted scope stay visible.
 
-Select a candidate's `max_drawdown` in the metric records. Its record contains the value, formula version, candidate and window, confirmed-policy identifier, input hash and source rows at the peak/trough dates. For each holding, follow the recorded CSV line and file hash to `adj_close`, its listing currency, and the same-date FX row where applicable. Rebuild the CAD prices, calculate the portfolio values at the cited dates, then reproduce `1 - V(trough)/V(peak)`. The independent reviewer also scans the full observed path to verify that this is the maximum, not merely a matching pair.
+## 7. AWS, reproduction and validation
 
-The source file SHA-256 proves which bytes were used; it does not prove provider data accuracy or permission to redistribute the file. Metric-reference coverage and remaining provenance gaps are tracked in the architecture-status document.
+Bedrock contributes to actual question interpretation, task planning, synthesis and review. Traces distinguish successful cloud calls, failures and local fallbacks. Optional versioned S3 storage belongs to the developer workbench; it checks versioning and returns an ETag/version receipt. No Knowledge Base, managed Guardrails, Step Functions, custom CloudWatch deployment or Object Lock is claimed.
 
-## 4. AWS contribution and reproducibility
+Install `requirements.txt`, authenticate the application process and run `python -m streamlit run app.py`. For developer validation, run `python -m streamlit run validation_app.py`. Set both starter-path variables for full-data tests. See [RUNNING.md](../docs/RUNNING.md) for configuration, CLI commands and troubleshooting.
 
-Amazon Bedrock makes real decisions in model-assisted drafting, constrained narrative composition and the preserved delegated challenge. Strands supplies typed tool handoffs. Python checks their results and records request metadata. Offline calculations and simulated legacy role events are labeled distinctly.
+Automated regression establishes arithmetic, provenance, state, authorization, publication and interface behavior. Live model evaluation is a separate question. Earlier name/material-context pairs passed while paraphrase/irrelevant-detail consistency failed; later task-contract runs exposed semantic-review false positives and retained partial outcomes. These observations are not relabeled as complete acceptance.
 
-Optional S3 persistence writes the unchanged reviewed JSON to an existing versioned bucket. The operation checks versioning and returns the object URI, ETag and version ID. Required permissions are `s3:GetBucketVersioning` on that bucket and `s3:PutObject` under the chosen report prefix, plus applicable key permissions if the bucket requires a customer-managed encryption key. The app does not create buckets or alter public-access settings. Bedrock inference permissions must match the configured models and inference profiles. Credentials stay in the local environment or normal AWS provider chain.
+[Final verification](final-verification.md) records the current local suite and packaging checks. [Analysis reliability](analysis-validation-2209.md) retains live failures and same-data comparisons. [Earlier reasoning evaluation](reasoning-validation.md) and [historical verification](verification.md) identify their own revisions. The old MP4 is not a recording of the finalized customer interface.
 
-Knowledge Bases, managed Guardrails, CloudWatch custom metrics, Step Functions and Object Lock are target extensions, not claimed deployed services. Per-audit currency cost has not been established from current model pricing; recorded usage is token and call telemetry, not an invented billing estimate.
+## 8. Next evaluation
 
-Install the pinned dependencies with Python 3.10+, set both starter-path variables, and start `python -m streamlit run app.py`. The README gives model and optional S3 settings. Run `python -m unittest discover -s tests -q` with the complete starter archive. Tests with skipped data-dependent cases do not constitute full-data validation.
-
-## 5. Validation, value and remaining work
-
-The earlier `298e9b0` acceptance record reports 319/319 tests on local macOS and competition CloudShell, six live CLI cases, live UI checks, 36 expected scripted-fault outcomes and 16 runtime audits. Those observations belong to that revision. The older demo MP4 belongs to `13ccc42`. Current remediation results must be recorded separately in [verification.md](verification.md).
-
-| Control removed | Consequence demonstrated by the test design |
-| --- | --- |
-| Source/value grounding | A quoted or invented number could become a policy without evidence |
-| Separate search authorization | An original-proposal review could silently expand into another purchase |
-| Independent arithmetic | Changed FX, drawdown or funding values could reach the result |
-| Date and coverage checks | Future-source evidence or a missing trough could falsely settle a rule |
-| Publication binding | A checked report could be edited after review and still exported |
-| Unknown exposure | Missing holdings could be mistaken for zero issuer or controversy exposure |
-
-The generic Robert CLI example reproduces a concrete boundary on the official archive. Selling 10 percentage points of ZST.TO to buy NVDA produces 16.15% terminal loss and 20.66% drawdown in the 2022 window; the original proposal breaches its 14% terminal-loss cap and 15% ZST.TO minimum. With separately authorized QQQ/ZST.TO funding and the same 10-point purchase, the certified QQQ-sale range is approximately 7.37–10.00 points. The selected all-QQQ funding example has 13.23% terminal loss in 2022 and 12.29% in early 2025. These are retrospective, CAD-denominated results, not future-loss estimates. The report preserves the original failure alongside the feasible funding result. A controlled follow-up can then vary only the risk definition. Mateo illustrates unresolved ETF screening, and Amira illustrates comparison without claiming complete diversification evidence.
-
-This release does not claim unrestricted language understanding, complete ETF issuer/sector coverage, arbitrary binding-rule support, universal calendar verification, unrestricted free-form narrative verification, or measured external-user comprehension. No 100-prompt bilingual target benchmark or three-to-five-person comprehension study is claimed. The [architecture-status matrix](architecture-status.md) states the exact implemented and incomplete boundaries.
-
-[Repository](https://github.com/foglands/datathon) · [README](../README.md) · [Verification](verification.md) · [Source qualifications](../DECISION_EVIDENCE.md) · [Sector evidence](../SECTOR_EVIDENCE.md)
+Use untouched questions with independently labeled claim/task expectations, repeated runs and human review of both rejected and accepted answers. Measure invariance to names and irrelevant details, consistency under paraphrase, and justified sensitivity to material constraints. Broader data coverage should use the same explicit contracts; additional providers must not hide unsupported scope.

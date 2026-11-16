@@ -1,8 +1,10 @@
 # AlphaForge AI release verification
 
+> Historical record. For the finalized customer application and current regression, see [final-verification.md](final-verification.md). Counts and live results below belong to their dated revisions.
+
 PolyFinances Datathon 2026 · Montréal
 
-## Current architecture verification — unpublished local working tree
+## Historical decision-workbench verification — architecture revision
 
 This section records the completed local `decision_*` implementation and its current smoke checks. It is separate from the revision-specific historical evidence below. The updated source is still local: no current source commit or pull request has been published remotely. Automatic approval review rejected the attempted GitHub upload, so repository links must not be interpreted as proof that this working tree is available on GitHub.
 

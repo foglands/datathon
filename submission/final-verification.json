@@ -1,0 +1,45 @@
+{
+  "checked_at_utc": "2026-11-16T04:37:34.875660+00:00",
+  "application_base_commit": "de17408bd400f465ddbe9d9de1ae4bcea06a1b1c",
+  "scope": "Customer-only entry point and repository finalization; source hashes identify the tested files before commit creation.",
+  "python_runtime": "3.10",
+  "full_data": {
+    "tests": 562,
+    "passed": 562,
+    "skipped": 0,
+    "seconds": 65.989
+  },
+  "without_organizer_data": {
+    "discovered": 562,
+    "passed": 469,
+    "skipped": 93,
+    "seconds": 4.93
+  },
+  "offline_reference_scenarios": {
+    "passed": 6,
+    "total": 6
+  },
+  "dependency_check": "No broken requirements found",
+  "live_bedrock_rerun": false,
+  "credential_pattern_findings": [
+    {
+      "file": "tests/test_runtime_check.py",
+      "line": 54,
+      "classification": "Fixed synthetic regression sentinel in test_runtime_check; not a credential"
+    }
+  ],
+  "pdf_pages": {
+    "one-pager": 1,
+    "technical-summary": 4
+  },
+  "sha256": {
+    "app.py": "db091c5dbed856c0da5cf254dc06f00bdcef71de653a56dc6265fc3f74bb143c",
+    "validation_app.py": "30a579121d373ebe09eba9171e717bda52267313a8f23e0fdb7e9e66125804e2",
+    "datathon/customer_view.py": "61159a0c23f9310125e63343ac7644b71090630a5c8fb782fb992fd6e003df36",
+    "tests/test_app.py": "d7c8d083f31af0bf731d72d40e9b8ed8bf374d2225f4fd9079311339097da6a9",
+    "tests/test_customer_view.py": "28153dd5a7a6c5b93cc27589256cf1eae746471933cec82dea19341618fceb47",
+    "requirements.txt": "68b976b71af01acc94bd8ce37915e0fa0ab1f295a26adc7fa35eefd7e13938ca",
+    "scripts/render_submission.py": "21c0d11aa9ec85a42441831a0d6e8b8a5b48eee2c04337522be62aaa92a7b3ba"
+  },
+  "unresolved_credential_pattern_findings": 0
+}

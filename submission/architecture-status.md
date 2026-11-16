@@ -1,5 +1,7 @@
 # Target architecture · Implementation status
 
+> Historical decision-workbench matrix. The customer route and separate developer entry point are documented in [technical-summary.md](technical-summary.md); current packaging checks are in [final-verification.md](final-verification.md).
+
 This matrix compares the target specification with the current `decision_*` implementation. **Implemented** means executable code exists; it does not by itself mean a current live AWS acceptance run passed. **Partial** names the boundary. Historical tests and current remediation tests must remain separated in [verification.md](verification.md). Detailed source qualifications are in [DECISION_EVIDENCE.md](../DECISION_EVIDENCE.md).
 
 ## Architecture coverage

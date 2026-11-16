@@ -52,15 +52,14 @@ def inline(text, source):
 class Architecture(Flowable):
     def __init__(self):
         Flowable.__init__(self)
-        self.width, self.height = 528, 166
+        self.width, self.height = 528, 180
 
     def draw(self):
         c = self.canv
         boxes = {
-            'a': (0, 122, 'Question or form'), 'b': (136, 122, 'Draft + confirmation'),
-            'c': (272, 122, 'Dated evidence'), 'd': (408, 122, 'Python replay'),
-            'e': (408, 66, 'Independent review'), 'f': (272, 66, 'Bound report'),
-            'g': (136, 66, 'JSON / PDF / S3'), 'h': (272, 10, 'Authorized search'),
+            'a': (0, 136, 'Question + context'), 'b': (184, 136, 'Analysis tasks'),
+            'c': (368, 136, 'Evidence + Python'), 'd': (368, 64, 'Claim synthesis'),
+            'e': (184, 64, 'Claim / task review'), 'f': (0, 64, 'Report + status'),
         }
         def arrow(x1, y1, x2, y2):
             from math import atan2, cos, sin
@@ -70,15 +69,20 @@ class Architecture(Flowable):
             angle = atan2(y2 - y1, x2 - x1)
             for delta in (-.45, .45):
                 c.line(x2, y2, x2 - 5*cos(angle+delta), y2 - 5*sin(angle+delta))
-        for left, right in [('a','b'), ('b','c'), ('c','d')]:
+        for left, right in [('a','b'), ('b','c')]:
             x1,y1,_ = boxes[left]; x2,y2,_ = boxes[right]
             arrow(x1+120,y1+17,x2,y2+17)
-        arrow(468,122,468,100)
-        arrow(408,83,392,83)
-        arrow(272,83,256,83)
-        arrow(332,66,332,44)
-        arrow(392,27,468,27)
-        arrow(468,27,468,66)
+        arrow(428,136,428,98)
+        arrow(368,81,304,81)
+        arrow(184,81,120,81)
+        c.setStrokeColor(TEAL)
+        c.lines([(244,64,244,20),(244,20,428,20)])
+        arrow(428,20,428,64)
+        c.lines([(244,98,244,116),(244,116,480,116)])
+        arrow(480,116,480,136)
+        c.setFillColor(GRAY); c.setFont(FONT,7.5)
+        c.drawString(285,25,'Revise claims or scope')
+        c.drawString(285,120,'Retrieve missing evidence')
         for x,y,label in boxes.values():
             c.setFillColor(PALE); c.setStrokeColor(LINE)
             c.roundRect(x,y,120,34,5,fill=1,stroke=1)
@@ -141,7 +145,7 @@ def render(name, compact=False):
         c.setStrokeColor(TEAL); c.setLineWidth(2); c.line(42,760,570,760)
         c.setFont(FONT,7.4); c.setFillColor(GRAY)
         c.drawString(42,771,'ALPHAFORGE AI  /  POLYFINANCES 2026')
-        c.drawString(42,22,'Historical self-assessment. Simulation only; no advice or trading.')
+        c.drawString(42,22,'Investment research prototype. Historical evidence; no trading.')
         c.drawRightString(570,22,str(doc.page))
     doc=SimpleDocTemplate(str(output),pagesize=(612,792),rightMargin=42,leftMargin=42,topMargin=46,bottomMargin=38,
                           title='AlphaForge AI - '+name.replace('-',' ').title(),author='AlphaForge AI')

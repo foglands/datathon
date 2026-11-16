@@ -4,7 +4,7 @@ import asyncio
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
-from tests.test_app import APP, AppTest
+from tests.test_app import CUSTOMER_APP, AppTest
 from tests.test_customer_research import asset, fx, plan
 from datathon.customer_workflow import research_question
 
@@ -12,13 +12,14 @@ from datathon.customer_workflow import research_question
 @unittest.skipIf(AppTest is None, "Streamlit is required")
 class CustomerViewTests(unittest.TestCase):
     def setUp(self):
-        self.app = AppTest.from_file(str(APP), default_timeout=30).run()
+        self.app = AppTest.from_file(str(CUSTOMER_APP), default_timeout=30).run()
         self.assertFalse(self.app.exception)
 
     def test_home_has_one_question_no_professional_modes_or_personas(self):
         self.assertEqual(len(self.app.text_area), 1)
         self.assertEqual(len(self.app.selectbox), 0)
         self.assertEqual(len(self.app.number_input), 0)
+        self.assertFalse(any(radio.label == "Workspace" for radio in self.app.radio))
         self.assertFalse(any("Amira" in button.label or "Mateo" in button.label or "Robert" in button.label for button in self.app.button))
         self.assertTrue(any(button.label == "Research my idea" for button in self.app.button))
 

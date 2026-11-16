@@ -723,7 +723,7 @@ def live_request(setup, *, investor=None, assistant_question="", intent=None):
     show_counterfactual(replace(request_case, id=published["case"]), report, published, runtime)
 
 
-def show_navigation(market_bundle_found):
+def show_navigation(market_bundle_found, *, validation=False):
     with st.container(key="app-navigation"):
         brand, navigation, status = st.columns((1.3, 2.4, 1.3), vertical_alignment="center")
         with brand:
@@ -731,11 +731,13 @@ def show_navigation(market_bundle_found):
                 '<div class="app-brand"><span class="app-brand-mark" aria-hidden="true">◈</span>'
                 '<span>AlphaForge <strong>AI</strong></span></div>'
             )
-        with navigation, st.container(key="assistant-nav"):
-            workspace = st.radio(
-                "Workspace", ("Investment assistant", "Reference cases"), horizontal=True,
-                label_visibility="collapsed", key="workspace",
-            )
+        workspace = "Investment assistant"
+        if validation:
+            with navigation, st.container(key="assistant-nav"):
+                workspace = st.radio(
+                    "Workspace", ("Investment assistant", "Reference cases"), horizontal=True,
+                    label_visibility="collapsed", key="workspace", index=1,
+                )
         with status:
             label = "Investment research" if workspace == "Investment assistant" else ("Archived data ready" if market_bundle_found else "Archived data unavailable")
             data_state = "ready" if workspace == "Investment assistant" or market_bundle_found else "unavailable"
@@ -780,12 +782,13 @@ def reference_cases():
         preset_audit(setup)
 
 
-def main():
-    st.set_page_config(page_title="AlphaForge · Investment Decision Assistant", page_icon="◈", layout="wide")
+def main(*, validation=False):
+    title = "AlphaForge · Developer Validation" if validation else "AlphaForge · Investment Decision Assistant"
+    st.set_page_config(page_title=title, page_icon="◈", layout="wide")
     st.html(STYLES)
     refresh_market_source()
     market_bundle_found = bool(st.session_state.get("market_source"))
-    workspace = show_navigation(market_bundle_found)
+    workspace = show_navigation(market_bundle_found, validation=validation)
     if st.session_state.get("active_workspace") != workspace:
         clear_assistant_result()
         for key in ("active_input", "preset_key", "preset_result", "comparison_result"):

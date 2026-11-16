@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-16 - Repository finalization and customer-only entry point
+
+- Remove preset question buttons and Reference cases navigation from the customer app.
+- Preserve development and historical validation in the separate `validation_app.py` entry point.
+- Rewrite the README, running guide, current technical documentation and submission index; regenerate the one-page and technical PDFs.
+- Retain version-qualified model failures and label the earlier video and visual artifacts as historical.
+- Pin directly imported dependencies and add credential-free GitHub regression checks.
+- Record current full-data validation and release packaging in `submission/final-verification.md`.
+
 ## 2026-11-16 — Task completion and argument support
 
 - Connected task contracts and claim-level semantic review to the customer workflow.
