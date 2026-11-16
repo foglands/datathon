@@ -740,6 +740,9 @@ class StrandsAgents:
     def _role_config(self, role: str) -> Role:
         return ROLES[role]
 
+    def _output_token_limit(self, role: str) -> int:
+        return _MAX_OUTPUT_TOKENS
+
     def _role_instructions(self, role: str) -> str:
         """Keep the ordinary tool-only numeric boundary unchanged by default."""
         instructions = self._role_config(role).instructions
@@ -788,7 +791,7 @@ class StrandsAgents:
             timeout_seconds=timeout,
             max_turns=self.max_turns,
             max_total_tokens=self.max_total_tokens,
-            max_output_tokens=_MAX_OUTPUT_TOKENS,
+            max_output_tokens=self._output_token_limit(role),
         )
 
         def finish(status: str, data: dict[str, Any], stop_reason: str) -> AgentRun:
@@ -962,7 +965,7 @@ class StrandsAgents:
             model_id=self.model_id,
             region_name=self.region,
             streaming=False,
-            max_tokens=_MAX_OUTPUT_TOKENS,
+            max_tokens=self._output_token_limit(role),
             boto_client_config=Config(
                 connect_timeout=max(.1, min(3, remaining)),
                 read_timeout=max(.1, min(12, remaining)),

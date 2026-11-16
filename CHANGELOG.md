@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-16 · General conversational investment research
+
+- Replace the default professional workflow chooser with a plain-language customer journey and optional profile details. Keep official personas as test fixtures only.
+- Connect public price history, Bank of Canada FX/CPI, independent calculations, withdrawal replay and dated bond disclosures to a report with charts.
+- Add generic evidence-linked Bedrock intake, report interpretation and separate explanation review, with transparent checked-evidence fallback.
+- Preserve conflicts, missing evidence, source dates and unassessed risks. Add HTML exports and updated current product documentation.
+- See `submission/customer-validation.md` for 522-test acceptance, live custom-profile/bond runs and remaining limitations.
+
 ## 2026-11-15 · Complete the shared historical decision workflow
 
 - Route Compare, Evaluate and Audit through one editable confirmation, dated evidence, independent replay and publication pipeline. Keep English deliverables while accepting English and French model drafts.

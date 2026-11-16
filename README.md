@@ -2,15 +2,27 @@
 
 PolyFinances Datathon 2026 · Banque Nationale · AWS
 
-Tell AlphaForge what you want to test and which rules matter. It uses independently checked historical evidence to show which rules the hypothetical decision meets, what caused a breach, and what remains unknown.
+Describe an investment idea and the conditions that matter. AlphaForge understands the question, retrieves dated public market evidence, runs relevant calculations, checks them independently, and returns an illustrated report with a reviewed model interpretation.
 
-**Historical self-assessment · Your confirmed rules define the verdict · Simulation only**
+**A general investment-research conversation · Evidence before conclusions · Simulation only**
 
 [Run locally](#run-locally) · [Technical documentation](submission/technical-summary.md) · [Architecture status](submission/architecture-status.md) · [Verification record](submission/verification.md) · [Recording script](submission/demo-script.md)
 
-## Three historical decisions
+## Start with your own idea
 
-Open **Investment assistant**. The three actions use the same confirmation, evidence, replay, rule and publication pipeline.
+The default **Investment assistant** is now a conversational research workspace. See [Current customer workflow, quantified risks and limits](CUSTOMER_RESEARCH.md).
+
+Enter an idea and select **Research my idea**. There is no Compare/Evaluate/Audit selection or mandatory questionnaire. Optional profile fields accept free text and unknowns. Follow-up answers update the research; conflicting statements remain visible. The official Amira, Mateo and Robert personas are **test fixtures only** and never supply production defaults or classifications.
+
+Example: `I am considering investing 3000 CAD in AMD. I am comfortable taking high investment risk. My goal is to fund living costs. I need to withdraw 500 CAD monthly for 24 months, starting next month.`
+
+The report separates willingness from financial capacity and withdrawal needs. It includes dated public prices, CAD conversion, historical and withdrawal charts, purchasing-power results when Canadian CPI is available, relevant risk checks, and source gaps. Download a standalone HTML report with vector charts or Markdown. A separate Bedrock review checks the model's qualitative interpretation; rejected prose is withheld while checked calculations remain available.
+
+Public research uses Yahoo Finance's unofficial chart interface and Bank of Canada Valet, with no extra market-data credentials. The route supports up to three named instruments, up to five years of observations, and CAD/USD conversion. Source timestamps and failures are visible. This is a current retrospective, not a historical-vintage backtest or guaranteed real-time feed. Raw downloaded market data are not committed.
+
+## Historical validation workbench
+
+Open **Reference cases → Historical decision workbench** for the preserved advanced interface. The sections below describe its three historical actions, which share the confirmation, evidence, replay, rule and publication pipeline.
 
 | Action | Confirmed input | Published result |
 | --- | --- | --- |

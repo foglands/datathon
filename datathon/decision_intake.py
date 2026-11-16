@@ -34,7 +34,8 @@ class ConstraintExcerpt(TypedDict):
 class AssetText(TypedDict, total=False):
     symbol: str
     quantity_text: str
-    unit: Literal["shares", "percentage_points", "amount_cad"]
+    unit: Literal["shares", "percentage_points", "amount_cad", "amount_usd", "amount"]
+    currency: str
     excerpt: str
 
 
@@ -117,6 +118,13 @@ _PATTERN_BEFORE = re.compile(r"\s*(?:(?:of (?:the )?(?:portfolio |allocation )?i
 _SHARES = re.compile(r"(?<![\w.,+−-])(?P<count>(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s+(?:shares?|actions?)\b", re.I)
 _LOCAL_POINTS = re.compile(r"(?<![\w.,+−-])(?P<count>\d+(?:[.,]\d+)?)\s+(?:pp|points(?: de pourcentage)?)\b", re.I)
 _CAD_AMOUNT = re.compile(r"(?<!\w)(?:CAD\s*\$?\s*|CA\$\s*|C\$\s*)(?P<count>\d+(?:\.\d+)?)", re.I)
+_MONEY_NUMBER = r"(?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?)"
+_CURRENCY = r"CAD|USD|EUR|GBP|AUD|JPY|CHF|CA\$|US\$|C\$|\$"
+_MONEY = re.compile(rf"(?<![\w.,+−-])(?:(?P<prefix>{_CURRENCY})\s*(?P<first>{_MONEY_NUMBER})|(?P<last>{_MONEY_NUMBER})\s*(?P<suffix>{_CURRENCY}))(?!\w|[.,]\d)", re.I)
+_CASH_ASSET = re.compile(rf"\b(?:in|into|of|en|dans|de)\s+(?P<symbol>{_SYMBOL})(?![\w-]|\.\w)", re.I)
+_CASH_DIRECT = re.compile(rf"\b(?:invest|investir|allocate)\s+(?P<symbol>{_SYMBOL})(?![\w-]|\.\w)", re.I)
+_CASH_AMBIGUITY = re.compile(r"\b(?:and|or|et|ou|versus|vs|selling|sell|vendre|vendant|funded|funding|from)\b|\b(?:I|we)\s+(?:have|hold|own)\b", re.I)
+_CASH_NON_ASSETS = _NON_TICKERS | {"AUD", "JPY", "CHF", "STOCK", "STOCKS", "SHARE", "SHARES", "ACTION", "ACTIONS", "THE", "LE", "LA"}
 _FRENCH_BINDING = re.compile(r"\b(?:au moins|au plus|maximum|minimum|doit|exclu\w*|garder|gardant|perte|perdre)\b", re.I)
 _WINDOWS = re.compile(r"\b(?:2022|2023|2025)\b")
 _EXCLUDE = re.compile(r"\b(?:exclud\w*|avoid|no exposure|no holdings?|without|do not (?:own|hold|include|use))\b", re.I)
@@ -186,6 +194,14 @@ _ROLE = Role(
     "Units are shares, percentage_points, or amount_cad; risk metric is terminal_loss, max_drawdown, "
     "worst_rolling_12m, recovery_days. Exposure asset_set uses symbols or asset_class or sector or issuer. "
     "A stated purchase with no funding/portfolio context belongs to evaluate and needs investable_capital_share. "
+    "Exception: an explicit single-asset cash commitment such as 'invest 3000 CAD in amd' or "
+    "'invest stock shares of amd with 3000 cad' evaluates only that proposed cash allocation. "
+    "Use the original ticker case in the excerpt and the canonical uppercase symbol; do not infer the investor's whole portfolio. "
+    "For these assets use amount_cad, amount_usd, or amount with its explicit currency. A bare $ leaves currency unspecified. "
+    "For a single ticker plus committed cash with no literal portfolio weights, set portfolios to []; Python will derive the "
+    "limited proposed-allocation scope. Omit trade and funding objects. An explicit CAD amount requires no missing field; "
+    "a non-CAD or unspecified currency needs capital_currency. Keep any separately stated risk limits or constraints. "
+    "Do not turn a cash commitment into a share count, a live order, or a recommendation. "
     "An ambiguous loss definition belongs in missing risk_limit; do not choose a metric. "
     "Ranking preferences such as 'I care most about maximum drawdown' are priority={metric:'max_drawdown',excerpt:...}, "
     "not risk limits. Do not ask for a cap unless the user actually stated a binding maximum requirement. "
@@ -215,9 +231,9 @@ def _empty():
 
 
 def _symbol(value):
-    if type(value) is not str or not _TICKER.fullmatch(value):
+    if type(value) is not str or not _TICKER.fullmatch(value.upper()):
         raise DraftValidationError("Use one ticker symbol copied from the request.")
-    symbol = value.lstrip("$")
+    symbol = value.lstrip("$").upper()
     if symbol in _NON_TICKERS:
         raise DraftValidationError("Use an investment ticker.")
     return symbol
@@ -225,6 +241,45 @@ def _symbol(value):
 
 def _symbols(text):
     return {match["symbol"] for match in _TICKER.finditer(text)} - _NON_TICKERS
+
+
+def _contains_symbol(symbol, excerpt):
+    return bool(re.search(r"(?<![\w.$-])\$?" + re.escape(symbol) + r"(?![\w-]|\.\w)", excerpt, re.I))
+
+
+def _cash_proposal(clauses):
+    """Identify one explicit cash allocation, never an existing whole portfolio."""
+    if any(_PORTFOLIO.search(clause) or re.search(
+            r"\b(?:I|we)\s+(?:(?:currently|already|also)\s+)?(?:have|hold|own)\b|"
+            r"\b(?:sell(?:ing)?|funding|funded|proceeds|liquidat\w*)\b", clause, re.I) for clause in clauses):
+        return None
+    proposals = []
+    for clause in clauses:
+        if not _PURCHASE.search(clause) or _NEGATED.search(clause) or _CASH_AMBIGUITY.search(clause) or re.search(r"\bplus\b", clause, re.I):
+            continue
+        amounts = list(_MONEY.finditer(clause))
+        if len(amounts) != 1:
+            continue
+        amount = amounts[0]
+        if _APPROXIMATE.search(clause[:amount.start()]) or re.search(r"\d", clause[:amount.start()] + clause[amount.end():]):
+            continue
+        symbols = {match["symbol"].upper() for pattern in (_CASH_ASSET, _CASH_DIRECT)
+                   for match in pattern.finditer(clause)} - _CASH_NON_ASSETS
+        if len(symbols) != 1:
+            continue
+        symbol, = symbols
+        if (_symbols(clause) - _CASH_NON_ASSETS) - {symbol}:
+            continue
+        token = amount["first"] or amount["last"]
+        normalized = token.replace(",", "") if re.fullmatch(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?", token) else token.replace(",", ".")
+        value = float(Decimal(normalized))
+        if not 0 < value <= 1e12:
+            continue
+        currency = (amount["prefix"] or amount["suffix"]).upper()
+        currency = {"CA$": "CAD", "C$": "CAD", "US$": "USD", "$": "unspecified"}.get(currency, currency)
+        unit = "amount_cad" if currency == "CAD" else "amount_usd" if currency == "USD" else "amount"
+        proposals.append({"symbol": symbol, "quantity": value, "unit": unit, "currency": currency, "excerpt": clause})
+    return proposals[0] if len(proposals) == 1 else None
 
 
 def _operative_text(question):
@@ -459,6 +514,7 @@ def _ground_unit(unit, excerpt):
         "shares": r"\b(?:shares?|actions?)\b",
         "percentage_points": r"\b(?:pp|percentage points?|points(?: de pourcentage)?)\b",
         "amount_cad": r"\bCAD\b|CA\$|C\$",
+        "amount_usd": r"\bUSD\b|US\$",
     }
     if unit not in patterns or not re.search(patterns[unit], excerpt, re.I):
         raise DraftValidationError("The proposed unit must be explicit in the source excerpt.")
@@ -488,7 +544,7 @@ def _structured_draft(clauses, intent, intent_excerpt, fields):
         for holding in item.get("holdings", []):
             excerpt = _source(holding.get("excerpt"), clauses, require_active=True, expand_clause=True)
             symbol = _symbol(holding.get("symbol"))
-            if symbol not in _symbols(excerpt) or symbol in weights:
+            if not _contains_symbol(symbol, excerpt) or symbol in weights:
                 raise DraftValidationError("Ground each distinct holding in its source.")
             weights[symbol] = _field_amount(holding.get("weight_text"), excerpt, field="portfolios.holdings.weight_text", fraction=True)
             draft["sources"][f"portfolio_{index}_{symbol}"] = excerpt
@@ -498,15 +554,21 @@ def _structured_draft(clauses, intent, intent_excerpt, fields):
     for item in fields.get("assets", []):
         excerpt = _source(item.get("excerpt"), clauses, require_active=True, expand_clause=True)
         symbol = _symbol(item.get("symbol"))
-        if symbol not in _symbols(excerpt):
+        if not _contains_symbol(symbol, excerpt):
             raise DraftValidationError("The ticker must occur in its excerpt.")
         quantity = _field_amount(item["quantity_text"], excerpt, field="assets.quantity_text") if item.get("quantity_text") else None
         unit = item.get("unit")
-        if unit not in {None, "shares", "percentage_points", "amount_cad"}:
+        if unit not in {None, "shares", "percentage_points", "amount_cad", "amount_usd", "amount"}:
             raise DraftValidationError("Use a supported purchase unit.")
-        if quantity is not None:
+        cash = _cash_proposal([excerpt]) if unit in {"amount_cad", "amount_usd", "amount"} else None
+        if unit == "amount" and (not cash or item.get("currency", "unspecified").upper() != cash["currency"].upper()):
+            raise DraftValidationError("Copy the explicitly stated amount currency, or leave a bare dollar currency unspecified.")
+        if cash and (cash["symbol"] != symbol or quantity is not None and quantity != cash["quantity"]):
+            raise DraftValidationError("The committed amount must match the single asset's original cash amount.")
+        if quantity is not None and unit != "amount":
             _ground_unit(unit, excerpt)
-        draft["assets"].append({"symbol": symbol, "quantity": quantity, "unit": unit, "excerpt": excerpt})
+        draft["assets"].append({"symbol": symbol, "quantity": quantity, "unit": unit, "excerpt": excerpt,
+                                **({"currency": cash["currency"]} if cash else {})})
         draft["sources"][f"asset_{symbol}"] = excerpt
     for item in fields.get("risk_limits", []):
         excerpt = _source(item.get("excerpt"), clauses, expand_clause=True)
@@ -529,7 +591,7 @@ def _structured_draft(clauses, intent, intent_excerpt, fields):
         if not isinstance(asset_set, dict) or len(asset_set) != 1 or not set(asset_set) <= {"symbols", "asset_class", "sector", "issuer", "exclusion_list"}:
             raise DraftValidationError("Name one supported asset set for each rule.")
         if "symbols" in asset_set and (not isinstance(asset_set["symbols"], list) or not asset_set["symbols"] or
-                                       any(_symbol(symbol) not in _symbols(subject) for symbol in asset_set["symbols"])):
+                                       any(not _contains_symbol(_symbol(symbol), subject) for symbol in asset_set["symbols"])):
             raise DraftValidationError("Rule tickers must occur in the subject excerpt.")
         bounds = {}
         for bound, direction in (("min", _LOWER_BOUND), ("max", _UPPER_BOUND)):
@@ -551,7 +613,7 @@ def _structured_draft(clauses, intent, intent_excerpt, fields):
     if item := fields.get("trade"):
         excerpt = _source(item.get("excerpt"), clauses, require_active=True, expand_clause=True)
         symbol = _symbol(item.get("symbol"))
-        if intent != "audit" or symbol not in _symbols(excerpt):
+        if intent != "audit" or not _contains_symbol(symbol, excerpt):
             raise DraftValidationError("Ground the proposed trade ticker.")
         unit = item.get("unit")
         if unit not in {"shares", "percentage_points", "amount_cad"}:
@@ -562,7 +624,7 @@ def _structured_draft(clauses, intent, intent_excerpt, fields):
         if source:
             source = _symbol(source)
             source_excerpt = _source(item.get("source_excerpt"), clauses)
-            if source not in _symbols(source_excerpt) or source == symbol:
+            if not _contains_symbol(source, source_excerpt) or source == symbol:
                 raise DraftValidationError("Ground a distinct funding source.")
             draft["funding"]["sources"] = [source]
             draft["sources"][f"funding_{source}"] = source_excerpt
@@ -591,7 +653,7 @@ def _structured_draft(clauses, intent, intent_excerpt, fields):
         draft["sources"]["priority"] = _source(priority.get("excerpt"), clauses)
     missing = fields.get("missing", [])
     allowed_missing = {"intent", "comparison_options", "portfolio_weights", "trade_symbol", "trade_quantity",
-                       "funding_source", "risk_limit", "binding_scope", "investable_capital_share"}
+                       "funding_source", "risk_limit", "binding_scope", "investable_capital_share", "capital_currency"}
     if not isinstance(missing, list) or any(field not in allowed_missing for field in missing):
         raise DraftValidationError("Name a supported missing field.")
     draft["missing"] = missing
@@ -675,8 +737,13 @@ def _local_draft(text, clauses):
     text = " ".join(clauses)
     comparison = _COMPARE.search(text)
     allocation = _PORTFOLIO.search(text)
+    cash = _cash_proposal(clauses)
     proposed_trade = bool(_PURCHASE.search(text)) and (bool(_TRADE_AUDIT.search(text)) or bool(_SHARES.search(text)) or bool(_LOCAL_POINTS.search(text)) or bool(_CAD_AMOUNT.search(text)))
-    if proposed_trade and not (comparison and len([clause for clause in clauses if _weights(clause)]) == 2):
+    if cash and not comparison:
+        draft["intent"] = "evaluate"
+        draft["assets"] = [cash]
+        draft["sources"][f"asset_{cash['symbol']}"] = cash["excerpt"]
+    elif proposed_trade and not (comparison and len([clause for clause in clauses if _weights(clause)]) == 2):
         draft["intent"] = "audit"
         trade_clause = next((clause for clause in clauses if _PURCHASE.search(clause) and _symbols(clause)), "")
         if trade_clause and not _NEGATED.search(trade_clause):
@@ -790,6 +857,18 @@ def _finish(draft, clauses):
             draft["clarification"] = "Describe a historical comparison, one proposed portfolio, or a fictional trade to audit."
         return draft
     _clarified_risk(draft, clauses)
+    cash = _cash_proposal(clauses)
+    if (intent == "evaluate" and cash and not draft["portfolios"] and len(draft["assets"]) == 1
+            and draft["assets"][0]["symbol"] == cash["symbol"] and not draft["trade"]["source"]):
+        draft["assets"] = [cash]
+        draft["capital"] = {"value": cash["quantity"], "currency": cash["currency"]}
+        draft["sources"]["capital"] = cash["excerpt"]
+        draft["portfolios"] = [{"label": f"Proposed {cash['symbol']} allocation only", "weights": {cash["symbol"]: 1.0}}]
+        amount_label = f"{cash['quantity']:,.2f}" if cash["currency"] == "unspecified" else f"{cash['currency']} {cash['quantity']:,.2f}"
+        draft["reference_scope"] = f"This review treats the stated amount of {amount_label} as a standalone {cash['symbol']} allocation."
+        draft["missing"] = [field for field in draft["missing"] if field not in {"investable_capital_share", "portfolio_weights"}]
+        if cash["currency"] != "CAD":
+            draft["missing"].append("capital_currency")
     if intent is None:
         draft["missing"].append("intent")
     if intent == "compare":
@@ -861,10 +940,13 @@ def _finish(draft, clauses):
             "trade_symbol": "Which ticker do you want to add in the hypothetical trade?",
             "trade_quantity": "By how many percentage points of the portfolio should the position increase?",
             "funding_source": "Which holding funds the original hypothetical purchase?",
+            "capital_currency": "What CAD amount should define this proposed allocation, or should the historical replay show percentages only?",
             "risk_limit": "What single historical loss metric and maximum percentage should govern the replay?",
             "binding_scope": "Which binding condition should apply here? State it separately with its subject and exact limit if it has one.",
         }
         draft["clarification"] = messages[missing[0]]
+        if missing[0] == "capital_currency" and (draft.get("capital") or {}).get("currency") == "unspecified":
+            draft["clarification"] = "Which currency does the stated amount use?"
         original = draft["sources"].get("unresolved", "")
         if (missing[0] == "risk_limit" and _risk(original, selected_metric="terminal_loss")
                 and not any(pattern.search(original) for pattern in _RISK_METRICS.values())):

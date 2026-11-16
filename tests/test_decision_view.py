@@ -37,6 +37,8 @@ class DecisionViewTests(TestCase):
     def setUp(self):
         self.app = AppTest.from_file(str(APP), default_timeout=30).run()
         self.assertFalse(self.app.exception)
+        self.app.radio(key="workspace").set_value("Reference cases").run()
+        self.app.radio(key="reference_workspace").set_value("Historical decision workbench").run()
 
     def click(self, label):
         next(item for item in self.app.button if item.label == label).click().run()
@@ -101,6 +103,20 @@ class DecisionViewTests(TestCase):
         self.assertTrue(any("proportion of your investable capital" in item.value for item in self.app.info))
         self.assertTrue(self.app.get("file_uploader"))
         self.assertNotIn("decision_result", self.app.session_state)
+
+    def test_stated_amd_budget_opens_editable_evaluation_without_running(self):
+        self.app.text_area(key="decision_question").set_value("i want to invest stock share of amd with 3000 cad").run()
+        with patch("datathon.decision_view.configured_decision_runtime", side_effect=RuntimeError("not available")), \
+                patch("datathon.decision_view.run_decision") as replay:
+            self.click("Draft with Amazon Bedrock")
+        replay.assert_not_called()
+        rev = self.app.session_state["decision_revision"]
+        self.assertEqual(self.app.selectbox(key=f"decision_action_{rev}").value, "evaluate")
+        self.assertEqual(self.app.text_area(key=f"decision_holdings_{rev}_0").value, "AMD 100%")
+        self.assertEqual(self.app.number_input(key=f"decision_capital_{rev}").value, 3000.0)
+        self.assertTrue(any("AMD is outside" in item.value for item in self.app.warning))
+        self.assertTrue(self.app.get("file_uploader"))
+        self.assertTrue(next(item for item in self.app.button if item.label == "Confirm and run historical review").disabled)
 
     def test_unavailable_bedrock_preserves_a_french_draft_without_running(self):
         self.app.text_area(key="decision_question").set_value("Comparez AGG et GLD selon les résultats historiques.").run()

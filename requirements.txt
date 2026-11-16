@@ -1,4 +1,5 @@
 altair==5.5.0
+certifi==2026.10.23
 english-words==2.0.2
 langid==1.1.6
 reportlab==5.1.0

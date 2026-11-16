@@ -13,6 +13,7 @@ from datathon.audit_view import render_comparison, result_label
 from datathon.counterfactual import counterfactual_options, issuer_disclosure_options, run_counterfactual
 from datathon.data import load_market_data, market_data_source
 from datathon.decision_view import render_decisions
+from datathon.customer_view import render_customer
 from datathon.finance import BASE_WEIGHTS
 from datathon.model_settings import configured_bedrock_runtime
 from datathon.publication import publish_check, publish_report
@@ -736,8 +737,8 @@ def show_navigation(market_bundle_found):
                 label_visibility="collapsed", key="workspace",
             )
         with status:
-            label = "Archived data ready" if market_bundle_found else "Archived data unavailable"
-            data_state = "ready" if market_bundle_found else "unavailable"
+            label = "Investment research" if workspace == "Investment assistant" else ("Archived data ready" if market_bundle_found else "Archived data unavailable")
+            data_state = "ready" if workspace == "Investment assistant" or market_bundle_found else "unavailable"
             st.html(f'<div class="app-data-status" data-state="{data_state}">{label}</div>')
     return workspace
 
@@ -791,17 +792,19 @@ def main():
             st.session_state.pop(key, None)
         st.session_state.active_workspace = workspace
     if workspace == "Investment assistant":
-        render_decisions(market_data)
+        render_customer(market_data)
     else:
         st.title("Reference cases")
-        legacy = st.radio("Reference workspace", ("Audited trade examples", "Earlier assistant validation"),
+        legacy = st.radio("Reference workspace", ("Audited trade examples", "Historical decision workbench", "Earlier assistant validation"),
                            horizontal=True, key="reference_workspace")
-        if legacy == "Earlier assistant validation":
-            st.caption("Earlier release retained for regression comparison. Use Investment assistant for the current three-path workflow.")
+        if legacy == "Historical decision workbench":
+            render_decisions(market_data)
+        elif legacy == "Earlier assistant validation":
+            st.caption("Earlier release retained for regression comparison. Use Investment assistant for conversational research.")
             render_assistant(market_data, live_request)
         else:
             reference_cases()
-    show_usage_notes(market_bundle_found)
+        show_usage_notes(market_bundle_found)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
 # AlphaForge AI · Technical documentation
 
+**Current customer workspace:** see [Conversational investment research](../CUSTOMER_RESEARCH.md) for the general profile, public-data research, withdrawals, CPI, risk-trigger plan and reviewed model interpretation. The document below describes the preserved historical workbench. Official personas are validation fixtures only.
+
 PolyFinances Datathon 2026 · Banque Nationale × AWS
 
 AlphaForge shows which of the user's confirmed rules a hypothetical investment decision meets, what caused a breach, and which evidence could change the conclusion. Historical results support self-assessment; the application neither executes orders nor predicts future performance.

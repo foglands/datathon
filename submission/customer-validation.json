@@ -1,0 +1,40 @@
+{
+  "validated_at_utc": "2026-11-16T01:13:25.001862+00:00",
+  "baseline_local_commit": "bb2a049bface85b1627606b3fce2b7c03fb92ecd",
+  "baseline_remote_commit": "bb18bec27234828b88e653cd600e495ce2b76620",
+  "files_sha256": {
+    "app.py": "40fec885eba68649a7129350ed54018b66c4ca0d8eab52dbb16027ddcd33a67e",
+    "datathon/agents.py": "e1c819e0d96dbc4b0fe863ceb3f6ee3b0927bfd6fea6ac76e07a7320cd99783f",
+    "datathon/decision_intake.py": "454d4d4ddb1929aae988b42763b2d6ce7043d81acffd52ef8b6bacaf1970517d",
+    "datathon/decision_view.py": "131dbf57a80e6a153b3c26c3e385182d9a6f13cbb0c450757036e0e5da6b9aa4",
+    "requirements.txt": "24675aa2b80cff839f23b9d1aa3e57e63359f38cf8d1400110e1a5012d77331a",
+    "datathon/bond_disclosures.json": "2598d5ecec917287a9f5e682ceb8625cb923b472729b7942a4a93bf88b17719c",
+    "datathon/customer_agents.py": "25475fdb9a4c6202c72e00d668e93fa5b84830e836448e6bea358c94ee58b8c1",
+    "datathon/customer_bonds.py": "bf220f33cdcfdf76cbb1fe0d8360038d33c19cc0a6cf35dbd30c9497a68f4019",
+    "datathon/customer_data.py": "25fadd4a6d6b50c4e64705987503d57ba64565258538e9c814a531cced9d67ae",
+    "datathon/customer_profile.py": "4fe4f2ac4e35b68a4547b4d1ac95800d2c22a331aa4081bf2d7258bf7ff117b8",
+    "datathon/customer_report.py": "6c6e059b6046ae8978d793a9c751fdc2958ab38bac84524275e9829128b99acc",
+    "datathon/customer_risks.py": "9adf1d8b41f40baf37dbdbc300910556b65c7e50e800df1b964615495da8e3bc",
+    "datathon/customer_view.py": "f61605c32ef263d95c0a9e36ccf320225fdd83628231ad9599ea25815946ba85",
+    "datathon/customer_workflow.py": "9637e138e3899352d4d62bb55d78faa4be1da9627c8b9a77cb303d34bd543d87",
+    "tests/test_customer_research.py": "a4592938933d4fa8c6d18e6696c4c57282233db003da10bfc9cfa5e8c04e1f47",
+    "tests/test_customer_risks.py": "1a1ebdb76561645de126e09e8040e98be49742d58a245dd97166cd649c267b5c",
+    "tests/test_customer_view.py": "51072dd8a26f9877bc9842b0c773afffdfe7648dab01eedb518affad1b19ad09"
+  },
+  "full_suite": {
+    "tests": 522,
+    "result": "OK",
+    "seconds": 84.385
+  },
+  "final_chart_ui_tests": {
+    "tests": 3,
+    "result": "OK"
+  },
+  "live_acceptance": {
+    "environment": "Existing credentialed local Streamlit process; public provider requests and Bedrock",
+    "amd_cash_need": "Historical CAD path, monthly withdrawals, shortfall, CPI and explanation rejection fallback observed",
+    "agg_bond": "Live Bedrock intake, reviewed three-section explanation, public price/FX/CPI, dated issuer duration and credit snapshot displayed"
+  },
+  "export_acceptance": "Standalone HTML generation tested, with escaped content and SVG charts. Browser download callback timed out; completed file download was not verified.",
+  "raw_provider_data_committed": false
+}

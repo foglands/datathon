@@ -1,29 +1,29 @@
 # AlphaForge AI
 
-## Know which rule changes the decision
+## An investment idea, examined with evidence
 
-Tell AlphaForge what you want to test and which rules matter. It uses independently checked historical data to explain a hypothetical investment decision: which rule is met, what caused a breach, and which evidence is missing.
+Investors can describe an idea and their conditions in ordinary language. AlphaForge researches public financial data, calculates the relevant trade-offs and returns an understandable report with charts, dated sources and explicit evidence gaps. No predefined persona or professional workflow selection is required.
 
-**Compare two choices · Evaluate one allocation · Audit a proposed trade**
+**Describe the idea → research the evidence → inspect the conclusion.**
 
-| Fictional investor | Question and useful answer |
-| --- | --- |
-| **Amira — growth and diversification** | Compare two confirmed exposures over the same historical dates. Show risk and return trade-offs, while leaving incomplete issuer look-through visible. |
-| **Robert — capital preservation** | Audit one purchase, then authorize specific alternative funding. Changing terminal loss to maximum drawdown can change feasibility without changing the trade or market data. |
-| **Mateo — controversy preferences** | Apply a named, dated GPFG screen. Distinguish excluded, observation and not listed; unassessed ETF constituents remain unknown. |
+A fictional user considers AMD with CAD 3,000 and recurring withdrawals. High willingness to take risk does not remove the cash requirement. The report separates observed returns from drawdown, withdrawal shortfalls and inflation-adjusted purchasing power. A second bond-fund question activates duration and underlying credit disclosures. The same calculation rules apply to every user; only the stated inputs and relevant questions change.
 
-### Why the result is reviewable
+### Agentic work with checked calculations
 
-A model proposes a source-grounded draft from English or French input; the user confirms its terms. Python calculates CAD buy-and-hold metrics from frozen prices and same-date FX. Separate implementations and rational funding-certificate checks verify the result. Publication binds the input, rules, methods and facts. Explanation-first and metrics-first views, JSON and PDF share that reviewed record.
+Amazon Bedrock extracts source-linked asset and condition statements. Public-data tools retrieve dated prices, adjusted history and Bank of Canada FX/CPI. Python computes the financial results; separate implementations verify them. Bedrock prioritizes the evidence and writes a qualitative explanation, then a separate model call reviews its claims. Failed explanation checks retain the verified evidence and disclose the missing interpretation. Observable traces show actual calls and local fallback separately.
 
-In the fictional Robert example, buying 10 portfolio percentage points of NVDA from ZST.TO produces a 16.15% terminal loss in the 2022 replay, above the 14% cap. The separately authorized QQQ/ZST.TO search needs at least approximately 7.37 points from QQQ for the same purchase. This is a checked historical boundary, not a forecast.
+### What the report can establish
 
-### AWS has an observable role
+Historical return, maximum drawdown, observed volatility, rolling returns, recovery, selected stress replays, CAD/FX effects, explicit-weight portfolio behavior, fixed withdrawal paths and CPI purchasing power. Qualified issuer disclosures support first-order duration illustrations and underlying credit buckets. Exposure bounds preserve unknown holdings; transaction size relative to observed traded value is only a liquidity proxy.
 
-Strands calls Amazon Bedrock for drafting, a bounded explanation assembled from approved sentences and fixed transitions, and the preserved delegated follow-up. Recorded traces distinguish real requests from offline execution. Optional S3 storage checks bucket versioning and returns an object version receipt. The verification record identifies the exact revisions that received live AWS acceptance; it does not transfer older results to new code.
+### What it cannot establish
 
-### Practical value and limits
+Past observations do not prove future performance or suitability. Complete calendar coverage, comprehensive ETF look-through, unrestricted ESG research, current fundamentals/news and arbitrary bond disclosures are unavailable. Initial bond coverage is a dated AGG snapshot. VaR/ES are withheld without certified observation coverage. No transactions are placed; alternative portfolio searches require separate authorization.
 
-AlphaForge helps a learner or reviewer answer: **What was tested? Which rule mattered? What would change the answer? What is still unknown?** It is a historical simulation, not advice, a forecast or a trading system. Complete ETF controversy screening, unrestricted rule/language coverage and some target services remain unfinished and are listed in the architecture-status matrix.
+### Practical value
 
-[Code and reproduction](https://github.com/foglands/datathon) · [Technical documentation](technical-summary.md) · [Verification](verification.md)
+The user sees a conclusion, its numerical support, the conditions that matter and a focused next question. The downloadable HTML preserves charts and sources. Three official investor personas serve only as test cases alongside arbitrary profiles, conflicting inputs and injected calculation failures.
+
+[Code and reproduction](https://github.com/foglands/datathon/tree/architecture-completion-20261115) · [Current technical guide](../CUSTOMER_RESEARCH.md) · [Current validation](customer-validation.md)
+
+This Markdown describes the revised product. The earlier PDF and video artifacts remain historical until regenerated and checked.

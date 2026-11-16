@@ -98,19 +98,19 @@ def _asset_scope(draft, market_loader):
     if ticker := (draft.get("trade") or {}).get("symbol"):
         symbols.add(ticker)
     if not symbols:
-        return
+        return []
     try:
         market = market_loader()
     except (OSError, ValueError, BadZipFile):
         st.info("The archived data are not loaded. You can prepare and confirm a draft; historical review needs the organizer snapshot.")
-        return
+        return []
     missing = sorted(symbols - market.prices.keys())
     if missing:
         st.warning(f"{', '.join(missing)} is outside this frozen dataset of {len(market.prices)} assets. "
-                   "Supply adjusted-close prices and a dated public source below to request a replay. "
-                   "A different covered ticker would be a separate reference, not evidence about this asset.")
+                   "Add adjusted-close prices and a dated public source under Dates and supplementary price data to run the replay.")
     with st.expander("Covered tickers"):
         st.write(", ".join(sorted(market.prices)))
+    return missing
 
 
 def _weights(text):
@@ -186,8 +186,8 @@ def _rule_editor(draft, revision):
     return rules
 
 
-def _scope_editor(revision):
-    with st.expander("Dates and supplementary price data"):
+def _scope_editor(revision, *, expanded=False):
+    with st.expander("Dates and supplementary price data", expanded=expanded):
         knowledge_date = st.date_input("Knowledge date", value=None, key=f"decision_knowledge_{revision}",
                                        help="Leave blank to use the organizer snapshot availability date.")
         optional = st.checkbox("Include the optional 2023 replay", key=f"decision_optional_{revision}")
@@ -534,12 +534,17 @@ def render_decisions(market_loader):
         _compose_draft(question.strip(), False)
 
     saved = st.session_state.get("decision_draft")
+    missing_prices = []
     if saved and (question.strip() == saved[1] or question.strip() == saved[1].split("\nClarification: ", 1)[0]):
         draft, source_question, use_model = saved
         origin = draft.get("origin")
         st.caption("Amazon Bedrock draft" if origin == "bedrock" else "Offline draft")
         if use_model and origin != "bedrock":
-            st.info(bedrock_failure_message(draft.get("trace", ())))
+            trace = draft.get("trace", ())
+            if any(event.get("event") == "validation_error" for event in trace):
+                st.info("The Bedrock draft did not pass input checks. Review the offline draft below.")
+            else:
+                st.info(bedrock_failure_message(trace))
         if draft.get("clarification"):
             st.info(draft["clarification"])
             answer = st.text_input("Answer this question", key=f"decision_clarification_{st.session_state.decision_revision}")
@@ -550,7 +555,7 @@ def render_decisions(market_loader):
             return
         if draft.get("reference_scope"):
             st.info(draft["reference_scope"])
-        _asset_scope(draft, market_loader)
+        missing_prices = _asset_scope(draft, market_loader)
         if draft.get("sources"):
             with st.expander("Original words used in this draft"):
                 for excerpt in draft["sources"].values():
@@ -599,12 +604,18 @@ def render_decisions(market_loader):
             ranking_window = st.selectbox("Ranking window", tuple(_WINDOW_LABELS), index=1,
                                           format_func=_WINDOW_LABELS.get, key=f"decision_rank_window_{revision}")
     raw_rules = _rule_editor(draft, revision)
-    balance = st.number_input("Starting portfolio value in CAD (optional)", min_value=0.0, value=0.0,
-                               help="Leave zero for percentage-only analysis. This amount is not inferred from the profile.", key=f"decision_capital_{revision}")
+    stated_capital = (draft.get("capital") or {}) if action == "evaluate" else {}
+    currency = stated_capital.get("currency")
+    starting_value = float(stated_capital["value"]) if currency == "CAD" else 0.0
+    if currency and currency != "CAD":
+        st.caption(f"The proposed amount is {currency} {stated_capital['value']:,.2f}. Enter its CAD equivalent for dollar results.")
+    balance = st.number_input("Starting portfolio value in CAD (optional)", min_value=0.0, value=starting_value,
+                              help="Use the starting value of the allocation under review. Leave zero for percentage-only analysis.",
+                              key=f"decision_capital_{revision}")
     capital = {"value": balance, "currency": "CAD"} if balance else None
     if trade and trade["unit"] != "percentage_points" and balance:
         trade["portfolio_value_cad"] = balance
-    scope, upload = _scope_editor(revision)
+    scope, upload = _scope_editor(revision, expanded=bool(missing_prices))
     approved = st.checkbox("I checked the inputs and all binding rules for this fictional decision.",
                             key=f"decision_approved_{revision}")
     try:

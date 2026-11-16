@@ -1,0 +1,21 @@
+{
+  "version": "bond-disclosures-2026-11-16",
+  "records": [
+    {
+      "symbol": "AGG",
+      "name": "iShares Core U.S. Aggregate Bond ETF",
+      "as_of": "2026-11-12",
+      "observed_on": "2026-11-16",
+      "original_publication_date": null,
+      "source_url": "https://www.ishares.com/us/products/239458/ishares-core-u-s-aggregate-bond-etf-agg",
+      "source_type": "Issuer product-page factual extract, manually checked",
+      "locator": "Portfolio Characteristics: Effective Duration; Exposure Breakdowns: Credit Quality and Sector",
+      "effective_duration_years": 5.70,
+      "rating_weights": {"AAA": 0.0234, "AA": 0.7372, "A": 0.1193, "BBB": 0.1168, "BB": 0.0, "B": 0.0, "not_rated": 0.0, "cash_and_derivatives": 0.0032},
+      "sector_weights": {"Treasury": 0.4669, "MBS Pass-Through": 0.23, "Industrial": 0.1448, "Financial Institutions": 0.0805, "Utility": 0.0251, "CMBS": 0.0139, "Sovereign": 0.0109, "Supranational": 0.0094, "Local Authority": 0.0059, "Agency": 0.005, "ABS": 0.0045, "Cash and/or Derivatives": 0.0032},
+      "denominator": "Fund underlying securities as a fraction of market value; reported percentages rounded by issuer",
+      "rating_method": "Issuer combines S&P-equivalent major categories from the available agency ratings; this is not a rating of the ETF itself.",
+      "limitation": "Snapshot may change. Rounding residual and unclassified exposure remain unknown. Ratings do not guarantee repayment. Duration is a first-order approximation, not a full rate or credit model."
+    }
+  ]
+}

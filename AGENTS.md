@@ -6,6 +6,8 @@ The official release contains the English and French 19-page case briefs, the En
 
 ## How to work in this project
 
+- Current user product direction (November 16): the customer workspace is a general investment-research conversation. Infer no profile from a name or age. Users state their own ideas, objectives, withdrawal needs, loss capacity, preferences and constraints. The official Amira, Mateo and Robert personas are validation fixtures only; they must not supply defaults, routing rules or model assumptions in production. Keep technical configuration in the validation workspace.
+
 - Respond to the user in Chinese by default. Keep official French labels where they help trace a requirement and use the language requested for competition deliverables.
 - Write GitHub-facing documentation, change notes, issue and pull request text, commit messages, and push summaries in English.
 - The user asked to understand the full requirements, explore deeply, and wait for the challenge before developing a solution. The kickoff slides now establish the challenge. When asked to implement, start with a specific investment decision to support, then use the current organizer materials to resolve open questions and choose the workflow with the team.
@@ -17,7 +19,7 @@ The official release contains the English and French 19-page case briefs, the En
 - Tests for an original-proposal request should verify that Profile does not require approval for a smaller purchase and no funding solver runs. Any alternative search requires independent confirmation of the search scope.
 - Exercise the same trade with an explicit search request, an unsupported binding condition and an injected calculation error. Compare checked findings and release status across the runs.
 - Keep estimates separate from verified facts. Sector analysis should expose its source classification, coverage and unknown weight. Enforcing a sector cap also requires solver support and independent verification.
-- Keep model output limited to intake and authorized tool decisions. Compute all derived financial values and binding verdicts in Python. Build reports from independently reviewed results tied to the same inputs, rules and method versions.
+- Compute all derived financial values and binding verdicts in Python. Build reports from independently reviewed results tied to the same inputs, rules and method versions. In the conversational research workspace, the report model may additionally write qualitative interpretations tied to checked evidence IDs; independently review this prose and withhold it when unsupported. Model prose never supplies financial quantities or binding verdicts.
 
 ## Challenge and constraints
 

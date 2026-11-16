@@ -30,6 +30,74 @@ def model_reply(*proposals):
 
 
 class DecisionIntakeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_cash_commitments_preserve_amount_case_and_standalone_scope(self):
+        for question, value in (("i want to invest stock share of amd with 3000 cad", 3000),
+                                ("I want to invest CAD 3000 in AMD.", 3000),
+                                ("I want to invest 3,000 CAD in amd.", 3000),
+                                ("I want to invest 3000,50 CAD in amd.", 3000.5)):
+            with self.subTest(question=question):
+                result = await draft_decision(question)
+                self.assertEqual(result["intent"], "evaluate")
+                self.assertEqual(result["capital"], {"value": value, "currency": "CAD"})
+                self.assertEqual(result["assets"][0]["symbol"], "AMD")
+                self.assertEqual(result["assets"][0]["excerpt"], question)
+                self.assertEqual(result["portfolios"][0]["weights"], {"AMD": 1})
+                self.assertIn("standalone AMD allocation", result["reference_scope"])
+                self.assertEqual(result["missing"], [])
+                self.assertIsNone(result["trade"]["source"])
+                self.assertEqual(result["funding"]["sources"], [])
+
+    async def test_model_cash_commitment_uses_whole_token_case_insensitive_grounding(self):
+        question = "i want to invest stock share of amd with 3000 cad"
+        result = await draft_decision(question, model_reply({
+            "intent": "evaluate", "intent_excerpt": question,
+            "structured_fields": {"assets": [{"symbol": "AMD", "quantity_text": "3000", "unit": "amount_cad", "excerpt": question}], "portfolios": []},
+        }))
+        self.assertEqual(result["origin"], "bedrock")
+        self.assertEqual(result["capital"], {"value": 3000, "currency": "CAD"})
+        self.assertEqual(result["missing"], [])
+        wrong = question.replace("amd", "amdx")
+        rejected = await draft_decision(wrong, model_reply({
+            "intent": "evaluate", "intent_excerpt": wrong,
+            "structured_fields": {"assets": [{"symbol": "AMD", "quantity_text": "3000", "unit": "amount_cad", "excerpt": wrong}]},
+        }))
+        self.assertEqual(rejected["origin"], "offline_draft")
+        self.assertEqual(rejected["assets"][0]["symbol"], "AMDX")
+        self.assertEqual(rejected["trace"][0]["reason"], "The ticker must occur in its excerpt.")
+
+    async def test_cash_currency_is_preserved_without_conversion_or_dollar_guess(self):
+        for money, currency, unit in (("3000 USD", "USD", "amount_usd"), ("3000 EUR", "EUR", "amount"),
+                                      ("$3000", "unspecified", "amount")):
+            question = f"I want to invest {money} in amd."
+            for runtime in (None, model_reply({
+                "intent": "evaluate", "intent_excerpt": question,
+                "structured_fields": {"assets": [{"symbol": "AMD", "quantity_text": "3000", "unit": unit,
+                                                   "currency": currency, "excerpt": question}]},
+            })):
+                with self.subTest(money=money, model=runtime is not None):
+                    result = await draft_decision(question, runtime)
+                    self.assertEqual(result["capital"], {"value": 3000, "currency": currency})
+                    self.assertEqual(result["missing"], ["capital_currency"])
+                    self.assertEqual(result["assets"][0]["unit"], unit)
+                    self.assertEqual(result["clarification"].count("?"), 1)
+
+    async def test_cash_scope_does_not_infer_multiple_assets_existing_wealth_or_bad_amounts(self):
+        for question in ("I want to invest 3000 CAD in AMD and NVDA.", "I want to invest 3000 CAD in AMD or SPY.",
+                         "I have 3000 CAD. I want to invest in AMD.", "I want to invest about 3000 CAD in AMD.",
+                         "I want to invest CAD 3000 in AMD by selling SPY.", "I want to invest 3,000,50 CAD in AMD.",
+                         "I want to invest 3000 CAD in amd. Sell msft to fund it.",
+                         "I want to invest 3000 CAD in amd. Funding comes from MSFT.",
+                         "I want to invest 3000 CAD in amd. I currently own msft.",
+                         "I want to invest 3000 CAD in amd. I also own msft.",
+                         "I want to invest 3000 CAD in amd plus msft."):
+            with self.subTest(question=question):
+                result = await draft_decision(question)
+                self.assertNotIn("capital", result)
+                self.assertFalse(result["portfolios"])
+        result = await draft_decision("I want to invest 3000 CAD in amd. My terminal loss limit is 14%.")
+        self.assertEqual(result["capital"]["value"], 3000)
+        self.assertEqual(result["risk_limits"][0]["cap"], .14)
+
     def test_bare_percentage_digits_require_the_original_adjacent_unit(self):
         for token, excerpt, expected in (("15", "Keep at least 15% in ZST.TO.", .15),
                                          ("14", "My terminal loss limit is 14 percent.", .14),
