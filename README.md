@@ -4,6 +4,8 @@
 
 **PolyFinances Datathon 2026 · Banque Nationale · AWS**
 
+**Hosted app:** [alphaforge-datathon.streamlit.app](https://alphaforge-datathon.streamlit.app/). Public homepage, market-data retrieval, Python calculations and charts verified on November 16, 2026. Cloud Bedrock credentials are not configured yet; model-led conclusions are currently unavailable and the app labels the result as partial/evidence-only.
+
 Describe what you are considering and what matters to you. AlphaForge turns that question into an analysis plan, retrieves dated public observations, calculates the evidence in Python, and presents a conclusion with supporting evidence, counterevidence, charts and important gaps.
 
 The customer interface starts with a single question. There are no preset question buttons, professional workflow choices or developer validation navigation. Optional details and later corrections become analysis context. The official investor personas are used only as test fixtures.
@@ -26,7 +28,7 @@ For example: `I am considering investing 3000 CAD in AMD. I may need the money i
 
 ## Quick start
 
-Use **Python 3.10 or later**; recorded local validation uses Python 3.10. Access to this private repository is required.
+Use **Python 3.10 or later**; recorded local validation uses Python 3.10. Cloud deployment uses Python 3.11.
 
 ```bash
 git clone --branch architecture-completion-20261115 https://github.com/foglands/datathon.git

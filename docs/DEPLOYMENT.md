@@ -1,12 +1,14 @@
 # Hosted customer application
 
-This repository is ready for Streamlit Community Cloud. A submitted application URL must come from a completed deployment; a GitHub URL, localhost address or proposed subdomain is not a deployed tool.
+The customer application is deployed at [https://alphaforge-datathon.streamlit.app/](https://alphaforge-datathon.streamlit.app/).
+
+Verified on November 16, 2026: Python 3.11.18 build completed, customer homepage loaded, app sharing was public, and an AMD research request retrieved market/FX observations and displayed Python calculations and charts. Cloud Bedrock credentials were not configured; the app correctly returned an evidence-only partial result and no checked personalized conclusion. Full model research and its follow-up/export acceptance remain unverified in the hosted environment. Local shell credentials are not automatically transferred to Streamlit Cloud.
 
 ## Deployment configuration
 
 | Field | Value |
 | --- | --- |
-| Repository | `foglands/datathon` (private) |
+| Repository | `foglands/datathon` (public) |
 | Branch | `architecture-completion-20261115` |
 | Main file | `app.py` |
 | Python | 3.11 |
@@ -17,7 +19,7 @@ The customer entry point contains no Reference cases navigation. Do not deploy `
 
 ## Account and secrets
 
-Sign in at [Streamlit Community Cloud](https://share.streamlit.io/), review the service terms, and authorize the private GitHub repository when requested. Select Create app and use the fields above. The account owner must approve any new repository access; this does not require making the repository public.
+Sign in at [Streamlit Community Cloud](https://share.streamlit.io/), review the service terms, and connect GitHub when requested. Select Create app and use the fields above. The repository owner made this repository public for deployment; private-repository access is not required.
 
 In Advanced settings, select Python 3.11 and enter runtime configuration using [.streamlit/secrets.example.toml](../.streamlit/secrets.example.toml) as the non-secret template. Root-level secrets become environment variables consumed by the existing AWS provider chain. Enter actual AWS credentials directly in the hosting Secrets editor, never in GitHub, source files, screenshots or chat.
 
