@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-16 - Direct, evidence-bounded research conclusions
+
+- Require a concise answer to the actual investment question before supporting figures or missing-information details; cap the expanded main answer at 80 words and version the customer contract as v4.
+- Distinguish factual accuracy from decision relevance in independent review; a metric summary cannot replace the practical implication of stated conditions.
+- Keep factual/comparison questions within their requested scope and preserve conditional judgments, uncertainty and numerical verification.
+
 ## 2026-11-16 - Reconcile stashed data changes with the current customer interface
 
 - Resolve stash-restore conflicts while retaining conclusion-first rendering, review reserves and current customer tests.

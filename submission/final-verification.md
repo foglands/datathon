@@ -16,6 +16,12 @@ Resolved the two stash-restore conflicts by retaining the newer completion-budge
 
 Corrected archive share sizing to use raw `close`, keeping `adj_close` for historical returns; adjusted-only inputs withhold share sizing. Public name resolution cannot bypass archive prices, and fallback coverage metadata is included in the asset fingerprint. **80 targeted fixture tests passed**, including four new archive-merge checks, using the same restricted-host test harness described above. Python compilation passed. Local Git index updates are completed through GitHub Desktop because this shell has read-only access to repository metadata.
 
+## Deployment and conclusion follow-up (November 16)
+
+The stash reconciliation was published as `81a034b9ce155ba82787af43e6306d8e3fee9022` to both the default and Streamlit deployment branches. The deployed customer homepage and a real AMD request were exercised at https://alphaforge-datathon.streamlit.app/. Public price/FX evidence was returned. The cloud app reported no usable AWS credentials, so live cloud model conclusions are **not** verified; the app retained checked evidence and showed the service reason. Local AWS success does not establish cloud AWS availability.
+
+The subsequent conclusion change separates a direct bounded assessment from its detailed figures and requires independent review to assess decision relevance as well as factual support. Model-facing claim references are restricted to the evidence and context IDs available in that run. It does not impose a verdict from persona, horizon or willingness. The 81 targeted fixture tests pass, including rejection of an expanded evidence dump in the main conclusion. The v4 contract invalidates cached results from the older output format; live answer quality is evaluated separately.
+
 ## Local results
 
 | Check | Observed result |

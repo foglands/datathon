@@ -58,3 +58,15 @@ class CompletionBudgetTests(IsolatedAsyncioTestCase):
         claim['text']='The historical loss was 18.77%; future outcomes remain uncertain.'
         with self.assertRaisesRegex(ValueError,'Preserve signs'):
             validate_claims([claim],r,{'user.request':'Research VTI.'})
+
+    def test_main_conclusion_cannot_expand_into_a_full_evidence_dump(self):
+        from datathon.inquiry_engine import validate_claims
+        r=report()
+        r['blocks']['long.evidence']={'text':' '.join(['Historical observations have important limits.']*30),'sources':[]}
+        claim=claims('long.evidence')[0]
+        claim['text']='The evidence leaves the proposed outcome uncertain. {{long.evidence}}'
+        with self.assertRaisesRegex(ValueError,'80 words after Python fact quotations'):
+            validate_claims([claim],r,{'user.request':'Research the idea.'})
+        claim['text']='The available history does not establish the proposed future outcome; the stated cash need makes that uncertainty material.'
+        result=validate_claims([claim],r,{'user.request':'Research the idea.'})
+        self.assertIn('Scope limits:',result[0]['text'])

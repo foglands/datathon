@@ -181,10 +181,9 @@ def fact_registry(report):
                 "definition": label, "value": metrics[metric], "unit": "fraction", "currency": basis,
                 "start": metrics["start"], "end": metrics["end"], "method": "independently checked buy-and-hold replay",
                 "text": f"{symbol}: {label} {format(metrics[metric], '+.2%' if metric == 'return' else '.2%')} ({basis}; {metrics['start']} to {metrics['end']})"}
-    # Other tools already supply Python-authored, qualified statements. Quote the whole
-    # statement so its unit, object and period cannot be silently stripped from a number.
+    # Every evidence ID is also a usable quotation key. Keep compact metric keys
+    # above, but do not make callers invent a different key for a known block.
     for key, block in report["blocks"].items():
-        if not key.endswith(".behavior"):
-            facts[key] = {"evidence_id": key, "text": block["text"], "scope": block.get("scope", {}),
-                          "method": "complete checked evidence quotation"}
+        facts[key] = {"evidence_id": key, "text": block["text"], "scope": block.get("scope", {}),
+                      "method": "complete checked evidence quotation"}
     return facts
