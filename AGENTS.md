@@ -6,6 +6,8 @@ The official release contains the English and French 19-page case briefs, the En
 
 ## How to work in this project
 
+- Publish every completed project change to GitHub and verify any change that affects the app on the existing Streamlit deployment. Push to `foglands/datathon` branch `architecture-completion-20261115`, which Streamlit Community Cloud tracks for `app.py`, and keep the default branch `agent-optimization` in sync. Check the deployed behavior at https://alphaforge-datathon.streamlit.app/ and report the GitHub commit and live verification result together.
+
 - Customer entry point: `app.py` exposes only conversational research. Keep Reference cases, historical controls and model acceptance tools in the separate developer entry point `validation_app.py`. Current repository navigation and validation status are in `README.md` and `submission/final-verification.md`.
 
 - Latest reasoning requirement: online conclusions must be synthesized from the full current question and relevant context. Let the model propose analysis questions, request bounded follow-up evidence and revise its scope. Do not force conclusions from persona labels, short horizons, risk willingness or a largest-risk ordering. Review question relevance, material context, both sides of evidence and scope independently. Validate name/paraphrase/irrelevant-detail invariance and justified responses to material changes. Place the conclusion first.
