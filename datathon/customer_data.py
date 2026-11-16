@@ -44,8 +44,8 @@ class ResearchUnavailable(ValueError):
         self.action = action
 
 
-def read_public_json(url):
-    request = Request(url, headers={"User-Agent": "AlphaForge-Research/1.0", "Accept": "application/json"})
+def read_public_json(url, *, user_agent="AlphaForge-Research/1.0"):
+    request = Request(url, headers={"User-Agent": user_agent, "Accept": "application/json"})
     try:
         context = ssl.create_default_context(cafile=certifi.where())
         with build_opener(_NoRedirects(), HTTPSHandler(context=context)).open(request, timeout=8) as response:
@@ -377,9 +377,9 @@ class StarterResearch:
 class UnavailableResearch:
     """A provider that explains, for every call, why no market data can be retrieved."""
 
-    def __init__(self, reason):
+    def __init__(self, reason, *, action="The app operator needs to configure or repair the daily price source."):
         self.reason = reason
-        self.action = "The app operator needs to configure or repair the daily price source."
+        self.action = action
 
     def resolve_security(self, query, *, search=False):
         raise ResearchUnavailable(self.reason, action=self.action)

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-16 - Live web research
+
+- Let the Bedrock planner select search topics and surface AgentCore search status and source links in the customer report.
+- Verify selected issuer filing metadata directly against SEC EDGAR. Keep source excerpts outside numerical evidence and daily-price calculations.
+- Run live research independently of the optional replay archive.
+
 ## 2026-11-16 - Daily data preparation and partial conclusions
 
 - Validate and package daily-price exports for the three customer examples. Record the shared window, observation count, source, adjustment basis and archive digest.

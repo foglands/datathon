@@ -6,7 +6,7 @@
 
 **Try AlphaForge:** [Open the hosted app](https://alphaforge-datathon.streamlit.app/) · [One-page summary](submission/one-pager.pdf) · [Technical guide](submission/technical-summary.pdf) · [Submission index](submission/README.md)
 
-The hosted verification recorded working market-data retrieval, Python calculations and charts. That run returned checked evidence with no reviewed conclusion because the host had no usable Bedrock credentials. See the [deployment guide](docs/DEPLOYMENT.md) and [verification record](submission/final-verification.md).
+The hosted verification records Bedrock Converse responses, checked evidence and coverage for the example questions. See the [deployment guide](docs/DEPLOYMENT.md) and [verification record](submission/final-verification.md).
 
 Describe what you are considering and what matters to you. AlphaForge turns that question into an analysis plan, retrieves dated public observations, calculates the evidence in Python, and presents a conclusion with supporting evidence, counterevidence, charts and important gaps.
 
@@ -59,7 +59,7 @@ py -m venv .venv
 
 Open the URL printed by Streamlit, normally `http://localhost:8501`. For model-led research, configure an authorized AWS session with access to the configured Bedrock model in `us-east-1`, then launch the app from that shell. Temporary credentials include a session token. Use the [AWS setup and diagnostics](docs/RUNNING.md#aws-configuration) for local use or the [deployment guide](docs/DEPLOYMENT.md) for Streamlit Cloud Secrets.
 
-Set `DATATHON_STARTER_PATH` to use a local archive. A hosted app can load an approved ZIP from a private S3 object with a pinned SHA-256 digest. The three examples also have sourced filing evidence that remains usable without daily prices. Broader historical analysis and charts need a configured price source. The external Yahoo adapter starts disabled. An operator can enable it only after confirming permission for the intended access and use. See the [data setup](docs/RUNNING.md#organizer-archive-and-full-data-validation) and [hosted configuration](docs/DEPLOYMENT.md).
+The Bedrock planner can select live research topics. AgentCore Web Search locates sources and the app checks selected issuer filing metadata with SEC EDGAR. The report shows search links and coverage gaps. Historical risk metrics use verified daily prices. Optional local or private S3 snapshots support reproducible calculations. See the [data setup](docs/RUNNING.md#organizer-archive-and-full-data-validation) and [hosted configuration](docs/DEPLOYMENT.md).
 
 ## Evidence and supported scope
 
@@ -108,7 +108,7 @@ Module names without a directory prefix are under `datathon/`.
 
 ## AWS, data and license
 
-Amazon Bedrock performs question understanding, planning, synthesis and separate semantic review through Strands tool handoffs. Python remains the authority for numerical results. Optional versioned S3 export exists in the historical workbench. Knowledge Bases, managed Guardrails, Step Functions and Object Lock are not claimed deployed services.
+Amazon Bedrock performs question understanding, planning, synthesis and separate semantic review through Strands tool handoffs. AgentCore Web Search supplies source leads when the app identity has access. Python computes and independently checks numerical results. The historical workbench supports optional versioned S3 export.
 
 Use fictional inputs for demonstration. Raw downloaded prices, the organizer archive, credentials and private account data are not bundled. Source terms remain applicable; the [MIT license](LICENSE) covers project code, not third-party data redistribution rights.
 

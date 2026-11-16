@@ -8,6 +8,7 @@ from .customer_agents import customer_runtime
 from .customer_report import methodology, report_markdown, report_html, verify_report, METHOD
 from .customer_workflow import research_question
 from .runtime_budget import run_sync_action
+from .web_research import SEARCH_STATUS
 
 
 def _reset(question=""):
@@ -104,12 +105,24 @@ def _sources(report):
             st.markdown(f"[Statistics Canada CPI via Bank of Canada]({report['cpi']['source_url']})")
             st.caption(report["cpi"]["basis"] + " · " + report["cpi"]["vintage"])
         for evidence_id, block in report["blocks"].items():
-            if evidence_id.endswith(".disclosure"):
+            if evidence_id.endswith((".disclosure", ".sec_filing")):
                 st.markdown(f"**{block['title']}**")
                 st.caption(block["text"])
                 for url in block["sources"]:
-                    st.markdown(f"[Disclosure]({url})")
+                    st.markdown(f"[Filing or disclosure]({url})")
         st.write(methodology(report))
+    searches = report.get("web_search", [])
+    if searches:
+        with st.expander("Live web searches", expanded=True):
+            for search in searches:
+                st.write(search.get("query", search["topic"].replace("_", " ")))
+                st.caption(SEARCH_STATUS[search["status"]])
+                if search.get("checked_at"):
+                    st.caption("Searched " + search["checked_at"])
+                for hit in search["results"]:
+                    st.link_button(hit["title"], hit["url"])
+                    if hit["published_at"]:
+                        st.caption("Published " + hit["published_at"][:10])
 
 
 def _risk_checks(report):

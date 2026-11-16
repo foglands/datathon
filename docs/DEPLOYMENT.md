@@ -2,7 +2,7 @@
 
 The customer application is deployed at [https://alphaforge-datathon.streamlit.app/](https://alphaforge-datathon.streamlit.app/).
 
-The November 16, 2026 verification recorded a public customer homepage, market and FX data retrieval, Python calculations and charts. The hosted app returned checked evidence because the deployment had no usable Bedrock credentials during that check. A full hosted model run requires valid credentials in Streamlit Cloud Secrets. See the [verification record](../submission/final-verification.md).
+The November 16, 2026 verification covers the public customer workflow and successful hosted Bedrock Converse calls. See the [verification record](../submission/final-verification.md).
 
 ## Deployment configuration
 
@@ -25,9 +25,17 @@ In Advanced settings, select Python 3.11 and enter runtime configuration using [
 
 Bedrock needs an active AWS session with permission to invoke the configured model. Put all three fields of a temporary session at the top level of the Secrets editor. Saving credentials in a local PowerShell session affects only processes started from that shell. Streamlit Cloud reads its own Secrets configuration after the update propagates. Refresh expired credentials in the same editor.
 
-## Market data for the hosted app
+## Live web research
 
-The three examples can use public filing evidence with Bedrock even without a configured daily price provider. To add daily return and drawdown charts, use a market snapshot that you have permission to use for the intended audience and report exports. The ZIP must use the starter CSV schema and include source URLs, access and reuse terms, dates, processing and limitations. The organizer supplied its archive for the Datathon, and its source terms still apply to other uses.
+The Bedrock planner selects up to two research topics per request. The app uses public instrument names and topic phrases for [Amazon Bedrock AgentCore Web Search](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/web-search-api.html). It shows source links and search status under **Evidence & sources → Live web searches**. For an issuer filing lookup, the app can confirm filing metadata and dates directly against SEC EDGAR.
+
+Grant the existing app AWS identity `bedrock-agentcore:InvokeWebSearch` on `arn:aws:bedrock-agentcore:us-east-1:aws:tool/web-search.v1`, or replace the region with the configured request region. The same AWS credentials sign both Converse and search. See the [AgentCore setup guide](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/web-search-api-get-started.html). Set `DATATHON_WEB_SEARCH="0"` to disable web research.
+
+Search results provide document leads. Daily return, volatility, drawdown and backtests require a verified series with dates, listing currency and adjustment basis. The report identifies metrics the available data cannot support.
+
+## Optional daily-price snapshot for reproducible runs
+
+Live web research runs without an archive. An optional market snapshot supplies daily-price charts for reproducible runs using data approved for the intended audience and report exports. The ZIP uses the starter CSV schema and includes source URLs, access and reuse terms, dates, processing and limitations.
 
 ### Prepare and verify the snapshot
 
@@ -55,7 +63,7 @@ The external Yahoo adapter is disabled by default. Activate `DATATHON_PUBLIC_FAL
 1. Open the [hosted app](https://alphaforge-datathon.streamlit.app/) after Streamlit updates.
 2. Check the three example questions. **Apply question** should fill editable text before **Analyze my question** starts the run.
 3. Run the three fictional cases. Check which assets were interpreted, the observed Bedrock status, data dates, checked calculations, conclusion status and report export.
-4. Test a follow-up correction and record the result against the deployed revision. Open **Evidence & sources → Research service verification** to confirm a successful Bedrock Converse response for that research. Record unavailable prices, incomplete review and missing user inputs separately.
+4. Open **Evidence & sources → Research service verification** for the Bedrock Converse result and **Live web searches** for search status and links. Test a follow-up correction and record the result against the deployed revision.
 
 Do not send reviewer invitations unless specifically requested. If the app is made publicly accessible, its model calls consume the configured AWS account's quota/budget. Public app access and uploading AWS credentials to a hosting provider require the account owner's approval.
 

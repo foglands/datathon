@@ -14,6 +14,7 @@ from .customer_workflow import research_question
 from .hosted_market import HostedArchiveError
 from .model_settings import bedrock_failure_message
 from .runtime_budget import RuntimeBudgetExceeded, run_sync_action
+from .web_research import configured_search
 
 
 EXAMPLES = {
@@ -196,7 +197,7 @@ def _run(question, market_loader=None, *, continue_conversation=False, retry=Fal
             except (OSError, ValueError):
                 market = None
             report = run_sync_action(research_question(question, runtime=customer_runtime(), progress=progress,
-                market_data=market, provider=provider, previous_state=prior_state))
+                market_data=market, provider=provider, previous_state=prior_state, web_search=configured_search()))
         except Exception as exc:
             if current:
                 states[current] = "attention"
@@ -347,7 +348,8 @@ def _conclusion(report):
                 st.write(disclosure["text"])
                 for url in disclosure["sources"]:
                     st.markdown("[Source](" + url + ")")
-            elif report.get("blocks"):
+            elif any(block.get("scope", {}).get("level") != "source_lead" and key != "data_gap"
+                     for key, block in report.get("blocks", {}).items()):
                 st.write("Checked evidence is available below. The written assessment could not be verified.")
             elif report.get("source_issues"):
                 st.write(report["source_issues"][0]["reason"])
@@ -359,6 +361,8 @@ def _available_evidence(report):
     """Show checked facts without inventing a conclusion or opposing arguments."""
     st.subheader("Available evidence")
     for block in report.get("blocks", {}).values():
+        if block.get("scope", {}).get("level") == "source_lead":
+            continue
         with st.container(border=True):
             st.markdown("**" + block["title"] + "**")
             st.write(block["text"])
@@ -438,7 +442,7 @@ def render_report(report):
             with st.popover("Export", icon=":material/ios_share:", use_container_width=True):
                 st.download_button("Report with charts" if analyses else "HTML report", report_html(report), "investment-research.html", "text/html", use_container_width=True)
                 st.download_button("Markdown", report_markdown(report), "investment-research.md", "text/markdown", use_container_width=True)
-    if not report.get("blocks"):
+    if not report.get("blocks") and not report.get("web_search"):
         _customer_issues(report)
         return
     labels = ["Assessment", "Evidence & sources"]
@@ -458,7 +462,7 @@ def render_report(report):
                 with column, st.container(border=True):
                     for section in sections:
                         _section(section, label)
-        elif not any(s["heading"] == "My research conclusion" for s in explanations):
+        elif report.get("blocks") and not any(s["heading"] == "My research conclusion" for s in explanations):
             _available_evidence(report)
         for section in explanations:
             if section["heading"] not in {"My research conclusion", "What supports this view", "What argues against it"}:

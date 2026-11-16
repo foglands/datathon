@@ -10,9 +10,10 @@ from statistics import stdev
 from .customer_data import PRICE_BASES
 from .review_snapshot import fingerprint
 from .decision_replay import evaluate as evaluate_history, verify as verify_history
+from .web_research import SEARCH_STATUS
 
 
-METHOD = "customer-inquiry-v7"
+METHOD = "customer-inquiry-v8"
 
 
 def calculate(rows):
@@ -220,8 +221,16 @@ def report_markdown(report):
                       "Evidence: " + "; ".join(report["blocks"][key]["title"] for key in section["evidence_ids"]), ""]
         for key in dict.fromkeys([report["editor"]["takeaway"], *report["editor"]["order"]]):
             block = report["blocks"][key]
+            if block.get("scope", {}).get("level") == "source_lead":
+                continue
             lines += [f"## {block['title']}", "", block["text"], ""]
             lines += [f"- [Supporting source]({url})" for url in block["sources"]]
+    if report.get("web_search"):
+        lines += ["", "## Live web searches", ""]
+        for search in report["web_search"]:
+            query = search.get("query", search["topic"].replace("_", " "))
+            lines += [f"- {query} · {SEARCH_STATUS[search['status']]}"]
+            lines += [f"  - [Source lead]({hit['url']})" for hit in search["results"]]
     if analyses:
         lines += ["## Market evidence", "", "| Asset | Latest observation | Historical change | Largest observed fall | Currency |",
                   "| --- | --- | --- | --- | --- |"]
@@ -312,8 +321,17 @@ def report_html(report):
                           _svg(series, "value", "Historical assets with and without withdrawals")]
     for key in report["editor"]["order"]:
         block = report["blocks"][key]
+        if block.get("scope", {}).get("level") == "source_lead":
+            continue
         parts += [f'<h2>{escape(block["title"])}</h2><p>{escape(block["text"])}</p>']
         parts += [f'<p><a href="{escape(url, quote=True)}">Supporting source</a></p>' for url in block["sources"]]
+    if report.get("web_search"):
+        parts += ['<h2>Live web searches</h2>']
+        for search in report["web_search"]:
+            query = search.get("query", search["topic"].replace("_", " "))
+            parts += [f'<p>{escape(query)} · {escape(SEARCH_STATUS[search["status"]])}</p>']
+            parts += [f'<p><a href="{escape(hit["url"], quote=True)}">{escape(hit["title"])}</a></p>'
+                      for hit in search["results"]]
     parts += ['<h2>Sources, dates and limitations</h2>']
     for item in report["analyses"]:
         asset = item["asset"]

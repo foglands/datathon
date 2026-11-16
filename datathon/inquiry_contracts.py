@@ -185,6 +185,8 @@ def fact_registry(report):
     # Every evidence ID is also a usable quotation key. Keep compact metric keys
     # above, but do not make callers invent a different key for a known block.
     for key, block in report["blocks"].items():
+        if block.get("scope", {}).get("level") == "source_lead":
+            continue
         facts[key] = {"evidence_id": key, "text": block["text"], "scope": block.get("scope", {}),
                       "method": "complete checked evidence quotation"}
     return facts

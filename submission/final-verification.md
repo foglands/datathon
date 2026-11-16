@@ -12,7 +12,7 @@ The public retest on [`c2e9e3b`](https://github.com/foglands/datathon/commit/c2e
 | Growth with ESG preferences | Displayed the ESGU screening and SPY objective comparison at the top while withholding the model's written conclusion. Dated holdings and screening records are needed for issuer-level verification. |
 | A stock before retirement | Generated a partial written assessment backed by a documented TSLA decline. The language overstated how representative that single episode is. Daily data is required to measure recovery and rolling results. |
 
-All three reports clearly identified the unconfigured price source. The hosted data path still needs an authorized daily price export. See the [preparation and deployment instructions](../docs/DEPLOYMENT.md#prepare-and-verify-the-snapshot).
+All three reports identified the missing verified daily series. This was the hosted behavior before live web search was added. An approved snapshot remains available for reproducible runs. See the [deployment instructions](../docs/DEPLOYMENT.md#live-web-research).
 
 **587 local regression tests passed.** CI passed on the [default branch](https://github.com/foglands/datathon/actions/runs/43829053200) and the [deployment branch](https://github.com/foglands/datathon/actions/runs/43829044903).
 

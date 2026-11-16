@@ -14,6 +14,7 @@ from .product_disclosures import disclosure_evidence
 from .review_snapshot import fingerprint
 from .customer_profile import build_profile, risk_plan
 from .customer_risks import explicit_rule_checks
+from .web_research import discover_sources, discovery_blocks, verified_issuer_filings
 
 
 def default_provider(market_data=None):
@@ -23,12 +24,14 @@ def default_provider(market_data=None):
     if market_data is not None:
         return StarterResearch(market_data, fallback=public)
     if public is None:
-        return UnavailableResearch("Daily prices are unavailable because this deployment has no price source configured.")
+        return UnavailableResearch("A verified daily price series is unavailable for the requested instrument.")
     return public
 
 
-async def research_question(question, *, runtime=None, provider=None, progress=None, market_data=None, previous_state=None, limits=None):
+async def research_question(question, *, runtime=None, provider=None, progress=None, market_data=None, previous_state=None,
+                            limits=None, web_search=None):
     provider = provider or default_provider(market_data)
+    needs_market_discovery = isinstance(provider, UnavailableResearch)
     progress = progress or (lambda stage: None)
     progress("Understanding your idea and conditions")
     budget_tracker = InquiryBudget(limits)
@@ -43,7 +46,7 @@ async def research_question(question, *, runtime=None, provider=None, progress=N
     if any(conflict["field"] in {"investment_amount", "base_currency"} for conflict in profile["conflicts"]):
         plan["budget"] = None
         plan["question"] = "Which investment amount and currency should this research use? Your statements conflict, so sizing has been withheld."
-    result = {"question": question, "plan": plan, "analyses": [], "errors": [], "source_issues": [], "fx": None,
+    result = {"question": question, "plan": plan, "analyses": [], "errors": [], "source_issues": [], "fx": None, "web_search": [],
               "conversation_state": plan.get("conversation_state"), "tasks": [], "resolutions": [], "profile": profile, "risks": [], "rule_checks": [], "cpi": None,
               "blocks": {}, "editor": {}, "method": METHOD, "created_at": datetime.now(timezone.utc).isoformat()}
     requested = [asset for asset in plan["assets"] if asset["role"] == "consider"]
@@ -54,12 +57,30 @@ async def research_question(question, *, runtime=None, provider=None, progress=N
         result["report_digest"] = fingerprint(result)
         return result
     progress("Planning which claims need evidence")
-    result["planning"] = await plan_analysis(question, plan, runtime, profile=profile, budget=budget_tracker)
+    result["planning"] = await plan_analysis(question, plan, runtime, profile=profile, budget=budget_tracker,
+                                              web_available=web_search is not None)
     comparison_tools = {"product_comparison", "portfolio_context", "concentration"}
     if comparison_tools.intersection(check["tool"] for check in result["planning"]["checks"]):
         requested = [asset for asset in plan["assets"] if asset["role"] in {"consider", "holding"}]
     result["executed_tools"], result["tool_outcomes"] = [], []
     progress("Looking up dated prices and historical observations")
+    if web_search is not None:
+        topics = result["planning"].get("web_topics", [])
+        if needs_market_discovery and not topics:
+            topics = ["daily_prices"]
+        lookups = discover_sources(web_search, topics, plan["assets"], budget_tracker)
+        if "issuer_filings" in topics:
+            result["web_search"], filings = await asyncio.gather(
+                lookups, verified_issuer_filings(requested, budget_tracker))
+            result["blocks"].update(filings)
+        else:
+            result["web_search"] = await lookups
+        if needs_market_discovery and result["web_search"]:
+            returned_links = any(search["status"] == "success" for search in result["web_search"])
+            provider.source = UnavailableResearch(
+                "The app could not verify a daily price series for this request.",
+                action=("See the references under Live web searches." if returned_links else
+                        "See Live web searches for the lookup status."))
 
     def source_issue(message, action, query=None):
         result["errors"].append(f"{query}: {message}" if query else message)
@@ -121,20 +142,20 @@ async def research_question(question, *, runtime=None, provider=None, progress=N
     if result["analyses"]:
         raw_blocks, _ = evidence_blocks(plan, result["analyses"], result["errors"])
         # Keep facts and evidence gaps, not prewritten goal-based verdicts.
-        result["blocks"] = {key: block for key, block in raw_blocks.items()
-                            if key.endswith((".behavior", ".budget", ".stale")) or key in {"data_gap", "portfolio_gap"}}
-        if not result["blocks"]:
-            result["blocks"] = raw_blocks
+        checked = {key: block for key, block in raw_blocks.items()
+                   if key.endswith((".behavior", ".budget", ".stale")) or key in {"data_gap", "portfolio_gap"}}
+        result["blocks"].update(checked or raw_blocks)
     confirmed = {item["asset"]["symbol"] for item in result["analyses"]}
     ambiguous = {item["query"] for item in result["resolutions"] if item.get("status") == "needs_confirmation"}
     confirmed.update(asset["query"].strip().removeprefix("$").upper() for asset in plan["assets"]
                      if asset["role"] in {"consider", "holding"} and asset["query"] not in ambiguous)
     result["blocks"].update(disclosure_evidence(confirmed))
+    result["blocks"].update(discovery_blocks(result["web_search"]))
     if result["blocks"]:
         if not result["analyses"]:
             result["blocks"]["data_gap"] = {"title": "Daily price history is unavailable",
-                "text": "The available disclosures cover specific dated observations. Daily risk, current prices, "
-                        "currency-adjusted paths and portfolio metrics were not calculated.", "sources": []}
+                "text": "Daily risk, current prices, currency-adjusted paths and portfolio metrics "
+                        "require a verified price series.", "sources": []}
         checks = result["planning"]["checks"]
         if runtime is None:
             # Explicitly labeled offline evidence recovery; never a model judgment.
