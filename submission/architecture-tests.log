@@ -1,0 +1,571 @@
+test_binding_cap_and_unassessed_esg_gate_overall_finding (test_allocation_compare.AllocationCompareTests) ... ok
+test_neutral_comparison_keeps_metrics_and_checks_an_explicit_limit (test_allocation_compare.AllocationCompareTests) ... ok
+test_profile_priority_changes_finding_on_identical_confirmed_options (test_allocation_compare.AllocationCompareTests) ... ok
+test_unverified_prices_or_mutated_reports_have_no_published_metrics (test_allocation_compare.AllocationCompareTests) ... ok
+test_accepts_one_weighted_allocation_without_a_comparator (test_allocation_request.AllocationRequestTests) ... ok
+test_additional_requirements_cannot_be_silently_removed (test_allocation_request.AllocationRequestTests) ... ok
+test_ambiguity_requires_correction_instead_of_reweighting (test_allocation_request.AllocationRequestTests) ... ok
+test_classifies_cashtags_and_lowercase_known_symbols (test_allocation_request.AllocationRequestTests) ... ok
+test_other_intents_remain_available (test_allocation_request.AllocationRequestTests) ... ok
+test_separate_balance_denomination_leaves_weights_and_cap_unchanged (test_allocation_request.AllocationRequestTests) ... ok
+test_amira_challenge_names_the_remaining_evidence_and_headroom (test_app.PortfolioAppTests) ... 2026-11-15 19:10:40.470 WARNING streamlit.runtime.scriptrunner_utils.script_run_context: Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_amira_displays_a_breach_and_withholds_an_unresolved_alternative (test_app.PortfolioAppTests) ... 2026-11-15 19:10:41.945 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_amira_reaudits_reviewed_disclosures_in_a_separate_result (test_app.PortfolioAppTests) ... 2026-11-15 19:10:42.388 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_bedrock_failure_can_recover_through_manual_entry (test_app.PortfolioAppTests) ... 2026-11-15 19:10:43.123 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_clarified_unsupported_constraint_limits_public_result (test_app.PortfolioAppTests) ... 2026-11-15 19:10:44.568 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_comparison_withholds_policy_changed_after_review (test_app.PortfolioAppTests) ... 2026-11-15 19:10:44.962 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-15 19:10:45.618 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_counterfactual_keeps_the_original_audited_policy (test_app.PortfolioAppTests) ... 2026-11-15 19:10:45.682 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_free_text_numeric_rules_require_provenance_or_explicit_entry (test_app.PortfolioAppTests) ... 2026-11-15 19:10:46.361 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_inconclusive_issuer_audit_still_waits_for_search_confirmation (test_app.PortfolioAppTests) ... 2026-11-15 19:10:46.796 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_live_clarification_waits_for_confirmation (test_app.PortfolioAppTests) ... 2026-11-15 19:10:47.607 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_loss_metric_changes_full_feasibility (test_app.PortfolioAppTests) ... 2026-11-15 19:10:49.714 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_manual_audit_confirms_custom_weights_and_keeps_the_scope_on_replay (test_app.PortfolioAppTests) ... 2026-11-15 19:10:50.427 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_manual_entry_works_without_bedrock_and_requires_confirmation_after_edits (test_app.PortfolioAppTests) ... 2026-11-15 19:10:51.458 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_manual_search_defers_smaller_permission_until_exact_size_fails (test_app.PortfolioAppTests) ... 2026-11-15 19:10:52.127 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_market_snapshot_change_discards_prior_review_and_search_permission (test_app.PortfolioAppTests) ... 2026-11-15 19:10:53.026 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_missing_market_evidence_prevents_the_search_followup (test_app.PortfolioAppTests) ... 2026-11-15 19:10:54.039 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_purchase_size_comparison_requires_search_consent (test_app.PortfolioAppTests) ... 2026-11-15 19:10:54.308 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_reference_search_requires_explicit_consent_and_invalidates_the_previous_report (test_app.PortfolioAppTests) ... 2026-11-15 19:10:54.884 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_reserve_challenge_accepts_one_explicit_precision_threshold (test_app.PortfolioAppTests) ... 2026-11-15 19:10:55.662 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_reserve_floor_switches_the_binding_rule (test_app.PortfolioAppTests) ... 2026-11-15 19:10:56.526 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_sector_review_status_is_separate_from_coverage_and_tampering_is_hidden (test_app.PortfolioAppTests) ... 2026-11-15 19:10:57.183 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-15 19:10:57.701 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_smaller_purchase_is_eligible_only_when_allowed (test_app.PortfolioAppTests) ... 2026-11-15 19:10:57.798 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_unsupported_binding_rule_blocks_confirmation (test_app.PortfolioAppTests) ... 2026-11-15 19:10:58.433 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_all_in_and_return_promise_are_answered_before_any_optional_replay (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:10:58.647 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_confirmed_context_changes_the_result_without_changing_the_assets (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:10:58.918 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_intent_suggestion_cannot_confirm_or_run_an_analysis (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:10:59.927 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_live_entry_preserves_stated_facts_in_open_ended_low_risk_request (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:11:00.317 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_live_request_checks_network_evidence_before_the_model_conclusion (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:11:00.501 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_missing_prices_without_a_documented_proxy_withhold_replay (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:11:00.684 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_mixed_request_answers_planning_and_exposes_unsupported_forecast (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:11:00.837 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_model_only_comparison_requires_full_scope_confirmation (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:11:01.043 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_non_english_question_is_blocked_before_cloud_or_market_data (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:11:01.409 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_open_ended_question_gets_planning_guidance_before_a_historical_example (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:11:01.661 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_question_text_sets_options_and_cap_without_manual_form (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:11:01.996 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_question_without_profile_can_compare_neutrally (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:11:02.538 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_share_purchase_recovers_when_bedrock_cannot_connect (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:11:02.867 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_single_allocation_can_run_with_currency_suffix (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:11:03.045 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_single_allocation_proxy_requires_approval_and_keeps_balance_separate (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:11:03.361 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_starter_fills_an_editable_question_and_new_question_clears_result (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:11:03.705 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_unhandled_requirement_does_not_run_using_unrelated_form (test_assistant_app.InvestmentAssistantTests) ... 2026-11-15 19:11:04.054 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_empty_and_excess_utf8_inputs_never_call_runtime (test_assistant_intent.AssistantIntentTests) ... ok
+test_no_route_for_unsupported_or_multiple_selections (test_assistant_intent.AssistantIntentTests) ... ok
+test_suggestion_retains_task_and_redacts_tool_payload (test_assistant_intent.AssistantIntentTests) ... ok
+test_allocation_weights_and_complete_quote (test_assistant_request.ComparisonRequestTests) ... ok
+test_chinese_request_carries_withdrawal_cap_and_esg (test_assistant_request.ComparisonRequestTests) ... ok
+test_conflicting_or_ambiguous_instructions_do_not_release_a_draft (test_assistant_request.ComparisonRequestTests) ... ok
+test_english_request_uses_an_explicit_metric_and_limit (test_assistant_request.ComparisonRequestTests) ... ok
+test_outside_scope_is_distinguished_from_a_trade_request (test_assistant_request.ComparisonRequestTests) ... ok
+test_replay_exclusion_and_profile_preferences_are_grounded (test_assistant_request.ComparisonRequestTests) ... ok
+test_unstated_priority_is_not_replaced_with_an_assumption (test_assistant_request.ComparisonRequestTests) ... ok
+test_app_does_not_reinterpret_a_ready_or_unsupported_whole_request (test_assistant_request_model.ComparisonRequestModelTests) ... ok
+test_sdk_selects_exact_clauses_for_a_reviewable_draft_and_redacts_trace (test_assistant_request_model.ComparisonRequestModelTests) ... ok
+test_tool_cannot_drop_a_negated_prefix_or_replace_the_request (test_assistant_request_model.ComparisonRequestModelTests) ... ok
+test_whole_request_cap_and_conflicts_survive_a_partial_model_handoff (test_assistant_request_model.ComparisonRequestModelTests) ... ok
+test_audit_only_loss_replay_preserves_authorization (test_audit_intent.AuditIntentTests) ... Executing <Task pending name='Task-252' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.163 seconds
+ok
+test_issuer_followup_for_an_original_trade_has_no_candidate (test_audit_intent.AuditIntentTests) ... ok
+test_original_trade_invokes_neither_search_nor_candidate_review (test_audit_intent.AuditIntentTests) ... Executing <Task pending name='Task-260' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:101> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.109 seconds
+Executing <Task finished name='Task-263' coro=<AuditIntentTests.test_original_trade_invokes_neither_search_nor_candidate_review.<locals>.invoke() done, defined at /Users/pengpeng/Documents/ChatGPT/Datathon Agent/implementation/tests/test_audit_intent.py:38> result=({'evidence_ids': [], 'status': 'ok', 'summary': 'No candidate requested.'}, 'end_turn') created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/tasks.py:636> took 0.101 seconds
+ok
+test_requirements_for_only_the_original_trade (test_audit_intent.AuditIntentTests) ... ok
+test_search_asks_about_smaller_size_only_when_it_can_help (test_audit_intent.AuditIntentTests) ... Executing <Task pending name='Task-270' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.350 seconds
+ok
+test_missing_usage_remains_unknown_for_an_incomplete_group (test_benchmark.BenchmarkUsageTests) ... ok
+test_claimed_review_success_does_not_release_a_decision (test_benchmark.SingleAgentBenchmarkTests) ... ok
+test_single_matches_independent_audit_with_present_or_missing_issuer_disclosures (test_benchmark.SingleAgentBenchmarkTests) ... ok
+test_tool_dependencies_reject_out_of_order_calls (test_benchmark.SingleAgentBenchmarkTests) ... ok
+test_expansion_uses_new_requests_and_distinct_publication_boundaries (test_challenge_benchmark.BenchmarkPolicyTests) ... ok
+test_fixed_policy_uses_verified_binding_and_abstains_without_a_material_rule (test_challenge_benchmark.BenchmarkPolicyTests) ... ok
+test_gold_spans_each_supported_challenge_and_p95_uses_nearest_rank (test_challenge_benchmark.BenchmarkPolicyTests) ... ok
+test_abstention_is_not_a_replay_and_does_not_leak_gold_into_tool (test_challenge_benchmark.ChallengeBenchmarkTests) ... ok
+test_cli_rejects_changed_inputs_before_arming_any_model (test_challenge_benchmark.ChallengeBenchmarkTests) ... ok
+test_live_arm_order_is_counterbalanced_per_case (test_challenge_benchmark.ChallengeBenchmarkTests) ... fixed loss_metric_path 1 no_material_challenge challenge_declined 1.53
+staged_multi loss_metric_path 1 no_material_challenge challenge_declined 1.53
+bundled_single loss_metric_path 1 no_material_challenge challenge_declined 1.53
+fixed loss_metric_path 2 no_material_challenge challenge_declined 1.53
+bundled_single loss_metric_path 2 no_material_challenge challenge_declined 1.53
+staged_multi loss_metric_path 2 no_material_challenge challenge_declined 1.53
+ok
+test_missing_official_fx_endpoint_never_enters_selection_denominator (test_challenge_benchmark.ChallengeBenchmarkTests) ... fixed market_fx_endpoint_missing 1 None baseline_not_verified 0.34
+ok
+test_offline_cli_measures_only_fixed_control (test_challenge_benchmark.ChallengeBenchmarkTests) ... fixed abstain_no_change_requested 1 no_material_challenge challenge_declined 1.55
+ok
+test_scores_missing_evidence_as_a_verified_action_without_a_reaudit (test_challenge_benchmark.ChallengeBenchmarkTests) ... ok
+test_scoring_catches_a_published_policy_change_or_unchecked_replay (test_challenge_benchmark.ChallengeBenchmarkTests) ... ok
+test_all_forced_choices_match_frozen_gold_on_official_inputs (test_challenge_benchmark.ExpandedOfficialDataTests) ... Executing <Task pending name='Task-317' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:101> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/tasks.py:665> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 1.289 seconds
+Executing <Task pending name='Task-317' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.252 seconds
+ok
+test_loss_frontiers_match_independent_decimal_endpoint_calculation (test_challenge_benchmark.ExpandedOfficialDataTests) ... ok
+test_action_includes_independently_derived_qqq_evidence_budget (test_counterfactual.ChallengeTests) ... ok
+test_an_invalid_base_audit_has_no_challenge (test_counterfactual.ChallengeTests) ... ok
+test_bad_numeric_override_reaches_neither_selector_nor_replayer (test_counterfactual.ChallengeTests) ... ok
+test_bounded_model_selection_requires_actual_callback (test_counterfactual.ChallengeTests) ... Executing <Task pending name='Task-344' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.101 seconds
+ok
+test_bundled_replay_preserves_the_same_comparison (test_counterfactual.ChallengeTests) ... Executing <Task pending name='Task-348' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:101> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.186 seconds
+ok
+test_explicit_reserve_value_replays_exactly_one_auditable_change (test_counterfactual.ChallengeTests) ... Executing <Task pending name='Task-352' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.173 seconds
+ok
+test_holdings_age_changes_issuer_audit_only (test_counterfactual.ChallengeTests) ... ok
+test_holdings_age_rejects_out_of_range_or_mistyped_values (test_counterfactual.ChallengeTests) ... ok
+test_holdings_age_value_tests_inclusive_effective_boundary (test_counterfactual.ChallengeTests) ... ok
+test_issuer_action_does_not_invent_or_reaudit_missing_disclosures (test_counterfactual.ChallengeTests) ... ok
+test_issuer_uncertainty_routes_to_evidence_instead_of_unrelated_size_rule (test_counterfactual.ChallengeTests) ... ok
+test_loss_metric_reaudit_changes_funding_verdict_and_preserves_baseline (test_counterfactual.ChallengeTests) ... Executing <Task pending name='Task-386' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.210 seconds
+ok
+test_nonmaterial_counterfactual_and_optout_do_not_recommend (test_counterfactual.ChallengeTests) ... Executing <Task pending name='Task-389' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.197 seconds
+ok
+test_purchase_size_can_map_a_diagnostic_to_an_eligible_alternative (test_counterfactual.ChallengeTests) ... Executing <Task pending name='Task-392' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.190 seconds
+ok
+test_reserve_floor_reaudit_uses_only_the_tighter_floor (test_counterfactual.ChallengeTests) ... Executing <Task pending name='Task-395' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.178 seconds
+ok
+test_tampered_replay_cannot_replace_the_audited_baseline (test_counterfactual.ChallengeTests) ... Executing <Task pending name='Task-398' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.184 seconds
+ok
+test_unsupported_or_duplicate_choices_release_no_comparison (test_counterfactual.ChallengeTests) ... ok
+test_confirmation_and_fresh_search_authorization_are_required (test_decision_challenge.DecisionChallengeTests) ... ok
+test_confirmed_floor_change_flips_and_preserves_original_snapshot (test_decision_challenge.DecisionChallengeTests) ... ok
+test_forged_change_and_unrelated_original_report_are_rejected (test_decision_challenge.DecisionChallengeTests) ... ok
+test_metric_change_preserves_cap_and_never_silently_changes_two_fields (test_decision_challenge.DecisionChallengeTests) ... ok
+test_read_only_failure_explanation_does_not_treat_user_labels_as_system_roles (test_decision_challenge.DecisionChallengeTests) ... ok
+test_read_only_questions_do_not_run_replay_or_funding (test_decision_challenge.DecisionChallengeTests) ... ok
+test_up_to_three_checks_anchor_to_original_and_do_not_accumulate (test_decision_challenge.DecisionChallengeTests) ... ok
+test_three_examples_publish_through_shared_pipeline (test_decision_cli.DecisionCliIntegrationTests) ... ok
+test_confirmation_never_implies_search (test_decision_cli.DecisionCliTests) ... ok
+test_duplicate_fields_and_claimed_model_origin_are_not_trusted (test_decision_cli.DecisionCliTests) ... ok
+test_example_limits_are_team_assumptions_before_confirmation (test_decision_cli.DecisionCliTests) ... ok
+test_explicit_search_preserves_original_and_binds_declared_scope (test_decision_cli.DecisionCliTests) ... ok
+test_no_confirmation_loads_no_market_and_runs_no_engine (test_decision_cli.DecisionCliTests) ... ok
+test_output_collision_and_unscoped_authorization_are_rejected (test_decision_cli.DecisionCliTests) ... ok
+test_raw_exception_details_never_enter_cli_output (test_decision_cli.DecisionCliTests) ... ok
+test_source_scope_prompts_after_original_and_decline_never_searches (test_decision_cli.DecisionCliTests) ... ok
+test_withheld_original_cannot_trigger_search (test_decision_cli.DecisionCliTests) ... ok
+test_absence_claim_requires_reviewed_complete_list (test_decision_evidence.DecisionEvidenceTests) ... ok
+test_cutoff_denominator_and_conflicting_latest_records (test_decision_evidence.DecisionEvidenceTests) ... ok
+test_direct_identity_does_not_use_fund_holdings_expiry (test_decision_evidence.DecisionEvidenceTests) ... ok
+test_evidence_instructions_are_data_and_do_not_change_bounds (test_decision_evidence.DecisionEvidenceTests) ... ok
+test_gpfg_scope_distinguishes_listed_states_and_fund_coverage (test_decision_evidence.DecisionEvidenceTests) ... ok
+test_malformed_weights_are_rejected (test_decision_evidence.DecisionEvidenceTests) ... ok
+test_nport_percentages_use_nav_and_uncovered_fund_stays_unknown (test_decision_evidence.DecisionEvidenceTests) ... ok
+test_post_qualification_changes_revoke_context_integrity (test_decision_evidence.DecisionEvidenceTests) ... ok
+test_sector_bounds_use_unmapped_exposure_and_independent_debt_ratio (test_decision_evidence.DecisionEvidenceTests) ... ok
+test_source_kinds_and_interval_coverage_are_separate (test_decision_evidence.DecisionEvidenceTests) ... ok
+test_starter_buckets_require_pinned_manifest_and_metadata (test_decision_evidence.DecisionEvidenceTests) ... ok
+test_unresolved_issuer_alias_is_not_a_proven_zero (test_decision_evidence.DecisionEvidenceTests) ... ok
+test_drawdown_checks_every_peak_to_trough_pair_before_certification (test_decision_funding.DecisionFundingTests) ... ok
+test_infeasibility_certificate_cannot_be_reused_after_constraint_is_relaxed (test_decision_funding.DecisionFundingTests) ... ok
+test_release_values_and_source_amounts_must_match_proof (test_decision_funding.DecisionFundingTests) ... ok
+test_rolling_loss_uses_last_observation_on_or_before_calendar_lookback (test_decision_funding.DecisionFundingTests) ... ok
+test_seeded_n_source_search_matches_closed_form_capacity_and_loss_bounds (test_decision_funding.DecisionFundingTests) ... ok
+test_terminal_limit_proves_infeasibility_or_maximum_only_with_permission (test_decision_funding.DecisionFundingTests) ... ok
+test_three_sources_have_independent_bounds_and_a_checked_retention_preference (test_decision_funding.DecisionFundingTests) ... ok
+test_unsupported_rules_and_missing_data_are_never_relaxed (test_decision_funding.DecisionFundingTests) ... ok
+test_zero_maximum_is_proved_and_no_trade_is_selected (test_decision_funding.DecisionFundingTests) ... ok
+test_bare_percentage_digits_require_the_original_adjacent_unit (test_decision_intake.DecisionIntakeTests) ... ok
+test_binding_question_does_not_erase_the_two_known_assets (test_decision_intake.DecisionIntakeTests) ... ok
+test_cad_units_and_generic_targets_do_not_use_demo_ticker_constants (test_decision_intake.DecisionIntakeTests) ... ok
+test_claimed_returns_are_not_converted_to_risk_limits (test_decision_intake.DecisionIntakeTests) ... ok
+test_french_reaches_model_while_direct_orders_stay_outside (test_decision_intake.DecisionIntakeTests) ... ok
+test_french_trade_and_binding_rule_are_grounded_and_ask_for_portfolio (test_decision_intake.DecisionIntakeTests) ... ok
+test_grounding_rejects_fabricated_and_quoted_excerpts (test_decision_intake.DecisionIntakeTests) ... ok
+test_injected_approval_does_not_call_model_or_create_rules (test_decision_intake.DecisionIntakeTests) ... ok
+test_intake_deadline_keeps_finite_limits_and_visible_fallback_evidence (test_decision_intake.DecisionIntakeTests) ... ok
+test_live_shaped_ranking_preference_does_not_create_a_missing_cap (test_decision_intake.DecisionIntakeTests) ... ok
+test_missing_amounts_or_unchecked_rules_get_one_contextual_question (test_decision_intake.DecisionIntakeTests) ... ok
+test_model_cannot_promote_a_reported_metric_claim_to_a_binding_cap (test_decision_intake.DecisionIntakeTests) ... ok
+test_model_handles_untemplated_wording_and_distinct_portfolios (test_decision_intake.DecisionIntakeTests) ... ok
+test_model_semantics_do_not_depend_on_english_intent_patterns (test_decision_intake.DecisionIntakeTests) ... ok
+test_numeric_context_stays_in_one_unique_operative_clause (test_decision_intake.DecisionIntakeTests) ... ok
+test_numeric_substrings_and_invented_units_are_not_grounded (test_decision_intake.DecisionIntakeTests) ... ok
+test_offline_drafts_each_task_before_confirmation (test_decision_intake.DecisionIntakeTests) ... ok
+test_optional_bound_sentinels_cannot_erase_or_invent_a_bound (test_decision_intake.DecisionIntakeTests) ... ok
+test_single_clarification_keeps_the_original_robert_cap (test_decision_intake.DecisionIntakeTests) ... ok
+test_strands_uses_sonnet_tool_with_a_stubbed_converse_response (test_decision_intake.DecisionIntakeTests) ... Executing <Task pending name='Task-487' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:101> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.105 seconds
+ok
+test_typed_robert_accepts_absent_optional_fields_without_losing_grounding (test_decision_intake.DecisionIntakeTests) ... ok
+test_unavailable_provider_retains_a_contextual_unconfirmed_draft (test_decision_intake.DecisionIntakeTests) ... ok
+test_validates_linked_quantities_and_preserves_auditable_rules (test_decision_intake.DecisionIntakeTests) ... ok
+test_validation_trace_contains_only_static_reasons_and_allows_correction (test_decision_intake.DecisionIntakeTests) ... ok
+test_cad_only_keeps_prices_from_dates_without_fx (test_decision_market.DecisionMarketTests) ... ok
+test_constant_local_quotes_isolate_fx_and_never_reconvert_cad (test_decision_market.DecisionMarketTests) ... ok
+test_crypto_raw_utc_gap_is_known_separately_from_joint_cad_calendar (test_decision_market.DecisionMarketTests) ... ok
+test_knowledge_cutoff_qualifies_publication_and_retrieval_separately (test_decision_market.DecisionMarketTests) ... ok
+test_loaded_prices_and_float_conversion_are_independently_checked (test_decision_market.DecisionMarketTests) ... ok
+test_missing_symbol_can_be_supplied_with_qualified_immutable_upload (test_decision_market.DecisionMarketTests) ... ok
+test_organizer_series_remains_on_its_own_adjustment_basis (test_decision_market.DecisionMarketTests) ... ok
+test_pinned_calendar_reports_internal_gaps_and_does_not_apply_to_cad_only (test_decision_market.DecisionMarketTests) ... ok
+test_rejects_malformed_upload_and_future_observations (test_decision_market.DecisionMarketTests) ... ok
+test_same_day_fx_local_panel_and_exact_source_line (test_decision_market.DecisionMarketTests) ... ok
+test_composition_prompt_has_no_conflicting_restatement_ban_and_other_roles_are_unchanged (test_decision_release.NarrativeTests) ... ok
+test_dynamic_tool_example_passes_the_unchanged_gate (test_decision_release.NarrativeTests) ... ok
+test_model_failure_retains_template_without_raw_error (test_decision_release.NarrativeTests) ... ok
+test_model_narrative_release_and_withdrawal_keep_same_checked_facts (test_decision_release.NarrativeTests) ... ok
+test_changes_after_review_withhold_all_financial_fields (test_decision_release.ReleaseTests) ... ok
+test_confirmed_inputs_are_visible_without_request_or_excerpt (test_decision_release.ReleaseTests) ... ok
+test_export_detects_nested_mutation_and_requires_issued_authority (test_decision_release.ReleaseTests) ... ok
+test_non_numeric_synonyms_and_missing_fact_cannot_bypass_composition_gate (test_decision_release.ReleaseTests) ... ok
+test_numeric_sentence_cannot_swap_asset_or_window (test_decision_release.ReleaseTests) ... ok
+test_pdf_views_share_reviewed_numbers_and_simulation_boundary (test_decision_release.ReleaseTests) ... ok
+test_s3_requires_versioning_and_keeps_exact_exported_bytes (test_decision_release.ReleaseTests) ... ok
+test_chart_path_is_independently_verified_at_every_observation (test_decision_replay.DecisionReplayTest) ... ok
+test_first_equal_worst_drawdown_is_selected (test_decision_replay.DecisionReplayTest) ... ok
+test_invalid_prices_dates_and_weights_are_rejected (test_decision_replay.DecisionReplayTest) ... ok
+test_named_stress_uses_same_initial_allocation_as_its_direct_replay (test_decision_replay.DecisionReplayTest) ... ok
+test_no_drawdown_and_insufficient_risk_samples (test_decision_replay.DecisionReplayTest) ... ok
+test_recovery_and_sample_volatility (test_decision_replay.DecisionReplayTest) ... ok
+test_rolling_calendar_anniversaries_and_earliest_tie (test_decision_replay.DecisionReplayTest) ... ok
+test_seeded_unseen_allocations_preserve_attribution_and_scaling (test_decision_replay.DecisionReplayTest) ... ok
+test_stress_percentile_with_one_window_and_missing_endpoints (test_decision_replay.DecisionReplayTest) ... ok
+test_stress_percentiles_match_interval_length_and_use_half_ties (test_decision_replay.DecisionReplayTest) ... ok
+test_tampering_with_recovery_rolling_attribution_or_fx_is_rejected (test_decision_replay.DecisionReplayTest) ... ok
+test_unrecovered_drawdown_and_first_tied_peak (test_decision_replay.DecisionReplayTest) ... ok
+test_weighted_attribution_and_reconciled_fx_decomposition (test_decision_replay.DecisionReplayTest) ... ok
+test_worst_month_requires_consecutive_complete_period (test_decision_replay.DecisionReplayTest) ... ok
+test_confirmation_and_view_switch_share_one_immutable_result (test_decision_view.DecisionViewTests) ... 2026-11-15 19:11:15.138 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_evaluation_preserves_esg_as_an_unresolved_requirement (test_decision_view.DecisionViewTests) ... 2026-11-15 19:11:16.729 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_original_audit_requires_separate_search_and_clear_resets_everything (test_decision_view.DecisionViewTests) ... 2026-11-15 19:11:17.908 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_selecting_another_profile_refreshes_the_editable_fields (test_decision_view.DecisionViewTests) ... 2026-11-15 19:11:22.152 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_tampering_is_blocked_before_any_metric_is_rendered (test_decision_view.DecisionViewTests) ... 2026-11-15 19:11:22.376 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_unavailable_bedrock_preserves_a_french_draft_without_running (test_decision_view.DecisionViewTests) ... 2026-11-15 19:11:23.031 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_unknown_share_purchase_has_context_and_an_upload_route (test_decision_view.DecisionViewTests) ... 2026-11-15 19:11:23.167 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_unresolved_exposure_is_visible_and_withholds_the_ranking (test_decision_view.DecisionViewTests) ... 2026-11-15 19:11:23.261 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_withdrawn_narrative_exposes_reason_and_trace_without_rejected_text (test_decision_view.ExplanationActivityTests) ... ok
+test_authorized_robert_boundary_and_new_decision_rejects_reuse (test_decision_workflow.DecisionWorkflowTests) ... ok
+test_capital_uses_initial_and_actual_peak_denominators (test_decision_workflow.DecisionWorkflowTests) ... ok
+test_display_labels_never_exclude_non_audit_binding_rules (test_decision_workflow.DecisionWorkflowTests) ... ok
+test_exported_certificate_reproduces_independent_funding_verification (test_decision_workflow.DecisionWorkflowTests) ... ok
+test_invalid_capital_and_conversion_mismatch_need_new_confirmation (test_decision_workflow.DecisionWorkflowTests) ... ok
+test_market_or_numeric_tampering_fails_closed (test_decision_workflow.DecisionWorkflowTests) ... ok
+test_one_ineligible_candidate_does_not_hide_eligible_metric_ranking (test_decision_workflow.DecisionWorkflowTests) ... ok
+test_proven_failure_does_not_hide_an_unassessed_rule (test_decision_workflow.DecisionWorkflowTests) ... ok
+test_rule_tampering_is_detected_even_when_metrics_are_correct (test_decision_workflow.DecisionWorkflowTests) ... ok
+test_three_paths_replay_and_original_never_searches (test_decision_workflow.DecisionWorkflowTests) ... ok
+test_unsupported_axes_remain_unknown_at_trivial_interval_boundaries (test_decision_workflow.DecisionWorkflowTests) ... ok
+test_unsupported_condition_stays_unknown_and_search_is_unassessed (test_decision_workflow.DecisionWorkflowTests) ... ok
+test_screening_preserves_feasibility_boundaries_and_witness (test_drawdown_constraints.DrawdownConstraintTests) ... ok
+test_bad_holding_records_become_unknown_without_affecting_other_holdings (test_evidence.IssuerEvidenceTests) ... ok
+test_bad_or_absent_snapshot_never_changes_direct_exposure (test_evidence.IssuerEvidenceTests) ... ok
+test_frozen_snapshot_uses_disclosed_fractions_and_keeps_assumptions_unknown (test_evidence.IssuerEvidenceTests) ... ok
+test_invalid_date_context_is_rejected (test_evidence.IssuerEvidenceTests) ... ok
+test_missing_holding_has_no_observation_date_or_age (test_evidence.IssuerEvidenceTests) ... ok
+test_observation_freshness_is_inclusive (test_evidence.IssuerEvidenceTests) ... ok
+test_publication_must_be_available_by_cutoff_and_reference_date (test_evidence.IssuerEvidenceTests) ... ok
+test_age_limit_is_inclusive_and_based_on_holdings_observation (test_evidence_workflow.EvidenceWorkflowTests) ... ok
+test_breached_baseline_and_disallowed_smaller_purchase_are_separate (test_evidence_workflow.EvidenceWorkflowTests) ... Executing <Task pending name='Task-557' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.184 seconds
+ok
+test_current_disclosures_establish_breach_with_partial_coverage (test_evidence_workflow.EvidenceWorkflowTests) ... ok
+test_current_historical_replay_survives_stale_unpublished_and_missing_holdings (test_evidence_workflow.EvidenceWorkflowTests) ... ok
+test_disclosure_becomes_eligible_on_publication_day (test_evidence_workflow.EvidenceWorkflowTests) ... ok
+test_issuer_limit_uses_full_precision_before_display_rounding (test_evidence_workflow.EvidenceWorkflowTests) ... ok
+test_malformed_disclosure_is_excluded_and_market_replay_survives (test_evidence_workflow.EvidenceWorkflowTests) ... ok
+test_malformed_market_endpoint_prevents_decision (test_evidence_workflow.EvidenceWorkflowTests) ... Executing <Task pending name='Task-593' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.224 seconds
+ok
+test_checks_equity_sleeve_denominator_and_keeps_one_catalog (test_exposure_review.ExposureReviewTests) ... ok
+test_checks_publication_cutoff_and_restricts_no_evidence (test_exposure_review.ExposureReviewTests) ... ok
+test_recomputes_sector_lower_upper_and_signed_change (test_exposure_review.ExposureReviewTests) ... ok
+test_rejects_fabricated_bounds_taxonomy_and_unknown_share (test_exposure_review.ExposureReviewTests) ... ok
+test_requalifies_issuer_disclosure_and_cancels_unchanged_unknowns (test_exposure_review.ExposureReviewTests) ... ok
+test_a_shared_but_wrong_cad_price_does_not_pass_review (test_financial_boundary.FinancialBoundaryTests) ... Executing <Task pending name='Task-596' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.151 seconds
+ok
+test_optional_calculation_failure_leaves_original_audit_available (test_financial_boundary.FinancialBoundaryTests) ... ok
+test_constant_prices_and_fx_have_zero_risk_and_return (test_formula_acceptance.FormulaAcceptanceTests) ... ok
+test_limit_check_uses_unrounded_loss (test_formula_acceptance.FormulaAcceptanceTests) ... ok
+test_loss_path_measures_drawdown_from_the_intermediate_peak (test_formula_acceptance.FormulaAcceptanceTests) ... ok
+test_profitable_path_retains_its_intraperiod_drawdown (test_formula_acceptance.FormulaAcceptanceTests) ... ok
+test_signed_contributions_use_buy_and_hold_and_each_portfolios_own_peak (test_formula_acceptance.FormulaAcceptanceTests) ... ok
+test_uniform_price_scaling_preserves_risk_and_contributions (test_formula_acceptance.FormulaAcceptanceTests) ... ok
+test_composed_comparisons_bind_two_assets_and_the_exact_cap (test_general_intake.GeneralIntakeTests) ... ok
+test_composed_guarantee_questions_preserve_the_claim_in_context (test_general_intake.GeneralIntakeTests) ... ok
+test_composed_planning_questions_keep_stated_money_goal_and_risk (test_general_intake.GeneralIntakeTests) ... ok
+test_context_substitutions_change_only_the_stated_fact (test_general_intake.GeneralIntakeTests) ... ok
+test_explicit_unsupported_actions_never_downgrade_to_planning (test_general_intake.GeneralIntakeTests) ... ok
+test_historical_requests_do_not_substitute_an_unavailable_asset (test_general_intake.GeneralIntakeTests) ... ok
+test_model_disagreement_keeps_grounded_comparison_and_scope_checks (test_general_intake.GeneralIntakeTests) ... ok
+test_share_purchase_keeps_source_amount_and_ticker_across_model_outcomes (test_general_intake.GeneralIntakeTests) ... ok
+test_share_purchase_respects_order_scope_and_operating_language (test_general_intake.GeneralIntakeTests) ... ok
+test_third_party_amounts_and_preferences_stay_separate (test_general_intake.GeneralIntakeTests) ... ok
+test_unrelated_requests_cannot_open_a_financial_workflow (test_general_intake.GeneralIntakeTests) ... ok
+test_copied_candidate_pass_and_funding_are_verified (test_governance.GovernanceTests) ... ok
+test_dates_free_concentration_certificate_is_recomputed (test_governance.GovernanceTests) ... ok
+test_drawdown_attribution_recomputes_signed_asset_contributions (test_governance.GovernanceTests) ... ok
+test_drawdown_yields_independent_no_solution_and_rejects_bad_witness (test_governance.GovernanceTests) ... ok
+test_exact_size_catches_partial_proposal_and_false_best (test_governance.GovernanceTests) ... ok
+test_exact_size_excludes_otherwise_feasible_smaller_purchase (test_governance.GovernanceTests) ... ok
+test_exact_size_exclusion_is_known_even_when_diagnostic_is_uncertain (test_governance.GovernanceTests) ... ok
+test_exact_size_retains_full_result_and_no_size_infeasible_cases (test_governance.GovernanceTests) ... ok
+test_known_exposure_can_exceed_cap_despite_other_unknown_positions (test_governance.GovernanceTests) ... ok
+test_metric_and_frontier_tampering_withhold_result (test_governance.GovernanceTests) ... ok
+test_missing_frozen_endpoint_or_currency_provenance_blocks_decision (test_governance.GovernanceTests) ... ok
+test_missing_qqq_cannot_be_treated_as_zero (test_governance.GovernanceTests) ... ok
+test_partial_counterfactual_respects_only_permitted_source (test_governance.GovernanceTests) ... ok
+test_scope_assumptions_require_explicit_opt_in (test_governance.GovernanceTests) ... ok
+test_terminal_cap_fails_request_but_supports_full_counterfactual (test_governance.GovernanceTests) ... ok
+test_unsupported_funding_source_is_invalid (test_governance.GovernanceTests) ... ok
+test_ambiguous_or_conflicting_agent_handoff_does_not_release_policy (test_intake_release.IntakeReleaseTests) ... ok
+test_cli_audits_confirmed_reference_cases_and_checks_ambiguous_intake (test_intake_release.IntakeReleaseTests) ... ok
+test_combined_issuer_cap_survives_handoff_without_a_loss_cap (test_intake_release.IntakeReleaseTests) ... ok
+test_confirmed_cli_audit_excludes_excerpts_and_request (test_intake_release.IntakeReleaseTests) ... ok
+test_reported_purchase_sizes_survive_partial_model_excerpts (test_intake_release.IntakeReleaseTests) ... ok
+test_confirmed_priority_controls_focus_and_is_preserved_in_export (test_investor_profile.InvestorProfileTests) ... ok
+test_objective_and_withdrawal_horizon_change_suggested_priority (test_investor_profile.InvestorProfileTests) ... ok
+test_plain_and_partial_requests_can_keep_or_select_a_priority (test_investor_profile.InvestorProfileTests) ... ok
+test_profile_rejects_unconfirmed_or_unsupported_inputs (test_investor_profile.InvestorProfileTests) ... ok
+test_risk_willingness_influences_growth_without_overriding_near_term_withdrawal (test_investor_profile.InvestorProfileTests) ... ok
+test_bad_pin_unknown_conflicting_stale_and_future_records_do_not_replay (test_issuer_reaudit.ReviewedIssuerReauditTests) ... ok
+test_full_and_partial_reaudit_preserve_original_and_distinct_fund_dates (test_issuer_reaudit.ReviewedIssuerReauditTests) ... ok
+test_reaudit_rejects_reviewed_policy_or_market_mutation (test_issuer_reaudit.ReviewedIssuerReauditTests) ... ok
+test_unpinned_row_tampering_and_stale_requalification_keep_weight_unknown (test_issuer_reaudit.ReviewedIssuerReauditTests) ... ok
+test_history_is_withheld_when_independent_check_fails (test_live_market_analysis.LiveMarketAnalysisTests) ... ok
+test_invalid_quantities_and_quotes_are_rejected_before_calculation (test_live_market_analysis.LiveMarketAnalysisTests) ... ok
+test_last_trade_notional_and_independently_checked_adjusted_history (test_live_market_analysis.LiveMarketAnalysisTests) ... ok
+test_missing_invalid_and_unnormalized_history_cannot_produce_risk_metrics (test_live_market_analysis.LiveMarketAnalysisTests) ... ok
+test_research_without_quantity_or_history_has_no_inferred_amount (test_live_market_analysis.LiveMarketAnalysisTests) ... ok
+test_bad_input_and_missing_credentials_do_not_call_network (test_live_market_data.AlpacaMarketDataTests) ... ok
+test_calendar_failure_does_not_claim_complete_history (test_live_market_data.AlpacaMarketDataTests) ... ok
+test_duplicate_dates_or_repeated_page_token_are_rejected (test_live_market_data.AlpacaMarketDataTests) ... ok
+test_history_collects_pages_and_validates_against_separate_market_calendar (test_live_market_data.AlpacaMarketDataTests) ... ok
+test_latest_trade_carries_provenance_and_actual_timestamp (test_live_market_data.AlpacaMarketDataTests) ... ok
+test_secret_and_provider_error_body_are_not_exposed (test_live_market_data.AlpacaMarketDataTests) ... ok
+test_wrong_symbol_currency_future_or_invalid_price_is_rejected (test_live_market_data.AlpacaMarketDataTests) ... ok
+test_conflicting_purchase_sizes_are_held_even_if_model_selects_one (test_live_market_intake.LiveMarketIntakeTests) ... ok
+test_local_scope_selects_latest_quote_history_or_clarification (test_live_market_intake.LiveMarketIntakeTests) ... ok
+test_model_cannot_turn_an_approximation_or_share_range_into_an_exact_count (test_live_market_intake.LiveMarketIntakeTests) ... ok
+test_model_selects_an_evidenced_lookup_for_a_naturally_worded_proposal (test_live_market_intake.LiveMarketIntakeTests) ... ok
+test_no_lookup_for_orders_forecasts_or_misattributed_purchase_size (test_live_market_intake.LiveMarketIntakeTests) ... ok
+test_open_ended_investment_opinion_keeps_planning_when_model_disagrees (test_live_market_intake.LiveMarketIntakeTests) ... ok
+test_proxy_failure_preserves_grounded_shares_and_uses_the_approved_provider (test_live_market_intake.LiveMarketIntakeTests) ... ok
+test_rejects_invented_inputs_and_arbitrary_network_sources (test_live_market_intake.LiveMarketIntakeTests) ... ok
+test_unsupported_dates_currency_and_interval_cannot_be_discarded (test_live_market_intake.LiveMarketIntakeTests) ... ok
+test_conclusion_uses_verified_calculation_and_filters_trace_and_model_text (test_live_market_summary.LiveMarketSummaryTests) ... ok
+test_duplicate_handoff_and_runtime_budget_hold_summary (test_live_market_summary.LiveMarketSummaryTests) ... ok
+test_missing_quote_and_history_do_not_publish_unverified_conclusions (test_live_market_summary.LiveMarketSummaryTests) ... ok
+test_strands_tool_generates_checked_historical_conclusion (test_live_market_summary.LiveMarketSummaryTests) ... Executing <Task pending name='Task-704' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:101> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.123 seconds
+ok
+test_no_completeness_claim_for_unregistered_date_range (test_market_calendar.CalendarScopeTests) ... ok
+test_calendar_coverage_has_reasoned_exclusions_and_observation_counts (test_market_calendar.StarterCalendarTests) ... ok
+test_gap_reasons_and_counts_use_consecutive_expected_market_sessions (test_market_calendar.StarterCalendarTests) ... ok
+test_independent_review_requires_the_same_archived_sessions (test_market_calendar.StarterCalendarTests) ... ok
+test_only_documented_fx_exclusions_are_accepted (test_market_calendar.StarterCalendarTests) ... ok
+test_single_missing_trough_withholds_an_alternative (test_market_calendar.StarterCalendarTests) ... Executing <Task pending name='Task-727' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.245 seconds
+ok
+test_archive_version_changes_when_replaced (test_market_provenance.MarketProvenanceTests) ... ok
+test_incomplete_coverage_remains_a_diagnostic_without_raw_sources (test_market_provenance.MarketProvenanceTests) ... ok
+test_rebuilds_exact_date_fx_and_preserves_cad_adjusted_closes (test_market_provenance.MarketProvenanceTests) ... ok
+test_rejects_altered_fixing_even_when_cad_prices_are_unchanged (test_market_provenance.MarketProvenanceTests) ... ok
+test_rejects_duplicate_and_invalid_source_observations (test_market_provenance.MarketProvenanceTests) ... ok
+test_rejects_extra_replay_date_and_altered_source_metadata (test_market_provenance.MarketProvenanceTests) ... ok
+test_rejects_inverted_shifted_and_repeated_price_transforms (test_market_provenance.MarketProvenanceTests) ... ok
+test_requires_provenance_for_loaded_market_with_fixture_compatibility (test_market_provenance.MarketProvenanceTests) ... ok
+test_resolves_exact_extracted_source_and_detects_csv_changes (test_market_provenance.MarketProvenanceTests) ... ok
+test_exposure_index_is_removed_when_only_optional_section_changes (test_metric_records.MetricRecordTests) ... ok
+test_historical_funding_and_rule_numbers_use_reviewed_reference_paths (test_metric_records.MetricRecordTests) ... ok
+test_metric_references_cannot_be_injected_or_survive_core_tampering (test_metric_records.MetricRecordTests) ... ok
+test_published_replay_comparisons_and_issuer_thresholds_are_indexed (test_metric_records.MetricRecordTests) ... Executing <Task pending name='Task-741' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:101> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/tasks.py:665> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.197 seconds
+ok
+test_competition_configuration_is_the_default (test_model_settings.BedrockModelSettingsTests) ... ok
+test_empty_overrides_use_the_default_for_that_setting (test_model_settings.BedrockModelSettingsTests) ... ok
+test_failure_message_distinguishes_credentials_permissions_and_timeouts (test_model_settings.BedrockModelSettingsTests) ... ok
+test_model_choices_remain_independent_and_use_the_selected_region (test_model_settings.BedrockModelSettingsTests) ... ok
+test_suite_console_and_export_read_the_published_audit (test_numeric_output.NumericOutputTests) ... ok
+test_direct_entry_defaults_to_offline (test_offline_profile_app.OfflineProfileAppTests) ... 2026-11-15 19:11:54.115 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_missing_bedrock_credentials_offer_unconfirmed_offline_continuation (test_offline_profile_app.OfflineProfileAppTests) ... 2026-11-15 19:11:54.310 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_question_runs_offline_after_review_without_funding_search (test_offline_profile_app.OfflineProfileAppTests) ... 2026-11-15 19:11:54.535 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_byte_limit_and_non_text_remain_safe (test_offline_profile_grounding.OfflineProfileGroundingTests) ... ok
+test_competing_or_rejected_funding_is_unresolved (test_offline_profile_grounding.OfflineProfileGroundingTests) ... ok
+test_existing_binding_checks_preserve_unsupported_requirements (test_offline_profile_grounding.OfflineProfileGroundingTests) ... ok
+test_explicit_unsupported_trade_never_proposes_a_replacement (test_offline_profile_grounding.OfflineProfileGroundingTests) ... ok
+test_grounded_draft_has_verbatim_fields_and_private_trace (test_offline_profile_grounding.OfflineProfileGroundingTests) ... ok
+test_missing_metric_is_not_invented (test_offline_profile_grounding.OfflineProfileGroundingTests) ... ok
+test_generated_structured_inputs_are_valid_across_seeds (test_paired_benchmark.GeneratedCohortTests) ... ok
+test_inputs_are_reproducible_per_seed_and_vary_across_seeds (test_paired_benchmark.GeneratedCohortTests) ... ok
+test_original_audit_rejects_solver_calls_and_values (test_paired_benchmark.GeneratedCohortTests) ... ok
+test_response_receipts_are_hashed_and_failed_calls_are_counted (test_paired_benchmark.GeneratedCohortTests) ... ok
+test_manifest_can_verify_replay_in_both_search_scopes (test_paired_benchmark.ReviewManifestTests) ... Executing <Task pending name='Task-758' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:101> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.163 seconds
+Executing <Task pending name='Task-758' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:101> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.129 seconds
+Executing <Task finished name='Task-761' coro=<run_case() done, defined at /Users/pengpeng/Documents/ChatGPT/Datathon Agent/implementation/datathon/workflow.py:222> result={'_audit_snapshot': '{"kind":"aud..._version":2}}', '_review_id': '1bcf455996c7...63727c399da8d', 'agent_outputs': {'alternatives': {'evidence_ids': [], 'status': 'ok', 'summary': 'Local role simulation'}, 'evidence': {'evidence_ids': [], 'status': 'ok', 'summary': 'Local policy routing'}, 'profile': {'allow_smaller': True, 'allowed_sources': ['QQQ', 'ZST.TO'], 'evidence_ids': [], 'initial_source': 'ZST.TO', ...}, 'review': {'evidence_ids': [], 'status': 'ok', 'summary': 'Local role simulation'}, ...}, 'alternatives': {'certificate': None, 'frontier': {'diagnostic_max_total': 0.0475, 'full_possible': True, 'full_zst_max': 0.001385993954832726, 'full_zst_max_binding': 'max_drawdown', ...}, 'status': 'feasible_full'}, ...} created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/tasks.py:636> took 0.133 seconds
+ok
+test_balance_currency_accepts_inline_and_separate_confirmations (test_planning_request.PlanningRequestTests) ... ok
+test_chinese_planning_intake (test_planning_request.PlanningRequestTests) ... ok
+test_conflicting_currency_can_be_explicitly_corrected (test_planning_request.PlanningRequestTests) ... ok
+test_equal_amount_mentions_and_currency_aliases_are_coalesced (test_planning_request.PlanningRequestTests) ... ok
+test_execution_and_explicit_historical_requests_keep_their_routes (test_planning_request.PlanningRequestTests) ... ok
+test_low_risk_refers_to_the_users_preference (test_planning_request.PlanningRequestTests) ... ok
+test_mixed_question_keeps_concentration_and_guarantee_as_context (test_planning_request.PlanningRequestTests) ... ok
+test_mixed_stated_balances_are_held_for_confirmation (test_planning_request.PlanningRequestTests) ... ok
+test_multiple_unattributed_amounts_do_not_become_the_investment_budget (test_planning_request.PlanningRequestTests) ... ok
+test_open_ended_baby_expenses_question_retains_the_stated_tradeoffs (test_planning_request.PlanningRequestTests) ... ok
+test_opinion_request_uses_stated_budget_options_and_risk_preference (test_planning_request.PlanningRequestTests) ... ok
+test_other_goals_and_instruments_use_only_stated_currency_and_timing (test_planning_request.PlanningRequestTests) ... ok
+test_owned_balance_uses_plural_and_singular_statements (test_planning_request.PlanningRequestTests) ... ok
+test_standalone_return_claim_routes_to_education_without_fabricating_a_product (test_planning_request.PlanningRequestTests) ... ok
+test_unknown_timing_and_denied_concern_stay_unstated (test_planning_request.PlanningRequestTests) ... ok
+test_unrelated_currencies_do_not_ground_an_ambiguous_balance (test_planning_request.PlanningRequestTests) ... ok
+test_additive_permission_and_exhaustive_conflict_stay_separate (test_profile.ProfileHandoffTests) ... ok
+test_adopted_quote_requires_corroborating_model_size (test_profile.ProfileHandoffTests) ... ok
+test_audit_scope_does_not_discard_explicit_funding_conflict (test_profile.ProfileHandoffTests) ... ok
+test_bare_loss_cap_preserves_number_with_specific_clarification (test_profile.ProfileHandoffTests) ... ok
+test_conflicting_funding_takes_precedence_over_editable_loss_ambiguity (test_profile.ProfileHandoffTests) ... ok
+test_correction_preserves_other_numeric_rules (test_profile.ProfileHandoffTests) ... ok
+test_dual_caps_cannot_be_approved_by_a_single_metric_handoff (test_profile.ProfileHandoffTests) ... ok
+test_exact_equal_priority_metric_conflict_takes_precedence (test_profile.ProfileHandoffTests) ... ok
+test_exact_modifiers_do_not_authorize_unsupported_or_competing_quantities (test_profile.ProfileHandoffTests) ... ok
+test_exact_purchase_modifiers_ground_supported_bilingual_quantities (test_profile.ProfileHandoffTests) ... ok
+test_excerpt_cannot_override_quote_negation_or_numeric_mismatch (test_profile.ProfileHandoffTests) ... ok
+test_explicit_numeric_constraints_survive_omissions_and_wrong_loss_definition (test_profile.ProfileHandoffTests) ... ok
+test_explicitly_removed_loss_rule_cannot_be_restored_by_old_model_value (test_profile.ProfileHandoffTests) ... ok
+test_initial_funding_recovers_a_unique_explicit_source (test_profile.ProfileHandoffTests) ... ok
+test_initial_source_recovery_does_not_erase_binding_or_loss_questions (test_profile.ProfileHandoffTests) ... ok
+test_later_correction_of_one_field_keeps_other_revised_terms (test_profile.ProfileHandoffTests) ... ok
+test_material_requirements_survive_a_model_handoff_that_omits_them (test_profile.ProfileHandoffTests) ... ok
+test_never_recovers_quoted_conditional_or_competing_funding (test_profile.ProfileHandoffTests) ... ok
+test_no_size_recovery_from_negation_quotes_or_competing_amounts (test_profile.ProfileHandoffTests) ... ok
+test_numeric_excerpts_must_match_the_request_number_unit_and_rule (test_profile.ProfileHandoffTests) ... ok
+test_only_search_entries_require_alternative_permissions (test_profile.ProfileHandoffTests) ... ok
+test_original_source_defaults_only_when_separate_permission_is_omitted (test_profile.ProfileHandoffTests) ... ok
+test_other_percentage_cannot_authorize_a_rule (test_profile.ProfileHandoffTests) ... ok
+test_plain_percent_cannot_be_used_as_purchase_size (test_profile.ProfileHandoffTests) ... ok
+test_quantity_excerpt_corroborates_the_full_trade_clause (test_profile.ProfileHandoffTests) ... ok
+test_recovers_only_explicit_purchase_size_and_grounded_excerpt (test_profile.ProfileHandoffTests) ... ok
+test_supported_numbers_and_exact_excerpts_stay_separate (test_profile.ProfileHandoffTests) ... ok
+test_terminal_sentence_does_not_override_model_hold (test_profile.ProfileHandoffTests) ... ok
+test_unadopted_examples_and_preferences_do_not_add_rules (test_profile.ProfileHandoffTests) ... ok
+test_unknown_model_binding_term_remains_unassessed_without_fabricated_excerpt (test_profile.ProfileHandoffTests) ... ok
+test_unsupported_direct_constraint_blocks_even_a_complete_draft (test_profile.ProfileHandoffTests) ... ok
+test_sdk_handoff_excludes_verbatim_excerpts_and_failed_tool_values_from_trace (test_profile.ProfileSDKTests) ... ok
+test_sdk_respects_audit_scope_and_keeps_material_text_out_of_trace (test_profile.ProfileSDKTests) ... ok
+test_handoff_conflict_stays_blocked_even_inside_adopted_quote (test_profile_quote_holdout.ProfileQuoteCohortTests) ... ok
+test_after_review_changes_cannot_reuse_core_verification (test_publication.PublicationTests) ... Executing <Task pending name='Task-777' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.190 seconds
+ok
+test_audit_only_and_unevaluated_rules_keep_original_scope (test_publication.PublicationTests) ... ok
+test_challenge_recomputes_public_differences_from_verified_replays (test_publication.PublicationTests) ... Executing <Task pending name='Task-783' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.194 seconds
+ok
+test_challenge_rejects_changed_statement_and_stale_replay (test_publication.PublicationTests) ... Executing <Task pending name='Task-786' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.213 seconds
+ok
+test_challenge_rejects_modified_issuer_action_threshold (test_publication.PublicationTests) ... ok
+test_incomplete_disclosures_keep_verified_original_and_indicate_unresolved_search (test_publication.PublicationTests) ... ok
+test_invalid_review_keeps_only_diagnostic_status_and_safe_trace (test_publication.PublicationTests) ... ok
+test_optional_section_tampering_leaves_other_sections_verified (test_publication.PublicationTests) ... ok
+test_release_uses_reviewed_values_and_never_copies_model_prose (test_publication.PublicationTests) ... ok
+test_accepts_clear_english_and_short_ticker_comparisons (test_question_language.QuestionLanguageTests) ... ok
+test_needs_visible_question_text (test_question_language.QuestionLanguageTests) ... ok
+test_rejects_non_english_questions_and_mixed_language (test_question_language.QuestionLanguageTests) ... ok
+test_cli_authorizes_resize_after_independent_full_size_check (test_request_entry.RequestEntryTests) ... ok
+test_cli_shows_unresolved_original_audit_before_optional_search (test_request_entry.RequestEntryTests) ... ok
+test_cli_skips_search_offer_if_original_has_no_verified_proposal (test_request_entry.RequestEntryTests) ... ok
+test_default_cli_audits_the_original_without_resize_followup (test_request_entry.RequestEntryTests) ... ok
+test_scoped_shortcut_does_not_skip_an_unverified_numeric_rule (test_request_entry.RequestEntryTests) ... ok
+test_limited_review_keeps_public_sector_bounds_and_blocks_funding_search (test_requirement_status.PublishedScopeTests) ... Executing <Task pending name='Task-840' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:101> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/tasks.py:665> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.122 seconds
+ok
+test_blocked_report_never_claims_checked_requirements (test_requirement_status.RequirementStatusTests) ... ok
+test_marks_verified_violation_and_unassessed_condition_separately (test_requirement_status.RequirementStatusTests) ... ok
+test_matched_faults_recover_or_withhold_before_releasing_results (test_resilience_benchmark.ResilienceBenchmarkTests) ... ok
+test_sdk_throttle_only_retries_once_and_respects_action_limit (test_runtime_budget.BedrockTransportTests) ... ok
+test_oversized_profile_stops_before_invocation (test_runtime_budget.RuntimeBudgetTests) ... ok
+test_parallel_workers_share_one_attempt_budget (test_runtime_budget.RuntimeBudgetTests) ... ok
+test_reported_token_threshold_stops_new_model_calls (test_runtime_budget.RuntimeBudgetTests) ... ok
+test_timeout_has_no_output_after_cancelling_unverified_work (test_runtime_budget.RuntimeBudgetTests) ... ok
+test_closes_dispatch_without_waiting_for_running_transport (test_runtime_budget.SynchronousActionTests) ... ok
+test_archive_hash_and_optional_dns_failure_are_precise (test_runtime_check.RuntimeCheckTests) ... ok
+test_default_diagnosis_never_resolves_endpoint (test_runtime_check.RuntimeCheckTests) ... ok
+test_errors_do_not_echo_provider_exception_or_tokens (test_runtime_check.RuntimeCheckTests) ... ok
+test_nonstandard_model_values_and_arns_are_not_echoed (test_runtime_check.RuntimeCheckTests) ... ok
+test_only_local_provider_is_loaded_and_credentials_are_never_serialized (test_runtime_check.RuntimeCheckTests) ... ok
+test_independent_holdout_and_follow_up_preserve_the_custom_scope (test_scope.ReplayScopeTests) ... Executing <Task pending name='Task-941' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:95> wait_for=<Future pending cb=[Task.task_wakeup()] created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:429> created at /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/async_case.py:117> took 0.355 seconds
+ok
+test_profile_checks_trade_against_the_confirmed_starting_fund (test_scope.ReplayScopeTests) ... ok
+test_weights_are_validated_and_frozen_at_construction (test_scope.ReplayScopeTests) ... ok
+test_default_technology_change_and_unknown_mass (test_sector.SectorEvidenceTests) ... ok
+test_equity_sleeve_denominator_and_taxonomy_cutoffs (test_sector.SectorEvidenceTests) ... ok
+test_later_public_material_does_not_resolve_earlier_decision (test_sector.SectorEvidenceTests) ... ok
+test_legacy_non_equity_scalar_keeps_unsupported_weight_unmapped (test_sector.SectorEvidenceTests) ... ok
+test_pinned_nav_amounts_respect_source_display_unit (test_sector.SectorEvidenceTests) ... ok
+test_signed_change_cancels_unchanged_unknown (test_sector.SectorEvidenceTests) ... ok
+test_wrong_denominator_and_catalog_tampering_are_rejected (test_sector.SectorEvidenceTests) ... ok
+test_does_not_ascribe_third_party_negated_or_hypothetical_context_to_the_investor (test_semantic_intake.SemanticIntakeTests) ... ok
+test_handles_absent_input_and_runtime_budget_without_accepting_a_route (test_semantic_intake.SemanticIntakeTests) ... ok
+test_rejects_unquoted_sources_unknown_tags_and_multiple_handoffs (test_semantic_intake.SemanticIntakeTests) ... ok
+test_sdk_can_recover_from_a_rejected_source_clause (test_semantic_intake.SemanticIntakeTests) ... ok
+test_sdk_passes_intact_question_and_accepts_only_evidenced_instruments (test_semantic_intake.SemanticIntakeTests) ... ok
+test_comparisons_still_require_two_choices (test_single_allocation_replay.SingleAllocationReplayTests) ... ok
+test_limited_and_tampered_reports_preserve_the_review_boundary (test_single_allocation_replay.SingleAllocationReplayTests) ... ok
+test_mixed_allocation_returns_verified_metrics_without_a_relative_winner (test_single_allocation_replay.SingleAllocationReplayTests) ... ok
+test_proxy_scope_is_checked_against_replayed_weights (test_single_allocation_replay.SingleAllocationReplayTests) ... ok
+test_calendar_intersection_uses_valid_fixings_and_never_fills_gaps (test_starter_quality.StarterQualityTests) ... ok
+test_full_official_snapshot_counts_and_caveats (test_starter_quality.StarterQualityTests) ... ok
+test_comparison_survives_independent_chart_selection_and_hides_tampered_results (test_streamlit_results.ResultsWorkspaceTests) ... 2026-11-15 19:11:58.241 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-15 19:11:58.958 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_terminal_tool_finishes_first_successful_response_and_keeps_schema (test_tool_routing.StrandsHandoffTests) ... ok
+test_amira_routes_to_issuer_evidence_and_keeps_missing_qqq_unresolved (test_tool_routing.ToolRoutingTests) ... ok
+test_checked_results_survive_the_models_post_tool_failure (test_tool_routing.ToolRoutingTests) ... ok
+test_confirmed_missing_market_data_ends_routing_and_withholds_review (test_tool_routing.ToolRoutingTests) ... ok
+test_independent_review_still_rejects_tampered_result (test_tool_routing.ToolRoutingTests) ... ok
+test_invalid_dates_ids_and_scenario_scope_trigger_explicit_fallback (test_tool_routing.ToolRoutingTests) ... ok
+test_issuer_evidence_cannot_be_selected_for_market_only_request (test_tool_routing.ToolRoutingTests) ... ok
+test_missing_routed_call_recovers_but_missing_review_withholds_decision (test_tool_routing.ToolRoutingTests) ... ok
+test_no_example_for_exact_size_hold_or_zero_eligible_purchase (test_tool_routing.ToolRoutingTests) ... ok
+test_parallel_branches_settle_before_the_report_is_returned (test_tool_routing.ToolRoutingTests) ... ok
+test_robert_selects_different_metric_calls_from_one_policy_change (test_tool_routing.ToolRoutingTests) ... ok
+test_success_status_without_actual_tool_callback_uses_explicit_fallback (test_tool_routing.ToolRoutingTests) ... ok
+test_verified_example_without_a_stated_funding_preference (test_tool_routing.ToolRoutingTests) ... ok
+test_ambiguous_model_response_bypasses_policy_compilation (test_workflow.WorkflowTests) ... ok
+test_fixture_rejects_wrong_verdict_and_wrong_verified_boundary (test_workflow.WorkflowTests) ... ok
+test_policy_uses_user_amount_source_and_explicit_size_rule (test_workflow.WorkflowTests) ... ok
+test_unstated_size_permission_and_conflicting_source_need_clarification (test_workflow.WorkflowTests) ... ok
+
+----------------------------------------------------------------------
+Ran 474 tests in 78.936s
+
+OK

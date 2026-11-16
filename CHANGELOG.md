@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-15 · Complete the shared historical decision workflow
+
+- Route Compare, Evaluate and Audit through one editable confirmation, dated evidence, independent replay and publication pipeline. Keep English deliverables while accepting English and French model drafts.
+- Add multiple-source rational funding optimization with independently checked certificates, separate search authorization, and a bounded one-assumption challenge that preserves the original decision.
+- Check recovery, rolling windows, CAD conversion, historical paths, exposure intervals, rule verdicts and report integrity independently. Unknown binding rules remain unknown; candidate labels cannot change their applicability.
+- Present explanation-first and metrics-first views, verified charts, JSON and PDF exports, constrained Bedrock statement composition and optional versioned S3 storage.
+- Withdraw invalid model prose, block tampered figures before display, distinguish source coverage from interval uncertainty, and keep unsupported solver constraints unassessed.
+- Add a general CLI, safe runtime diagnostics, fictional persona inputs, updated English submission PDFs and an explicit target-architecture status matrix. See `submission/verification.md` for current acceptance and remaining limits.
+
 ## 2026-11-15 · Verify Bedrock intake and preserve grounded analysis
 
 - Allow a second Bedrock request when the first tool call does not produce a checked question handoff. Retain the 12-second deadline and existing token budget. A valid handoff finishes the stage immediately.

@@ -24,6 +24,8 @@ _SCOPE = "I checked this draft against my request and confirmed every binding ru
 class OfflineProfileAppTests(unittest.TestCase):
     def setUp(self):
         self.app = AppTest.from_file(str(APP), default_timeout=20).run()
+        self.app.radio(key="workspace").set_value("Reference cases").run()
+        self.app.radio(key="reference_workspace").set_value("Earlier assistant validation").run()
         self.assertFalse(self.app.exception)
 
     def widget(self, kind, label):
@@ -107,7 +109,7 @@ class OfflineProfileAppTests(unittest.TestCase):
         with patch.object(
             StrandsAgents, "run", side_effect=AssertionError("Opening direct entry requires no model call"),
         ) as runtime:
-            self.app.radio(key="workspace").set_value("Reference cases").run()
+            self.app.radio(key="reference_workspace").set_value("Audited trade examples").run()
             self.select("radio", "Input", "Write a request")
             self.assertEqual(self.widget("radio", "Profile input").value, "Enter inputs directly")
             self.assertEqual(self.widget("radio", "Audit execution").value, "Offline")

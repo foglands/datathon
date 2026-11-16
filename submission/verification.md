@@ -2,6 +2,89 @@
 
 PolyFinances Datathon 2026 · Montréal
 
+## Current architecture verification — unpublished local working tree
+
+This section records the completed local `decision_*` implementation and its current smoke checks. It is separate from the revision-specific historical evidence below. The updated source is still local: no current source commit or pull request has been published remotely. Automatic approval review rejected the attempted GitHub upload, so repository links must not be interpreted as proof that this working tree is available on GitHub.
+
+### Full-data local regression
+
+| Check | Observed result |
+| --- | --- |
+| Full regression suite | **474/474 passed**, **zero skips**, in **78.936 seconds** |
+| Recorded test output | `/tmp/datathon-final-suite-v6.log`; 474 successful test entries followed by `Ran 474 tests in 78.936s` and `OK` |
+| Python environment | `/tmp/datathon-streamlit-test.q2nHxx/venv/bin/python` |
+| Working directory | `/Users/pengpeng/Documents/ChatGPT/Datathon Agent/implementation` |
+| Full organizer data | `/tmp/alphaforge-assistant-starter.zip`; both starter-path environment variables pointed to this archive |
+| Organizer archive SHA-256 | `f0c7948a4bea4f10c621125d7b085d6781e61387368064fada6fd59596426ff2` |
+
+Reproduction command for this local environment:
+
+```bash
+cd "/Users/pengpeng/Documents/ChatGPT/Datathon Agent/implementation"
+DATATHON_STARTER_PATH=/tmp/alphaforge-assistant-starter.zip \
+DATATHON_FULL_STARTER_PATH=/tmp/alphaforge-assistant-starter.zip \
+/tmp/datathon-streamlit-test.q2nHxx/venv/bin/python -m unittest discover -s tests -v \
+  > /tmp/datathon-final-suite-v6.log 2>&1
+```
+
+The archive digest was checked directly. The suite includes deterministic and mocked model/service tests; its success is not a claim of 474 live AWS calls.
+
+### Adversarial release controls
+
+| Reproduced failure class | Corrected and tested boundary |
+| --- | --- |
+| Unsupported exposure axis accepted through a permissive bound | An unsupported binding condition remains `unknown`, including minimum zero or maximum one. An independently verified failure may determine the overall verdict while the unresolved condition remains visible in gaps and coverage. |
+| User label treated as an internal baseline | Naming a portfolio like a system starting allocation cannot exempt it from its confirmed rules or change its disposition. |
+| Mutated report displayed before export checks | The front-end validates the reviewed report binding before displaying results. Tampered reports cannot rely on a later download check to prevent exposure. |
+| Unchecked narrative synonym without a number | Every sentence must exactly match an approved sentence or one of four fixed transitions. All sentences of each selected reference must actually appear. Invalid prose is withdrawn and the checked template remains; this is strict verified-sentence composition, not unrestricted semantic fact checking. |
+
+### Current general CLI acceptance
+
+The fictional Robert input is `examples/decision_requests/robert.json`: starting weights SPY 35%, XIU.TO 25%, QQQ 20%, ZST.TO 20%; a 10-percentage-point NVDA purchase originally funded from ZST.TO; a 15% ZST.TO minimum; and a 14% terminal-loss cap across the default archived windows. These are team-defined demonstration assumptions.
+
+| Run | Scope and observed result |
+| --- | --- |
+| Original decision | `/tmp/datathon-final-robert.json`: publication `released`, original verdict `fail`, `funding: null`, and no funding solver run. Original confirmation does not authorize alternatives. |
+| Independently authorized search | `/tmp/datathon-final-robert.search.json`: publication `released`, funding `feasible`, requested and funded size both **0.10**, smaller purchases not authorized. The selected solution sells **10 percentage points of QQQ** and **zero ZST.TO**. The original proposal and its `fail` verdict remain intact. |
+
+The search's certified QQQ-sale range is approximately 7.3683–10 percentage points at the fixed 10-point purchase size; the corresponding ZST.TO range is 0–2.6317 points. These are marginal bounds, not independently interchangeable choices. The selected all-QQQ solution has terminal losses of 13.2317% in the 2022 window and 12.2942% in early 2025, both below the confirmed 14% cap. Publication approval verifies the report; it does not approve an investment.
+
+To reproduce the original and separately authorized search records:
+
+```bash
+/tmp/datathon-streamlit-test.q2nHxx/venv/bin/python -m datathon.decision_cli \
+  --example robert --data /tmp/alphaforge-assistant-starter.zip --confirm \
+  --funding-sources QQQ,ZST.TO --authorize-search \
+  --report /tmp/datathon-final-robert.json
+```
+
+### Current live application observations
+
+The isolated diagnostic shell had no inherited AWS credential provider and could not resolve the Bedrock endpoint. The user's running Streamlit process retained its authenticated AWS environment, and actual Bedrock calls succeeded there. The shell result therefore describes that execution process, not an unconfigured or unavailable user AWS account.
+
+| Live UI check | Observed result and limit |
+| --- | --- |
+| French structured comparison draft | The draft accepted GLD and AGG as explicit 100% single-asset references, `max_drawdown` as the ranking priority, and **no risk cap**. The interface and output remained English. This is a successful live interpretation example, not the target 100-prompt bilingual benchmark. |
+| Robert typed draft, final retry | Earlier live attempts failed literal-value validation and were visibly labeled as offline drafts. The final Sonnet retry produced an accepted Amazon Bedrock draft: 10 percentage points of NVDA funded from ZST.TO, a 0.15 ZST.TO minimum with no maximum, and a 0.14 terminal-loss cap. It correctly requested the missing starting weights; the UI displayed its fictional preset separately rather than attributing those weights to the request. |
+| Robert original proposal and authorized funding | The confirmed original proposal was independently reviewed and its failure was published. A separate UI authorization allowed QQQ and ZST.TO, with smaller purchases unchecked. The search was feasible at the full 10-percentage-point size while the original `fail` remained visible. Switching to Explanation first preserved the same reviewed facts. See the [browser evidence](architecture-funding-browser.jpg). |
+| Final typed Robert confirmation | After the accepted Bedrock draft, the full starting allocation was explicitly confirmed and the original decision again published `fail`. The Nova explanation was accepted, with no withdrawn-narrative warning. The [final browser capture](architecture-final-browser.jpg) shows the reviewed explanation and all six original/baseline metric rows; the [acceptance record](architecture-acceptance.json) records the live observations. |
+| Earlier Nova explanation | A successful live response was withdrawn with `narrative_missing_referenced_fact`; the checked deterministic template remained visible. The linked funding screenshot captures this earlier withdrawal, not the later accepted narrative. |
+| Final Nova explanation retry | After correcting conflicting prompt requirements, the unchanged sentence-verification gate accepted the new response: explanation status `ready`, mode `bedrock_verified_narrative`, and no withdrawal reason. This demonstrates one accepted live composition without relaxing the factual gate. |
+
+The final typed Robert draft used `global.anthropic.claude-sonnet-4-5-20250929-v1:0`, run `1bef90724e9348fab17b211987171fcd`. Its two Converse HTTP 200 responses were requests `65a2ecae-ef55-4bf9-a5fa-dab4e5bedec2` (3,289 input / 472 output tokens) and `0af9b33d-f38f-4089-ad76-37f4c965d6b8` (3,790 input / 322 output tokens), each with zero transport retries. This accepted example does not establish the full bilingual benchmark.
+
+The accepted final explanation used `us.amazon.nova-2-lite-v1:0` in `us-east-1` and received Converse HTTP 200: request `ae4f599a-5c9d-4ce8-95e1-8eb9a55564f7`, run `7dae8d48fcd14acbb38828faa499410b`, 1,480 input tokens, 49 output tokens and zero retries. The earlier rejection and later acceptance are separate observations.
+
+These observations establish current live service use and specific behavior, not a complete live acceptance cohort. Current typed intake allows a 30-second bounded action, at most two HTTP attempts, 18,000 observed tokens and an 8,000-byte request; historical 12-second observations below retain their original attribution. No successful live S3 write is claimed.
+
+### Scope and delivery status
+
+The current implementation includes the three historical actions, explicit confirmation and separate search consent, generic historical metrics, independently checked rational funding certificates, dated evidence intervals, bounded one-field challenges, checked publication, two report views, and JSON/PDF exports. The five-page technical PDF and one-page summary were rendered and visually inspected. The existing MP4 remains the older recording at `13ccc42`.
+
+Complete ETF look-through and controversy coverage, portfolio-wide HHI, unsupported exposure/recovery solver constraints, comprehensive numeric provenance, the full bilingual benchmark, external-user comprehension testing, additional target AWS services, and a new video remain outside this completion claim. See [architecture-status.md](architecture-status.md) for the exact boundaries. Local verification and prepared delivery files do not constitute remote publication or formal competition submission.
+
+---
+
 ## Competition AWS acceptance
 
 The November 15, 2026 acceptance run tested application commit [`298e9b0`](https://github.com/foglands/datathon/commit/298e9b0f8b4b7d4049790cd9a423d97ee34d04b5) on macOS and in the authenticated competition AWS CloudShell in `us-east-1`. The application archive and organizer starter archive were checked against the local SHA-256 digests before the AWS run. The test used fictional questions and the organizer's frozen market data. The [participant deck](https://chatgpt.com/library?file_id=libfile_9d3dbce691dc8191993a39be5f3b9381&account_id=personal) identifies demonstrable AWS integration as an eligibility condition and recommends contrasting cases and a controlled change to one assumption.

@@ -1,0 +1,350 @@
+{
+  "schema": "architecture-acceptance-v1",
+  "recorded_at_utc": "2026-11-16T00:12:57.611941+00:00",
+  "scope": "Selected local regression, CLI and manually observed live browser cases; not a complete target benchmark or organizer submission.",
+  "base_commit": "92b344e1ce1a72085d886fa717714a4b611a50c8",
+  "source_binding": {
+    "method": "SHA-256 of sorted compact JSON mapping relative source paths to SHA-256",
+    "source_set_sha256": "9bbd2efd3a3ddb6a55e4c76909faafe51241b9077dec5e54204f0e9f395f9a6b",
+    "files": {
+      "app.py": "e54bceb7f80d4e06c00a4207c3e4182a91c96df2530d541c68dcbb8a717f09c1",
+      "datathon/__init__.py": "465f5021b27f12522233a3efa5cb2cba01250514ab98992eaa2c02e5454900a3",
+      "datathon/__main__.py": "c83b3ad73eed6f7ac490b0454a44a300d0bbee5a8039e7a6c8ae07744da9eaf6",
+      "datathon/agents.py": "5153a0b25c9d2249e43ec4c15505d0ca8d39e58edb9b2c9e2d783a76e43f6c52",
+      "datathon/allocation_compare.py": "3a4059195489f4402dd0980251e8fc520b2532e27d24642a542ff2ba98c58411",
+      "datathon/allocation_request.py": "c8d9c1915d7e478545dd532061bf339aedee9b648dd471cc08d016de83aa7619",
+      "datathon/allocation_view.py": "f0500e5ef6be5c32a1444708c7005f6d69f08e58e6adbbd0f74f554ef2cddff5",
+      "datathon/assistant_intent.py": "bd42889c37d4e94b53840bae44752cee38858534158d9b5a4aba25cd97158ba1",
+      "datathon/assistant_request.py": "59a122c2ecae8b1608d3084a3b12c2d32a5bc34aa38bcf8dfebe651b3fd9f6a8",
+      "datathon/assistant_request_model.py": "2d4c1c201b836c58f611184f8e907d6466cf44051cdd3f9157bc385910fbf98c",
+      "datathon/audit_view.py": "dc20883fecabbf1dd80225b5b74222918ebc6321511a23fd3ca6d1393ce99482",
+      "datathon/benchmark.py": "880b251fa5bb90267f239044e396d7e75c58d28c00565edfeccfa191457e84d1",
+      "datathon/benchmark_cases.py": "6876bf4018793a8bcce2de77d96ce29abb7cdb57dddc753bf194b32f1a8d0bba",
+      "datathon/benchmark_single.py": "2997b9e0a8cbe7ac5462bfb178d720c29bf53776809d3c397a12447572f9b864",
+      "datathon/challenge_benchmark.py": "9030c90e78d7866cfbc7d594f87d516dc541d91acacf131f3023b6295fbb1776",
+      "datathon/challenge_expansion.py": "41ff848b34e893e4f41240171f64f044ee87c32fcb63a1b174e5fbcad2b9b7d1",
+      "datathon/counterfactual.py": "9997214114571cf244fe5d655f044401fd87e7c6d3ee67b2d890935c81ac82a6",
+      "datathon/data.py": "4c2ee57206106081f5e2ba111ddb1285e7b22e7150d85bec4f89f86a9581f4e4",
+      "datathon/decision_challenge.py": "3c89ac115d38fb444424eb4df3dd73a50074bd72cdc2c22a49a7bc7798f805b8",
+      "datathon/decision_cli.py": "ec80c6eeb90998efc98fe1f337b85c578c69e7c04cccd0be65b6f5df502c0f9f",
+      "datathon/decision_evidence.py": "35095938469e68f1e0380a8aa83a029a0265f026eaa7143e3e56e875b0301013",
+      "datathon/decision_funding.py": "a5eb24604718a0fe8751bee9d166721253a24ef0778a7f69e53126f8add3781f",
+      "datathon/decision_intake.py": "747047f7c45da4be0acf49a712a8ed2e293fd5035aa8298c0052c529850ec4f0",
+      "datathon/decision_market.py": "bf0a0604b88988b5acca936e5286fbc92686c9f2ec4165f751222ec2dbc93ce6",
+      "datathon/decision_release.py": "58ed3a5f14807d3d91c7f8f7a83249f3be5ddddabea56b41d6610d295e2be5f9",
+      "datathon/decision_replay.py": "ecc9370e7ca3b62eb8390904ab83c132d7479349909130183210b477bcb46225",
+      "datathon/decision_view.py": "f9a7432ab2008a07ab242ab27fcd3177f207739b0956839030566d4f59f6baed",
+      "datathon/decision_workflow.py": "55bebfbc7ba01adba0e5c9b1f9ef012e753c9bf2c7c2f6828e0b73b291f243e3",
+      "datathon/evidence.py": "db423d65855c44ab889f79ed5a7146bc0948bc6d8d82d14a033ee569f38893fa",
+      "datathon/exposure_review.py": "f00d8e12c4803f803ecd9deb4bdf44b0688b9dda217c8d5d78eaf4f2aad8bc68",
+      "datathon/finance.py": "c7c930917421d01baf08150d5c9cd151181600c857fea44eb18b51965e181ff1",
+      "datathon/fund_benchmarks.py": "2eda19dbb00f73ec9359619185d67ce913014e9886d131a937c5964c87f726ef",
+      "datathon/governance.py": "22a3cd658a8016506701570ffa773a59a35c6488b70004faba6f1768ce588bcc",
+      "datathon/investor_profile.py": "65edfe8222d94a070772f4d0144078e2c4191b73dca2fbd903172b7e6b4201ad",
+      "datathon/live_market_analysis.py": "bc8df85d9063a207bcbb8eb5c02dc3c0b28833d937a436ebc1c2f47eb3b52ade",
+      "datathon/live_market_data.py": "d0e4f507393481c1a7d1a05af1e388db59ecec828d531bb2fcdbe69784dde824",
+      "datathon/live_market_intake.py": "f7b94ea7f86bab0537110301932a4f8aa7d4e9ef525c4a07d941ca10bab8fd47",
+      "datathon/live_market_summary.py": "05ad9b2f3e2c452e2662704e596851941e5f77d48d87b5391fde7808ecab1fa7",
+      "datathon/live_market_view.py": "e66268b5f621028241d415dc9f95e7b5cb7cf54fff92cf9e451afe9904f367ab",
+      "datathon/live_market_workflow.py": "5bec553d90df3370d3eddf4d62c38387ca1678d5ced70a9aa45bf43980bc484c",
+      "datathon/market_calendar.py": "6932e719bdf2198d4ad58c01b2663a16e0e2b580a4e33237273361d5ec434849",
+      "datathon/metric_records.py": "b6100c7db2dd7eef41e62aa2b267a010188c9696d2e58db9fd22833560c303f1",
+      "datathon/model_settings.py": "2ad8ed37a9674ff4e9a515ee85a231c4887341728719c7c460f0fac42e1122c0",
+      "datathon/paired_benchmark.py": "296569081d997a8315fdcb6866a1a832a577d2952021ee5f4a8b0df44e813490",
+      "datathon/planning_request.py": "583762ec9b9c0f88df1c65ba11427122d422b6b240d9dbc65563dd95ad25232d",
+      "datathon/planning_risk.py": "029757a5703cb574a66ee60545dea24c94b665ea94f78aac924d3bdca2649f49",
+      "datathon/planning_view.py": "dc3183488df9a7450cb33a5d7e0db2c6812a98dacc0489822dc705b920a9d781",
+      "datathon/profile_numbers.py": "6a80d904d5b316497df53bc816c7b7d1cfbf02a61dfb97635743dce62378d4aa",
+      "datathon/publication.py": "1aaada7555d354202ab0d36749b9a8c41d27e7153bbac1a354816284696fc3b9",
+      "datathon/question_intake.py": "a046ab69c9abfee7e0c0e4ef3edb7d6f9aa9de3fa45650c544bc7ef3faedfb87",
+      "datathon/question_language.py": "2c2609cfc37dfa01334aea077edf6cbbb9f05d2619df7708c19258e5ad8900f6",
+      "datathon/requirement_status.py": "f38e3760c0fedc5858644d08e602462819700deac67533fc6f5e691f03f5a8ab",
+      "datathon/resilience_benchmark.py": "b2c6909d991ff14399969a165b8e43c176a4c424247496be58b41b7e53b46e3d",
+      "datathon/review_snapshot.py": "14378d318d1fbf2be8ab1daefb3b3ed40306d2770d91d54fc2d96016b51e1995",
+      "datathon/runtime_benchmark.py": "b8047af829727b9477903a1941be64ac959e8e80f1a1e6fce04652a2436be53d",
+      "datathon/runtime_budget.py": "fa884e23f39c65ca3f8f3cdadb74b3dd0a426d31a4e4a1fc9ad954564582c875",
+      "datathon/runtime_check.py": "13688f98eee9f658cf1dda9eebd5614704d45f777386c947d97b5cda676e1828",
+      "datathon/scope.py": "b33491bebdcdd3e5b4a5c17eddca7d42dec70215cf016c0250999196749f5acd",
+      "datathon/sector.py": "04f3d79cb61be23ff11f764dc2793080b6abc96883f98d822694be30cc8936a3",
+      "datathon/semantic_intake.py": "fbd3e296c28b81ea37653119bd94e36625a9958cba41d04e1034feb5a0d36fcb",
+      "datathon/starter_quality.py": "de59446ac44b5c939272f26a8ef37e06fd57c6e042e7b0d0087b2e4aa7354e6e",
+      "datathon/streamlit_assistant.py": "c192e0588938e76f4461ebac6c2ed4fda2e303dc1ebb158edfe10a29edb7acbc",
+      "datathon/streamlit_results.py": "0ee4398b2101d43a0b4de69f1619d96c22df2a997192808ff25c994e24166264",
+      "datathon/workflow.py": "be43ccb7649b79e645d93d62a5dc26f27ed9f722ff44e2f83e7bc665bb2c4b5b",
+      "examples/decision_requests/amira.json": "c4dad326e0950ff1784b12e55660bd3aa3d34d75e916ad79d64b5bd5f1167f90",
+      "examples/decision_requests/mateo.json": "a15857416aba100b31cfc151914acb179a284044dc7d5e786eb913c6ce00856f",
+      "examples/decision_requests/robert.json": "259af8fedb0475e24d94099ae78ac3e8a8ae8a747515ded6bb03a0125b32acaf",
+      "presets/amira.json": "2ab681b8de884d85974c88acf754a2e4b0c1b2899b167f3bfb3ef727912583b0",
+      "presets/mateo.json": "7e70c3b0cec6ce04490865b02293c0a9e687ea2c5b7db47355e89994b4684f88",
+      "presets/robert.json": "e224d7dd1f3999366eb43ed96daa1d125846e6c51a4370790aa51135667507cf",
+      "requirements.txt": "a9066ad945a35decbf9d3188d93f3d1777420e867965469697d670cded83a31d",
+      "tests/test_allocation_compare.py": "04c8c14115b2bc26d0a9e92b919d198c2e303cf686ed9552e10d3fd171c73dc1",
+      "tests/test_allocation_request.py": "3ed45d9f7314b910d016f061fb030630b1109ad8673598d16b71637ff2dbbcfd",
+      "tests/test_app.py": "965b9836485e3c02cd3d37e9e0ae0ec84e58bd3a097cdeb665daa6cb0bd681d4",
+      "tests/test_assistant_app.py": "3bd1b88b53d367d8a1c3fa1d3fa9b9ab313486567bfec9420d6bc1d011ba472a",
+      "tests/test_assistant_intent.py": "29395be13fcdee76ecddd7056f6a198f694fcbb0a7292f4ddce7a4be6ac39867",
+      "tests/test_assistant_request.py": "7aca7777ed5a137afccf8ceb2fcf847f683dfa585ef3620712cc2cf05c2feae4",
+      "tests/test_assistant_request_model.py": "f27b6a66bf4a772f28ccef69f3d35004f6d08c6d79bad53c6b075fd90a695e8c",
+      "tests/test_audit_intent.py": "1eeed23712d54d0069a5653588c0252a94505180dfd1f693adedeb5e9046f53f",
+      "tests/test_benchmark.py": "89b2270050a91c2c33c96b3dc8cbdb2992511c2e98e15438af0c322a94acdfd7",
+      "tests/test_challenge_benchmark.py": "674251c6832d5fb0dbde794a4b04421cce6eea8eba4ab60b1f3ed75729889c3d",
+      "tests/test_counterfactual.py": "1cd1e2aa067e109e67c340a0aeebf4423e2dcc9c6ae1a8052084533d407a5078",
+      "tests/test_decision_challenge.py": "09f43f41ceb2b30eb13708f94e94e18c82472620ca6cdaa7144151ebd3e91463",
+      "tests/test_decision_cli.py": "2d8da0c53df46929032d578f2bae34454d5741c66974b01a12c9a5bc172351f7",
+      "tests/test_decision_evidence.py": "276b34d566853eaa4547eb2c22be13848b6b7b9365a19713a340a467d665f32d",
+      "tests/test_decision_funding.py": "144aab9698b10783fc30b748228c8296acbb80772a54c0508c3cd509d91f0938",
+      "tests/test_decision_intake.py": "7a2bb114dfbc8c12763becb60930d4350086d8c8348a5fc12e0f6d9764b11f0f",
+      "tests/test_decision_market.py": "83b95fc3b3399a7c957bf253b86b007aa7619cf4ec3b663af6e849f9840ef429",
+      "tests/test_decision_release.py": "f3eb8ea849a5dd57762fa6e02bf3c92c925daf9f707f1d53bcf8d1d57bb949d8",
+      "tests/test_decision_replay.py": "949bf493f9d2296173ff212ca3dd1ddd646b04fcbd37289e184090aa9002d946",
+      "tests/test_decision_view.py": "5dcd0062f3ed01cb509d947bcb80ea2b99f2ce79d18ea26dd4f248b1a805cf6f",
+      "tests/test_decision_workflow.py": "74bef9887c4ab3795a83d2da8c65f952aaad0c0d3bca5b9acb3c78a60ce465ad",
+      "tests/test_drawdown_constraints.py": "00b161b0bb997fb7141e2983b5db9097870b1ebc9303f0fdcfd1916fe0d6e57c",
+      "tests/test_evidence.py": "8d864e745dfd13c73b40b5170b462b858ff3181283ef246aa1712f03c9f679f7",
+      "tests/test_evidence_workflow.py": "61f5cab0d5fb61362334ce3b3844d4d134dfab993e9cfe8a4f9c4b417474ce02",
+      "tests/test_exposure_review.py": "0dfd4aff04395abcf4a9c4925601ea2ac1600347053d5e667e38c24369d396b4",
+      "tests/test_financial_boundary.py": "b2d21e0a7c9fd97cda7d6200ac13dd8f6ce0f5b3e77617b2a1962405d49adc2f",
+      "tests/test_formula_acceptance.py": "2ccf0bf9a0036ae8db6957fd34f0c2bb2f5fd7719766f07699873ebb20443747",
+      "tests/test_general_intake.py": "f3e35330179ee2fc1c8fe1b0760831c0510a51c9d708747ce8e104a2362607da",
+      "tests/test_governance.py": "296748743596fa677fe183e477b236927025c837f21828221479747bec3f3298",
+      "tests/test_intake_release.py": "7b7dc44a24053de79eddb39dcf9d1cc06704e2fb5cea4b1d8626dbff285d9243",
+      "tests/test_investor_profile.py": "4e9b06559a09fb0d3c1cd376080913346512455820112f921b5054ed68a40ac9",
+      "tests/test_issuer_reaudit.py": "eaa6df6a0e99bfb1168ba907c33ee45b60af94439a3dbac27ab120cd17582060",
+      "tests/test_live_market_analysis.py": "2c7a15048f315fbbb795707cd4a99a60e2bf07aa614f8916ceabdedd8dc33159",
+      "tests/test_live_market_data.py": "176b2e4be15600c213b3448ffdbeb811ea1209f28f40d2bee61601029bfc8eb9",
+      "tests/test_live_market_intake.py": "439a57285e18855a38981f3651348a887da2d8f9ea2cc65a769dc75e65bd62d8",
+      "tests/test_live_market_summary.py": "f20f30ae0dc766b21dd03a87977fa2233ad59cf4e7689d9985dec1b1d3abd72e",
+      "tests/test_market_calendar.py": "df077645e5888cc579e333af6423a71ff077f6613ac206593238d1e86fb312b7",
+      "tests/test_market_provenance.py": "874f1e0eb9be2eff1e179f4926d79579ee28e290ba167a0283bec6d7ee6c5aed",
+      "tests/test_metric_records.py": "31fe60bd62875e35f11be72eff1817a056803b96c12702919857d168bc12e260",
+      "tests/test_model_settings.py": "7f6a93e7a24759647138a304e41f7ce4dc775ab38d9b7026eb5113c1566872ce",
+      "tests/test_numeric_output.py": "a9017fe011ddd3659057dbf667cf02d8bc7748869cba7bf03d5b157bbd3dff60",
+      "tests/test_offline_profile_app.py": "6e26f96542aaa34afc73be47d6bf6c13a1e4e615ef021dc76efce3ebcb4b7708",
+      "tests/test_offline_profile_grounding.py": "cce8111f2473b57d5240a61cb9e1c1f4335e524ed03cfca008dd02ff1886b244",
+      "tests/test_paired_benchmark.py": "babdc73b045d52f5a7e96269eb714afc373cfed0889f8b31b3c2a9cd63bc8231",
+      "tests/test_planning_request.py": "9d58fa9998dcf8137b3d235e9d791c3d5616eadaba0269b4d01423803400a5ed",
+      "tests/test_profile.py": "7e8fda55fea53e0c9d194a2215cfa210cc9ea1ea188cc3e7010effddaafcd29c",
+      "tests/test_profile_quote_holdout.py": "3354dffc51e79d7b64f792a6781f3b95ed99b975cca4632ddb9707b9260aab51",
+      "tests/test_publication.py": "6437ef1684f03fe21b1e8c5f05406d418958bb2615310a02c0ca9fa7075e9c1e",
+      "tests/test_question_language.py": "d325d75445e9ff1629471c6a7e08f030e1e37bb2a04cfd68faec3e4c11d7db10",
+      "tests/test_request_entry.py": "744faaa5573ca9ee168a8f693dd85e3e9ec8d9f5de2cf18e6045702880de93e0",
+      "tests/test_requirement_status.py": "65831d90702d2b1aa680633a88def49d441a32e5d994060278aee4acb67ed7ac",
+      "tests/test_resilience_benchmark.py": "f1a943de99f5307112e18dc61edb11437e1d45336883f72e7dce28a74b933645",
+      "tests/test_runtime_budget.py": "51550fff52ea5d8aeb16349bdb877e95dd1d5cc0669ab520998226b2cb47c44c",
+      "tests/test_runtime_check.py": "be04930126097f25b75002139621359467c22613a941018a2a50055f36281a05",
+      "tests/test_scope.py": "0b116f0afba30ffde9b0cea02dd24eb4bcaf5fde16b980e9e25ee1095cdecba9",
+      "tests/test_sector.py": "9e480cb273d57022e5f9e8b33ecd57116e4901b477ef404da321d9923ee037fc",
+      "tests/test_semantic_intake.py": "78a13ab012242feabea8c40ecccf039fe2c29e0af79011d84d8581d81c5a0794",
+      "tests/test_single_allocation_replay.py": "108d024760994229e2e61ef4f3c53fb44bf58a81a4175ed73f4c2a96f9487a1d",
+      "tests/test_starter_quality.py": "1438630aef08fa833a211babcecc2d4580f5dc427a4ecfc0700ee7f4d8dfabf6",
+      "tests/test_streamlit_results.py": "30da36db96bacad84c26385d646f473c5a5af84ae9916ceb46a07bb256fdab16",
+      "tests/test_tool_routing.py": "916ef61ed35fa73a5438884befcd2da3a1295c4a863e59d0ab63b255de6e1d9b",
+      "tests/test_workflow.py": "af5736de98830d8e62a7b67f834ab20b43710d7acccc31ba89350d9998754421"
+    }
+  },
+  "dataset": {
+    "description": "Organizer starter ZIP",
+    "sha256": "f0c7948a4bea4f10c621125d7b085d6781e61387368064fada6fd59596426ff2"
+  },
+  "tests": {
+    "passed": 474,
+    "skipped": 0,
+    "elapsed_seconds": 78.936,
+    "log": "architecture-tests.log",
+    "log_sha256": "b11d425affc6ef39f3cce0bbf1d899d728c16aac4a52ac4fe072f5feea160ffa",
+    "command": "DATATHON_STARTER_PATH=/tmp/alphaforge-assistant-starter.zip DATATHON_FULL_STARTER_PATH=/tmp/alphaforge-assistant-starter.zip python -m unittest discover -s tests -v",
+    "note": "Includes deterministic and mocked service tests, not 474 live AWS calls."
+  },
+  "cli": {
+    "original": {
+      "publication": "released",
+      "verdict": "fail",
+      "funding": null,
+      "metrics": {
+        "2022": {
+          "terminal_loss": 0.16151048661518164,
+          "max_drawdown": 0.2066036926886579,
+          "coverage_status": "verified"
+        },
+        "2025": {
+          "terminal_loss": 0.1434935249387428,
+          "max_drawdown": 0.17591140897797752,
+          "coverage_status": "verified"
+        },
+        "full_history": {
+          "terminal_loss": 0.0,
+          "max_drawdown": 0.21976224717000947,
+          "coverage_status": "coverage_not_verified"
+        }
+      }
+    },
+    "authorized_search": {
+      "publication": "released",
+      "original_verdict": "fail",
+      "status": "feasible",
+      "requested": 0.1,
+      "funded": 0.1,
+      "source_amounts": {
+        "QQQ": 0.1,
+        "ZST.TO": 0.0
+      },
+      "source_bounds": {
+        "QQQ": {
+          "max": 0.1,
+          "min": 0.07368328523847739
+        },
+        "ZST.TO": {
+          "max": 0.026316714761522607,
+          "min": 0.0
+        }
+      },
+      "risk_checks": [
+        {
+          "cap": 0.14,
+          "end": "2022-12-30",
+          "metric": "terminal_loss",
+          "passed": true,
+          "start": "2021-12-31",
+          "value": 0.1323173167591383,
+          "window": "2022"
+        },
+        {
+          "cap": 0.14,
+          "end": "2025-04-08",
+          "metric": "terminal_loss",
+          "passed": true,
+          "start": "2024-12-31",
+          "value": 0.12294203974885484,
+          "window": "2025"
+        }
+      ],
+      "certificate_method": "exact_rational_lp_v1",
+      "certificate_digest": "4a57960563100bf9f175a993f25cd8ba69258acf1b6dd2da70668798df679b98"
+    }
+  },
+  "aws": {
+    "environment": "User-started local Streamlit process with inherited competition AWS credentials; independent shell did not inherit that provider.",
+    "evidence_method": "Observed application UI trace; selected request IDs are hashed, no credentials included.",
+    "events_are_exhaustive": false,
+    "events": [
+      {
+        "case": "french_comparison",
+        "operation": "Converse",
+        "region": "us-east-1",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "request_id_sha256": "59c29dbb00c577df2f11bad705c296d60a1ee416291544bf7b3340be55712973",
+        "http_status": 200,
+        "retry_attempts": 0,
+        "throttled": false,
+        "input_tokens": 3308,
+        "output_tokens": 381,
+        "semantic_outcome": "structured_draft_accepted"
+      },
+      {
+        "case": "french_comparison",
+        "operation": "Converse",
+        "region": "us-east-1",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "request_id_sha256": "17ac451ca1942dda8c765006a3c180301c015b397b70ebc7b20399816a5adfff",
+        "http_status": 200,
+        "retry_attempts": 0,
+        "throttled": false,
+        "input_tokens": 3742,
+        "output_tokens": 281,
+        "semantic_outcome": "structured_draft_accepted"
+      },
+      {
+        "case": "robert_before_prompt_fix",
+        "operation": "Converse",
+        "region": "us-east-1",
+        "model_id": "us.amazon.nova-2-lite-v1:0",
+        "request_id_sha256": "363b8e8801b0aef7a1079847806d778503cc6a3e7ad71e46a7e55ebef880f0e6",
+        "http_status": 200,
+        "retry_attempts": 0,
+        "throttled": false,
+        "input_tokens": 1408,
+        "output_tokens": 82,
+        "semantic_outcome": "narrative_withdrawn_missing_referenced_fact"
+      },
+      {
+        "case": "robert_after_prompt_fix",
+        "operation": "Converse",
+        "region": "us-east-1",
+        "model_id": "us.amazon.nova-2-lite-v1:0",
+        "request_id_sha256": "7838a81757326455879a2e2754e91086f0f3c3b9cf7b1c5516fd5954d39babc6",
+        "http_status": 200,
+        "retry_attempts": 0,
+        "throttled": false,
+        "input_tokens": 1480,
+        "output_tokens": 49,
+        "semantic_outcome": "bedrock_verified_narrative_ready"
+      },
+      {
+        "case": "robert_final_intake",
+        "operation": "Converse",
+        "region": "us-east-1",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "request_id_sha256": "e0a61eb9927936c9563dbc3999d2b1824be81c6b79aaf805773e2a3d1bc89994",
+        "http_status": 200,
+        "retry_attempts": 0,
+        "throttled": false,
+        "input_tokens": 3289,
+        "output_tokens": 472,
+        "semantic_outcome": "structured_draft_accepted"
+      },
+      {
+        "case": "robert_final_intake",
+        "operation": "Converse",
+        "region": "us-east-1",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "request_id_sha256": "518f46ecb26687f3db4be09c5e48f5ae25a66d4823ada6076f489f3fdb917492",
+        "http_status": 200,
+        "retry_attempts": 0,
+        "throttled": false,
+        "input_tokens": 3790,
+        "output_tokens": 322,
+        "semantic_outcome": "structured_draft_accepted"
+      }
+    ],
+    "real_s3_write_verified": false
+  },
+  "live_ui": [
+    {
+      "case": "English GLD vs AGG",
+      "outcome": "Accepted 100% reference allocations and maximum-drawdown preference with no invented cap; confirmed historical report released with disclosed incomplete calendar coverage."
+    },
+    {
+      "case": "French GLD vs AGG",
+      "outcome": "Accepted French source clauses, 100% reference allocations, maximum-drawdown preference and no cap; UI English. Draft-level observation."
+    },
+    {
+      "case": "Robert initial failures",
+      "outcome": "A 12-second action budget and later literal/optional-bound validation rejected model drafts. Visible labeled offline fallback; no unchecked model fields published."
+    },
+    {
+      "case": "Robert final structured intake",
+      "outcome": "Accepted NVDA 10 percentage points from ZST.TO, 0.15 ZST minimum with null maximum, 0.14 terminal-loss cap. Asked for absent starting weights; fictional preset weights labeled separately."
+    },
+    {
+      "case": "Robert final confirmed review",
+      "outcome": "Confirmed fictional preset starting weights; independently checked original fail; no funding search implied; accepted Nova narrative."
+    },
+    {
+      "case": "Robert independently authorized funding",
+      "outcome": "QQQ and ZST.TO only, smaller-size permission unchecked. Feasible full 10 percentage points; original fail preserved; explanation and metrics views consistent. Earlier narrative withdrawal preserved in screenshot."
+    }
+  ],
+  "artifact_sha256": {
+    "one-pager.pdf": "a49ba9bc9521adec7a0fad82ca4f36c2d02bb62a5040006b09356a08c30d3b74",
+    "technical-summary.pdf": "0556cb011586c6b5ac4e701ed01a293baedfb25c254bc8fd0187a2f90d9a9880",
+    "architecture-audit-browser.jpg": "89d6f82349293a2c6e4e3469681b0d07b8cada86408e888e5b12b63ca13835a6",
+    "architecture-funding-browser.jpg": "051789f0d6af3fedf72acbdfbe9487e4f74e734151f6802b95890f93c5eeec12",
+    "architecture-final-browser.jpg": "2d6437e3b786ded953fb3b13a0022125b89091e8813a901c59450fcee9dc48a4"
+  },
+  "limitations": [
+    "Selected live examples do not establish 100-prompt bilingual reliability.",
+    "Full ETF look-through, portfolio-wide HHI, unsupported exposure/recovery solver conditions and comprehensive per-number provenance remain incomplete.",
+    "External comprehension study, additional managed AWS services, real S3 archive evidence and a new video are outstanding.",
+    "GitHub source upload was rejected by automatic approval review; local source and documents have not been pushed or submitted to organizers."
+  ]
+}

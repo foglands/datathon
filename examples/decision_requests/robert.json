@@ -1,0 +1,10 @@
+{
+  "intent": "audit",
+  "origin": "team_defined_example",
+  "portfolios": [{"label": "Starting allocation", "weights": {"SPY": 0.35, "XIU.TO": 0.25, "QQQ": 0.20, "ZST.TO": 0.20}}],
+  "trade": {"symbol": "NVDA", "source": "ZST.TO", "quantity": 10, "unit": "percentage_points"},
+  "risk_limits": [{"metric": "terminal_loss", "cap": 0.14, "windows": "default"}],
+  "constraints": [{"asset_set": {"symbols": ["ZST.TO"]}, "min": 0.15}],
+  "capital": {"value": 100000, "currency": "CAD"},
+  "profile": {"preset": "Robert", "objective": "Capital preservation", "horizon_years": 4, "risk_tolerance": "Low to moderate", "finance_literacy": "expert", "method_literacy": "working", "task_goal": "verify_numbers", "view": "metric_first"}
+}

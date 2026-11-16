@@ -18,6 +18,8 @@ from tests.test_app import APP, AppTest
 class InvestmentAssistantTests(unittest.TestCase):
     def setUp(self):
         self.app = AppTest.from_file(str(APP), default_timeout=20).run()
+        self.app.radio(key="workspace").set_value("Reference cases").run()
+        self.app.radio(key="reference_workspace").set_value("Earlier assistant validation").run()
         self.assertFalse(self.app.exception)
 
     def click(self, label):
@@ -36,7 +38,7 @@ class InvestmentAssistantTests(unittest.TestCase):
         return self.app.session_state["assistant_comparison"][1]
 
     def test_confirmed_context_changes_the_result_without_changing_the_assets(self):
-        self.assertEqual(self.app.radio(key="workspace").value, "Investment assistant")
+        self.assertEqual(self.app.radio(key="reference_workspace").value, "Earlier assistant validation")
         self.app.selectbox(key="assistant_task").set_value("compare_allocations").run()
         self.confirm_profile("Growth", "More than 5 years")
         growth = self.compare_assets("AGG", "GLD")

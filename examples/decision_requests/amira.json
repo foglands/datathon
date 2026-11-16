@@ -1,0 +1,14 @@
+{
+  "intent": "compare",
+  "origin": "team_defined_example",
+  "portfolios": [
+    {"label": "NVDA addition", "weights": {"SPY": 0.35, "XIU.TO": 0.25, "QQQ": 0.20, "ZST.TO": 0.10, "NVDA": 0.10}},
+    {"label": "QQQ addition", "weights": {"SPY": 0.35, "XIU.TO": 0.25, "QQQ": 0.30, "ZST.TO": 0.10}}
+  ],
+  "priority": "max_drawdown",
+  "ranking_window": "full_history",
+  "risk_limits": [],
+  "constraints": [],
+  "capital": {"value": 100000, "currency": "CAD"},
+  "profile": {"preset": "Amira", "objective": "Long-term growth with diversification beyond technology", "horizon_years": 15, "risk_tolerance": "High", "finance_literacy": "working", "method_literacy": "basic", "task_goal": "compare_options", "view": "explain_first"}
+}

@@ -12,6 +12,7 @@ from datathon.agents import PROFILE_FIELDS, AgentRun, ground_profile_request
 from datathon.audit_view import render_comparison, result_label
 from datathon.counterfactual import counterfactual_options, issuer_disclosure_options, run_counterfactual
 from datathon.data import load_market_data, market_data_source
+from datathon.decision_view import render_decisions
 from datathon.finance import BASE_WEIGHTS
 from datathon.model_settings import configured_bedrock_runtime
 from datathon.publication import publish_check, publish_report
@@ -75,6 +76,7 @@ def refresh_market_source():
 
     st.session_state.market_source = source_key
     had_report = ("preset_result" in st.session_state or bool(st.session_state.get("request_results"))
+                  or "decision_result" in st.session_state
                   or "assistant_comparison" in st.session_state)
     for key in ("preset_result", "comparison_result", "active_challenge", "request_confirmed",
                 "request_resize_choice", "request_declined_resize"):
@@ -82,6 +84,8 @@ def refresh_market_source():
     if "request_results" in st.session_state:
         st.session_state.request_results = {}
     st.session_state.pop("assistant_comparison", None)
+    st.session_state.pop("decision_result", None)
+    st.session_state.pop("decision_storage", None)
     draft = st.session_state.get("assistant_question_draft")
     if draft and draft[0]["status"] != "live_market":
         st.session_state.pop("assistant_question_draft")
@@ -747,12 +751,13 @@ def show_usage_notes(market_bundle_found):
             "measures the largest fall from a prior peak. Each result applies to its displayed historical windows.\n\n"
             "**Holdings evidence.** Issuer and sector ranges retain unknown exposure when disclosures are missing. "
             "A verified calculation can still yield an unresolved rule.\n\n"
-            "**Live market data.** The assistant checks the source, trade time, and trading calendar before publishing "
-            "metrics for a U.S. ticker. Purchase cost uses the reported trade price and the requested share count.\n\n"
-            "**Archived market data.** Replays value one allocation or compare two choices in CAD using covered historical "
-            "prices. ESG screening remains unresolved with the available evidence.\n\n"
-            "**Supported trades.** Simulate an NVDA purchase funded from QQQ or ZST.TO. Direct entry also "
-            "supports custom starting weights across the five covered assets. All runs are fictional."
+            "**Historical data.** Compare two choices, evaluate one allocation, or audit a proposed change in CAD "
+            "using the covered prices. Missing assets require an explicitly sourced upload. A controversy-list "
+            "screen is not an ESG rating; undisclosed holdings remain unresolved.\n\n"
+            "**Confirmed scope.** Review the extracted inputs before a replay. An original proposal does not "
+            "authorize a funding search or a smaller purchase; those require a separate confirmation.\n\n"
+            "**Reference cases.** Archived validation includes the NVDA purchase funded from QQQ or ZST.TO and "
+            "earlier live-quote checks. These are separate from the main historical decision workflow. All runs are fictional."
         )
 
 
@@ -786,10 +791,16 @@ def main():
             st.session_state.pop(key, None)
         st.session_state.active_workspace = workspace
     if workspace == "Investment assistant":
-        render_assistant(market_data, live_request)
+        render_decisions(market_data)
     else:
         st.title("Reference cases")
-        reference_cases()
+        legacy = st.radio("Reference workspace", ("Audited trade examples", "Earlier assistant validation"),
+                           horizontal=True, key="reference_workspace")
+        if legacy == "Earlier assistant validation":
+            st.caption("Earlier release retained for regression comparison. Use Investment assistant for the current three-path workflow.")
+            render_assistant(market_data, live_request)
+        else:
+            reference_cases()
     show_usage_notes(market_bundle_found)
 
 

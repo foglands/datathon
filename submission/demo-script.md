@@ -1,67 +1,62 @@
-# AlphaForge AI · Portfolio Decision Audit
+# AlphaForge AI · Current demonstration script
 
-PolyFinances Datathon 2026 · Demonstration script
+This is the recording plan for the revised three-action workspace. It is not evidence that a new video has been recorded. The existing `alphaforge-demo.mp4` is the earlier 5:23 recording at `13ccc42`, with offline interaction screens and separately recorded AWS evidence. Retain that attribution until a replacement is actually produced.
 
-The 5:23 recording uses genuine Streamlit reference runs against the organizer’s data. The interaction screenshots use Offline mode. The AWS chapter shows the separately recorded competition CloudShell results from commit `13ccc42aae144e95b986a731b49fad88a613c225`. The voiceover is synthesized. The final candidate at `fecddec` changes the Profile parser, and its later AWS checks reproduced the same Robert and Amira audit results. [Final-candidate verification](verification.md)
+Target duration: approximately five minutes. Record the actual application and its visible statuses. Use the same frozen organizer archive across the scenes. Keep credentials, account identifiers and unrelated browser content out of the recording. Claim a current live AWS call only when its successful trace is visible in that run.
 
-## 0:00–0:26 · Portfolio Decision Audit
+## 0:00–0:30 · The question
 
-Open on the title and show the two fictional investor situations.
+Show the Investment assistant and its three actions.
 
-> The same NVIDIA purchase can pass or fail depending on what you sell to fund it, and how you define the risk. AlphaForge audits a fictional investment decision against the investor's confirmed rules and the evidence available at the time. In the next five minutes, two investors will test the same trade, and we'll trace exactly what changes the answer.
+> Tell AlphaForge what you want to test and which rules matter. It compares two choices, evaluates one allocation, or audits a hypothetical trade. It shows which rule caused a breach, which calculation supports that finding, and what remains uncertain. These are historical self-assessments. The application does not execute trades or forecast returns.
 
-## 0:26–1:04 · Confirm the rules before the audit
+## 0:30–1:15 · Amira: compare and explain
 
-Show the confirmed trade, reserve and loss terms. Explain which clarification matters before the replay.
+Select **Try Amira's question** and append `I care most about maximum drawdown.` The question compares NVDA and QQQ in the context of growth and diversification beyond technology. English and French input can use the model-assisted route; keep this recording and its outputs in English. Review both 100% illustrative reference allocations and explicitly select a named, verified ranking window. Confirm and show both report views. These references differ from the complete portfolio alternatives in the optional CLI example; do not mix their results.
 
-> Robert is three to five years from retirement. His starting portfolio holds thirty-five percent S P Y, twenty-five percent X I U, and twenty percent each in Q Q Q and Z S T. He proposes adding ten percentage points of NVIDIA by selling Z S T. He allows either fund for alternatives, allows a smaller buy, and wants to keep at least fifteen percent in Z S T. An instruction like, I cannot lose more than fourteen percent, still needs a risk definition. Here, we confirm terminal loss, from the start to the end of the replay.
+> The model proposes the task, while the investor checks the actual inputs. A profile supplies context, not an automatic financial rule. Here, the confirmed priority is maximum drawdown. Both assets use the same CAD dates. Explanation first and Metrics first display the same reviewed values, and switching views does not run the model again. This establishes a historical comparison. It does not establish diversification beyond technology: a fund label alone cannot resolve missing underlying exposure evidence.
 
-## 1:04–1:46 · Robert · terminal loss
+## 1:15–2:35 · Robert: same purchase, different risk definition
 
-Show the actual Streamlit Robert reference audit in Offline mode. Keep the initial and QQQ-financed results visible.
+Use the starting allocation SPY 35%, XIU.TO 25%, QQQ 20%, ZST.TO 20%. Draft the original proposal to add 10 percentage points of NVDA by selling ZST.TO, keep 15% ZST.TO and cap loss at 14%. Show the clarification and choose terminal loss. Confirm the complete allocation and rules. Then separately authorize QQQ/ZST.TO funding. Show the actual calculated bounds rather than typing a result into the video.
 
-> This is the actual prototype in offline reference mode. The financial calculations use official data and the independent Python audit. Selling ten points of the bond fund leaves only ten percent in reserve and produces a terminal loss of sixteen point one five percent, both breaches. A Q Q Q funded example keeps the twenty percent reserve and loses thirteen point two three percent. The tested range for a full purchase is zero to two point six three percentage points of funding from Z S T, with the rest from Q Q Q. At that boundary the loss cap leaves essentially no headroom.
+> Robert's original purchase sells part of the reserve holding. First we audit exactly that proposal. The rule table identifies both the reserve requirement and the historical loss test. No alternative search has run. Now Robert explicitly authorizes the two funding holdings. Python solves that defined search and independently checks its certificate. Each source range is a marginal bound at the selected purchase size, so its endpoints are not independently interchangeable.
 
-## 1:46–2:28 · Change only how loss is measured
+Create a second confirmed audit changing only terminal loss to maximum drawdown. Preserve the original record.
 
-Show the actual Streamlit result for the changed maximum-drawdown rule, alongside the starting portfolio breach and certificate dates.
+> Now only the definition of loss changes. Maximum drawdown measures the fall from a previous peak, rather than only the difference between the first and last value. The reported result changes according to that rule. If the authorized set is infeasible, the independent certificate supplies the reason; the application does not quietly relax the cap.
 
-> Now we change one rule. Maximum drawdown measures the largest drop from an earlier peak to a later trough within each window. We keep the same portfolio, purchase, allowed funds, reserve floor, market data and fourteen percent cap. Under this definition, the starting portfolio already drops sixteen point zero five percent. The reviewed search finds no permitted purchase size or funding mix. The same hypothetical trade leads to a materially different answer because the risk definition changed. The original audit stays separate so the two decisions can be compared.
+## 2:35–3:20 · Mateo: an honest evidence boundary
 
-## 2:28–3:08 · Follow the figures back to evidence
+Evaluate a small covered portfolio containing a directly screened issuer and an ETF. Set an explicit GPFG exclusion or exclusion-and-observation rule; do not conflate the two. Show source date, disposition, coverage and unknown weight.
 
-Show data inputs, CAD conversion, aligned windows and how the independent checks are run.
+> Mateo asks for environmental and social controversy screening. AlphaForge uses a named, dated GPFG policy list. Excluded, under observation and not listed mean different things. Not listed is not an ESG rating. A verified direct-issuer check does not screen an ETF's undisclosed constituents. The financial calculations remain inspectable, while the unresolved screening rule stays unknown.
 
-> Both audits use adjusted closes from the starter archive. U S dollar observations are converted to Canadian dollars using same-day Bank of Canada exchange rates. The simulation aligns common observation dates and replays starting buy-and-hold weights across calendar year twenty twenty-two and early twenty twenty-five. An independent calculation checks the reported outcomes, feasible boundaries and, when relevant, the witness for infeasibility. The selected periods are historical scenarios. The displayed figures exclude trading costs, taxes and intraday moves.
+## 3:20–3:55 · A new asset and date boundary
 
-## 3:08–3:50 · Amira · NVIDIA issuer exposure
+Enter `I want to invest in 200 shares of AMD.` Show the request for allocation/portfolio context and the absence of eligible archived AMD prices. Demonstrate the supplementary CSV control and source/publication fields. Upload only a prepared, dated public-data example if it has been validated; otherwise leave the gap visible.
 
-Show the actual Amira Streamlit result, including the known issuer cap breach and the unresolved alternative.
+> A quantity alone does not define portfolio impact. The assistant needs the allocation and capital context. If an asset is absent from the archive, it asks for qualified data rather than presenting another asset as AMD. The knowledge date also checks when the source became available. A later retrieved, back-adjusted series cannot be presented as a vintage that was known earlier.
 
-> Amira wants growth and diversification. She proposes the same NVIDIA purchase, but confirms a fourteen percent issuer cap that includes what the funds already hold. The Z S T funded proposal has documented exposure of at least fourteen point one five percent, enough to establish a breach. Funding the same buy from Q Q Q lowers the documented NVIDIA exposure to thirteen point three nine percent. The underlying weights for two funds remain unverified. The application holds that alternative rather than assuming their undisclosed NVIDIA weights are zero.
+## 3:55–4:35 · Follow a value and show AWS
 
-## 3:50–4:25 · What evidence would settle it?
+Expand a drawdown metric record, its source rows and review identity. Show the live Bedrock trace from this run, if available. Download JSON and a PDF. If the configured versioned bucket is available, save the report and show the returned version receipt.
 
-Show the QQQ-funded issuer evidence contribution ceiling computed by the prototype.
+> This number links to a metric identifier, formula version, window, source rows and file hash. An independent calculation checks it before publication. Bedrock interpreted the question and can assemble a short explanation from approved sentences and fixed transitions. Python owns the values and rule verdicts. The JSON and PDF share the reviewed record. A configured S3 bucket stores a versioned copy and returns its object receipt.
 
-> The evidence challenge identifies the missing fund disclosures and the numerical requirement. To meet Amira's cap, X I U and Z S T can contribute no more than zero point six zero nine three seven percentage points of combined additional NVIDIA exposure. The existing disclosed weights were observed June thirtieth, twenty twenty-six, and the S E C filings published August twenty-eighth. We keep those holdings separate from the historical price windows. The evidence request does not release a trade.
+If a live call or S3 write is unavailable, say so and show the separately attributed historical proof. Do not label a mock or offline run live.
 
-## 4:25–5:02 · Recorded competition AWS execution
+## 4:35–5:00 · Why the result is useful
 
-Show the separate competition CloudShell evidence from build 13ccc42, including successful Converse response counts and a request ID prefix.
+Close on the original, changed-rule and evidence-limited reports.
 
-> These are recorded results from competition CloudShell, separate from the offline interaction screens. Strands calls Amazon Nova Two Lite through Bedrock Converse. The evidence and scenario stages make checked tool selections, and Review independently verifies the numerical results. In the recorded Robert run, Bedrock also selected the loss-definition challenge. For Amira, it selected the qualified evidence request, with no further historical replay. The checked signals and model activity can be inspected as separate records.
+> AlphaForge makes the trade-off reviewable: what was tested, which rule mattered, what would change the answer, and what evidence is missing. It keeps original decisions separate from authorized alternatives. Formula verification cannot remove source uncertainty or predict future losses. The repository includes the methods, tests, evidence boundaries and instructions to reproduce the result.
 
-## 5:02–5:23 · See what would change the answer
+## Recording acceptance
 
-Close with the project, reproducible app and audit.
-
-> AlphaForge shows which tested rules a simulated trade meets, what caused a breach, and what evidence could change the conclusion. The repository includes the reproducible app, independent test suite and measured architecture comparison. Use the audit record to follow each result to its inputs.
-
-## Reproduce the sequence
-
-- Start the app with the organizer’s starter ZIP. Choose **Reference case** and **Offline**, then confirm **Robert · loss definition**. Compare maximum drawdown using **Confirm this change and compare**.
-- Choose **Amira · issuer exposure** and confirm the inputs. In **What could change this decision?**, select the check for required issuer disclosures. The starting portfolios and thresholds are fictional.
-- Before recording live evidence, use the competition credentials and choose **Bedrock** mode. Expand **Agent activity and AWS trace** to reveal verified calls. Keep account details and tokens out of the recording.
-- [Demo video](alphaforge-demo.mp4) · [One-pager](one-pager.pdf) · [Demo visuals](visual-handout.pdf) · [Final-candidate verification](verification.md)
-- [Prototype and setup](../README.md) · [Architecture benchmark](../BENCHMARK.md) · [Iteration record](../AGENT_ITERATION.md)
+- Record the application revision, organizer-data digest and execution mode alongside the video.
+- Show confirmation before calculation and separate authorization before funding search.
+- Change one Robert rule at a time; preserve the other inputs and the original report.
+- Keep missing ETF screening coverage and unavailable metrics visible.
+- Show actual result and AWS receipt values; do not substitute scripted numbers.
+- Identify the existing recording as historical until a new MP4 is generated and checked.

@@ -740,6 +740,11 @@ class StrandsAgents:
     def _role_config(self, role: str) -> Role:
         return ROLES[role]
 
+    def _role_instructions(self, role: str) -> str:
+        """Keep the ordinary tool-only numeric boundary unchanged by default."""
+        instructions = self._role_config(role).instructions
+        return instructions if role == "profile" else _COMMON_PROMPT + instructions
+
     async def run(
         self,
         role: str,
@@ -1033,9 +1038,7 @@ class StrandsAgents:
         profile_handoff: dict[str, Any] = {}
         profile_tool_reached = False
         tool_names = {self._tool_name(item) for item in tools}
-        instructions = self._role_config(role).instructions
-        if role != "profile":
-            instructions = _COMMON_PROMPT + instructions
+        instructions = self._role_instructions(role)
         if terminal_tool:
             instructions += (f" Complete the required tools and finish by calling {terminal_tool}. "
                              "The tool result is the final handoff.")

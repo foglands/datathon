@@ -1,0 +1,13 @@
+{
+  "name": "Amira",
+  "objective": "Long-term growth with diversification beyond emerging technology",
+  "horizon_years": 15,
+  "risk_tolerance": "High",
+  "finance_literacy": "working",
+  "method_literacy": "basic",
+  "view": "explain_first",
+  "example": {
+    "question": "I like AI stocks but want diversification beyond technology. Compare NVDA and QQQ."
+  },
+  "task_goal": "understand_result"
+}

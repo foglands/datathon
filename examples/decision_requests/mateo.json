@@ -1,0 +1,9 @@
+{
+  "intent": "evaluate",
+  "origin": "team_defined_example",
+  "portfolios": [{"label": "Balanced illustration", "weights": {"SPY": 0.60, "AGG": 0.40}}],
+  "risk_limits": [],
+  "constraints": [{"asset_set": {"exclusion_list": "GPFG"}, "max": 0}],
+  "capital": {"value": 100000, "currency": "CAD"},
+  "profile": {"preset": "Mateo", "objective": "Balance growth and stability", "horizon_years": 10, "risk_tolerance": "Moderate", "esg_screen": true, "finance_literacy": "working", "method_literacy": "basic", "task_goal": "understand_result", "view": "explain_first"}
+}

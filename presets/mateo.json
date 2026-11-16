@@ -1,0 +1,14 @@
+{
+  "name": "Mateo",
+  "objective": "Balance growth and stability",
+  "horizon_years": "8\u201312",
+  "risk_tolerance": "Moderate",
+  "esg_screen": true,
+  "finance_literacy": "working",
+  "method_literacy": "basic",
+  "view": "explain_first",
+  "example": {
+    "question": "Analyze a portfolio with 60% in SPY and 40% in AGG. ESG screening is required."
+  },
+  "task_goal": "understand_result"
+}

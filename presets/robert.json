@@ -1,0 +1,19 @@
+{
+  "name": "Robert",
+  "objective": "Capital preservation and stability approaching retirement",
+  "horizon_years": "3\u20135",
+  "risk_tolerance": "Low to moderate",
+  "finance_literacy": "expert",
+  "method_literacy": "working",
+  "view": "metric_first",
+  "example": {
+    "question": "Add 10 percentage points of NVDA by selling ZST.TO. Keep at least 15% in ZST.TO. My terminal loss limit is 14%.",
+    "portfolio": {
+      "SPY": 0.35,
+      "XIU.TO": 0.25,
+      "QQQ": 0.2,
+      "ZST.TO": 0.2
+    }
+  },
+  "task_goal": "verify_numbers"
+}
