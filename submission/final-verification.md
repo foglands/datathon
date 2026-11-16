@@ -6,6 +6,16 @@ After the operator saved Streamlit Secrets, the hosted `f637000` revision reache
 
 The follow-up release prioritizes explicit tickers, adds dated public filing evidence, and exposes successful Bedrock Converse calls in the evidence tab. The external Yahoo adapter now requires an explicit authorized opt-in. For broader daily-price coverage, configure a permitted archive locally or through the optional private S3 reader. The filing-based path retains its source links and can export a report when daily prices are missing.
 
+The hosted retest of [`2bdafb2`](https://github.com/foglands/datathon/commit/2bdafb2d7a6ea2513f00e20098f0f1991e734115) checked all three examples with the operator's saved AWS configuration and the default disclosure-only data path. The three reports showed successful Amazon Bedrock Converse responses for intake, planning, synthesis and independent review. Each released a **partial assessment**, with unavailable daily prices and other outstanding inputs shown in the report.
+
+| Case | Observed result |
+| --- | --- |
+| AI and Bitcoin | Displayed SPY's dated NVIDIA holding and IBIT's stated Bitcoin objective. The conclusion withheld the combined diversification judgment without allocation weights or aligned histories. |
+| Growth with ESG preferences | Explained ESGU's disclosed screen and showed the reported calendar 2022 fund returns for ESGU and SPY. Current issuer-level exclusions and daily risk comparison remained open. |
+| A stock before retirement | Researched TSLA and showed the 73.39% decline between the disclosed Q4 2021 high close and Q4 2022 low close. It connected the observed episode to the stated loss capacity and withheld the full-history drawdown and recovery. |
+
+The official-data local regression passed **583 tests with zero skips**. GitHub CI passed for the [default branch](https://github.com/foglands/datathon/actions/runs/43826556883) and the [deployment branch](https://github.com/foglands/datathon/actions/runs/43826549372). Private S3 loading and exports from the disclosure path passed local fixture tests. The public deployment did not use an S3 price object.
+
 ## Official case examples and submission update (November 16, 2026)
 
 Three sidebar questions adapt the official case brief's investor situations (English edition, pp. 5–7). The current customer interface test exercises all three selections. Each fills the exact editable question, produces no report and makes no research call until the separate analysis action.
