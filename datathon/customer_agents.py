@@ -92,11 +92,24 @@ REVIEW = Role(
 
 
 class CustomerAgents(StrandsAgents):
+    def _inference_parameters(self, role):
+        return {"temperature": 0.0} if role.startswith("customer_") else super()._inference_parameters(role)
+
+    def _read_timeout(self, role):
+        return 40 if role in {"customer_planner", "customer_analyst", "customer_auditor", "customer_pair_review"} else super()._read_timeout(role)
+
     def _output_token_limit(self, role):
-        return 1800 if role in {"customer_intake", "customer_report"} else super()._output_token_limit(role)
+        return {"customer_intake": 1800, "customer_report": 1800, "customer_planner": 1400,
+                "customer_analyst": 2200, "customer_auditor": 1000, "customer_pair_review": 900}.get(role, super()._output_token_limit(role))
 
     def _role_config(self, role):
-        return {"customer_intake": INTAKE, "customer_report": REPORT, "customer_review": REVIEW}.get(role) or super()._role_config(role)
+        # Resolve current contracts after a Streamlit module reload.
+        from .customer_reasoning import PLANNER, ANALYST, AUDITOR
+        if role == "customer_pair_review":
+            from .customer_acceptance import PAIR_REVIEW
+            return PAIR_REVIEW
+        return {"customer_intake": INTAKE, "customer_report": REPORT, "customer_review": REVIEW,
+                "customer_planner": PLANNER, "customer_analyst": ANALYST, "customer_auditor": AUDITOR}.get(role) or super()._role_config(role)
 
     def _role_instructions(self, role):
         return self._role_config(role).instructions if role.startswith("customer_") else super()._role_instructions(role)
@@ -104,7 +117,7 @@ class CustomerAgents(StrandsAgents):
 
 def customer_runtime():
     configured = configured_bedrock_runtime(profile=True)
-    return CustomerAgents(model_id=configured.model_id, region=configured.region)
+    return CustomerAgents(model_id=configured.model_id, region=configured.region, timeout_seconds=45, max_total_tokens=26000)
 
 
 def _excerpt(text, value):

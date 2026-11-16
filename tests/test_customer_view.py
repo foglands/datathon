@@ -37,6 +37,31 @@ class CustomerViewTests(unittest.TestCase):
         self.assertTrue(any(button.label == "Update my research" for button in self.app.button))
         self.assertFalse(any(button.label == "Confirm and run historical review" for button in self.app.button))
 
+    def test_optional_form_is_sent_as_context_and_answer_precedes_details(self):
+        from datathon.review_snapshot import fingerprint
+        from tests.test_customer_reasoning import sections
+        request = "Research AMD for a possible investment"
+        provider = Mock(asset=Mock(return_value=asset()), fx=Mock(return_value=fx()))
+        with patch("datathon.customer_workflow.understand", AsyncMock(return_value=plan())):
+            report = asyncio.run(research_question(request, provider=provider))
+        report["editor"]["explanations"] = sections()
+        report["report_digest"] = fingerprint({key:value for key,value in report.items() if key != "report_digest"})
+        self.app.text_area(key="customer_question").set_value(request).run()
+        next(field for field in self.app.text_input if field.label == "What is this money for?").set_value("Tuition")
+        next(field for field in self.app.text_input if field.label.startswith("Planned withdrawals")).set_value("8400 CAD in 12 months")
+        next(field for field in self.app.text_input if field.label.startswith("What losses")).set_value("No other tuition funds")
+        workflow = AsyncMock(return_value=report)
+        with patch("datathon.customer_view.customer_runtime", return_value=None), patch("datathon.customer_view.research_question", workflow):
+            next(button for button in self.app.button if button.label == "Use these details and research").click().run()
+        self.assertFalse(self.app.exception)
+        sent = workflow.call_args.args[0]
+        for text in (request,"Tuition","8400 CAD in 12 months","No other tuition funds"):
+            self.assertIn(text,sent)
+        nodes = list(self.app.main)
+        conclusion = next(i for i,node in enumerate(nodes) if getattr(node,"value",None) == "### My research conclusion")
+        market = next(i for i,node in enumerate(nodes) if getattr(node,"value",None) == "The market evidence")
+        self.assertLess(conclusion,market)
+
     def test_model_and_provider_failure_remain_visible_without_fake_report(self):
         report = {"question": "unknown", "plan": plan(mode="clarify"), "analyses": [], "errors": [], "fx": None,
                   "blocks": {}, "editor": {}, "method": "test", "created_at": "2026-11-16", "status": "needs_input"}

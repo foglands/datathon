@@ -265,13 +265,17 @@ def risk_blocks(risks):
         for row in risk["results"]:
             symbol = row["symbol"]
             if risk["id"] == "cash_needs":
-                summaries.append(f"For {symbol}, replaying the stated withdrawal schedule against the observed path required "
+                event_dates = ", ".join(item["date"] for item in row["withdrawals"])
+                summaries.append(f"For {symbol}, the replay starts at {row['path'][0]['date']} and the asset path ends at {row['path'][-1]['date']}. "
+                    f"Scheduled withdrawals actually occur on: {event_dates}. Relative timing is mapped onto the historical starting date, not today. "
+                    "Replaying the stated withdrawal schedule against this observed path required "
                     f"{row['currency']} {row['total_requested']:,.2f}. The replay paid {row['currency']} {row['total_paid']:,.2f}, "
                     f"left a funding shortfall of {row['currency']} {row['shortfall']:,.2f}, and ended with "
                     f"{row['currency']} {row['remaining']:,.2f} in assets. {row['withdrawals_during_declines']} scheduled withdrawal dates "
                     "occurred below a previous market high. The full initial amount is invested in fractional units at the start of this "
                     "historical path; no whole-share cash remainder is retained. Scheduled withdrawals sell fractional units at the first "
-                    "included close on or after the due date. This is one historical scenario, not a retirement-success probability.")
+                    "included close on or after the due date. This is one historical scenario, not a retirement-success probability. "
+                    + row["recovery_note"] + " A shortfall in this path does not establish certain future failure; a surplus does not guarantee future funding.")
                 if row["shortfall"] > .005:
                     required = key
             elif risk["id"] == "purchasing_power":

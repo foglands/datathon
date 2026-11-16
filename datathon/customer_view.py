@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 
 from .customer_agents import customer_runtime
-from .customer_report import methodology, report_markdown, report_html, verify_report
+from .customer_report import methodology, report_markdown, report_html, verify_report, METHOD
 from .customer_workflow import research_question
 from .runtime_budget import run_sync_action
 
@@ -156,15 +156,15 @@ def _activity(report):
     with st.expander("How the assistant reached this report"):
         st.table([
             {"Step": "Understand", "Work": "Extract the proposed investments and stated conditions", "Execution": "Amazon Bedrock" if report["plan"]["origin"] == "bedrock" else "Local recovery parser"},
-            {"Step": "Research", "Work": "Fetch dated market observations and official FX when needed", "Execution": "Public source requests"},
+            {"Step": "Research", "Work": "Run selected evidence tools and investigate follow-up questions", "Execution": "Public source requests"},
             {"Step": "Calculate", "Work": "Compute sizing, historical changes and chart paths", "Execution": "Python formulas"},
             {"Step": "Review", "Work": "Recompute figures and every chart point independently", "Execution": "Passed" if report["analyses"] else "No report released"},
-            {"Step": "Explain", "Work": "Prioritize checked conclusions and supporting evidence", "Execution": "Amazon Bedrock" if report["editor"].get("origin") == "bedrock" else "Checked evidence template"},
+            {"Step": "Explain", "Work": "Investigate evidence gaps and synthesize a contextual answer", "Execution": "Amazon Bedrock" if report["editor"].get("origin") == "bedrock" else "Checked evidence template"},
         ])
         st.caption("Financial figures come from checked Python calculations. Model-written interpretation is reviewed in a separate step against the evidence. "
                    "These are observable actions, not private model reasoning.")
         st.json({"method": report["method"], "report_digest": report["report_digest"],
-                 "intake": report["plan"].get("trace", []), "report": report["editor"].get("trace", []),
+                 "intake": report["plan"].get("trace", []), "planning": report.get("planning", {}).get("trace", []), "report": report["editor"].get("trace", []),
                  "explanation_review": report["editor"].get("explanation_review", {})}, expanded=False)
 
 
@@ -173,41 +173,45 @@ def render_report(report):
         st.error("This report no longer matches its checked evidence. Ask again to produce a fresh report.")
         return
     plan, analyses = report["plan"], report["analyses"]
+    explanations = report["editor"].get("explanations", [])
+    if analyses:
+        with st.container(border=True):
+            if explanations:
+                for section in explanations:
+                    st.markdown("### " + section["heading"])
+                    st.write(section["text"])
+                    with st.expander("Evidence behind this finding · " + section["heading"]):
+                        for key in section["evidence_ids"]:
+                            st.write(report["blocks"][key]["text"])
+                        context = report.get("planning", {}).get("context", {})
+                        for key in section.get("context_ids", []):
+                            if key in context:
+                                st.caption("Your words: " + context[key])
+            else:
+                st.markdown("### A checked conclusion is not available yet")
+                st.write("The available calculations are shown below, but the analysis did not produce an independently accepted answer to your full question.")
+                st.caption("This is an evidence-only result, not a personalized conclusion.")
     if plan["origin"] != "bedrock":
-        st.info("The language model was unavailable for this request. The assistant used its limited local parser; review the interpretation below.")
-    st.subheader("Your idea, understood")
-    st.text(report["question"])
-    if plan["assets"]:
-        st.caption(" · ".join(f"{asset['query']} ({asset['role']})" for asset in plan["assets"]))
-    if plan["conditions"]:
+        st.info("The language model was unavailable. The limited local parser cannot provide a contextual investment assessment.")
+    with st.expander("Your question and the context used"):
+        st.text(report["question"])
         for condition in plan["conditions"]:
-            st.text(f"{condition['kind'].capitalize()} · {condition['excerpt']}")
-    for conflict in report.get("profile", {}).get("conflicts", []):
-        st.warning(f"Conflicting {conflict['field'].replace('_', ' ')}: " + " / ".join(conflict["statements"]) + " " + conflict["impact"])
-    with st.expander("Profile facts, original wording and unknowns"):
-        profile = report.get("profile", {})
-        st.caption("Extracted statements remain unconfirmed interpretations. Correct them in the conversation; unknowns stay unknown.")
-        st.json(profile, expanded=False)
-    if plan["budget"]:
-        budget = plan["budget"]
-        st.caption(f"Stated amount: {budget['currency'] or 'currency not stated'} {budget['amount']:,.2f}")
-        if not budget["currency"]:
-            st.info("The currency of the stated amount is unclear. Purchase sizing is withheld until you clarify it.")
+            st.text(f"{condition['kind'].replace('_', ' ').capitalize()} · {condition['excerpt']}")
+        st.caption("Extracted statements are interpretations of your wording. Correct them in the conversation; unknowns stay unknown.")
+        for conflict in report.get("profile", {}).get("conflicts", []):
+            st.warning(f"Conflicting {conflict['field'].replace('_', ' ')}: " + " / ".join(conflict["statements"]) + " " + conflict["impact"])
+    with st.expander("Analysis questions and follow-up investigations"):
+        for check in report.get("planning", {}).get("checks", []):
+            st.write(check["question"])
+        for outcome in report.get("tool_outcomes", []):
+            st.write(outcome["question"])
+            st.caption(outcome["outcome"])
+        for step in report["editor"].get("analysis_steps", []):
+            if step["action"] == "review":
+                st.caption("Independent review: " + ("accepted" if step["accepted"] else "revision requested") + ". " + step["feedback"])
     for error in report["errors"]:
         st.warning(error)
     if analyses:
-        lead = report["blocks"][report["editor"]["takeaway"]]
-        explanations = report["editor"].get("explanations", [])
-        with st.container(border=True):
-            if explanations:
-                conclusion = next(section for section in explanations if section["heading"] == "My research conclusion")
-                st.markdown("### My research conclusion")
-                st.write(conclusion["text"])
-                st.caption("Model interpretation, checked against the report evidence. Exact figures and limits follow.")
-            else:
-                st.caption("Showing checked calculations. A model-written interpretation was unavailable or did not pass the evidence review.")
-                st.markdown("### " + lead["title"])
-                st.write(lead["text"])
         st.subheader("The market evidence")
         if len(analyses) == 1:
             item = analyses[0]
@@ -224,13 +228,7 @@ def render_report(report):
                           for item in analyses], hide_index=True, width="stretch")
         _charts(analyses)
         _risk_checks(report)
-        st.subheader("What this means for your idea")
-        for section in explanations:
-            if section["heading"] == "My research conclusion":
-                continue
-            st.markdown(f"**{section['heading']}**")
-            st.write(section["text"])
-            st.caption("Evidence: " + " · ".join(report["blocks"][key]["title"] for key in section["evidence_ids"]))
+        st.subheader("Supporting calculations")
         for key in report["editor"]["order"]:
             if key.startswith("risk."):
                 continue
@@ -251,6 +249,10 @@ def render_report(report):
 
 
 def render_customer(market_loader=None):
+    cached = st.session_state.get("customer_report")
+    if cached and cached.get("method") != METHOD:
+        st.session_state.pop("customer_report", None)
+        st.info("The analysis workflow has been updated. Research your question again to use contextual planning and review.")
     st.title("Turn an investment idea into a clearer decision.")
     st.write("Tell me what you are considering, what you want the money to do, and any conditions that matter. "
              "I will research the evidence, calculate the trade-offs, and explain what the results support.")

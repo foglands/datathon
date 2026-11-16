@@ -1,3 +1,7 @@
+> Current reasoning update: the customer flow now plans analysis questions, selects evidence tools, can investigate follow-up gaps, synthesizes an answer and independently reviews its use of your conditions. The conclusion appears first. See [requested changes](REASONING_REQUIREMENTS.md), [workflow](CUSTOMER_RESEARCH.md) and [reasoning acceptance](submission/reasoning-validation.md).
+
+> Generalization acceptance is partial: name and material-context comparisons passed; paraphrase and irrelevant-detail consistency remain open. Do not treat this revision as a fully validated customer advisory product.
+
 # AlphaForge AI · Investment Decision Assistant
 
 PolyFinances Datathon 2026 · Banque Nationale · AWS

@@ -4,12 +4,14 @@ import asyncio
 import re
 from datetime import datetime, timezone
 
-from .customer_agents import understand, edit_report
+from .customer_agents import understand
+from .customer_reasoning import plan_analysis, synthesize
+from .customer_tools import execute_checks
 from .customer_data import PublicResearch, ResearchUnavailable
 from .customer_report import analyze, evidence_blocks, METHOD
 from .review_snapshot import fingerprint
 from .customer_profile import build_profile, risk_plan
-from .customer_risks import quantify_risks, risk_blocks, explicit_rule_checks
+from .customer_risks import explicit_rule_checks
 
 
 async def research_question(question, *, runtime=None, provider=None, progress=None, market_data=None):
@@ -33,6 +35,9 @@ async def research_question(question, *, runtime=None, provider=None, progress=N
         result["status"] = "needs_input"
         result["report_digest"] = fingerprint(result)
         return result
+    progress("Planning which claims need evidence")
+    result["planning"] = await plan_analysis(question, plan, runtime, profile=profile)
+    result["executed_tools"], result["tool_outcomes"] = [], []
     progress("Looking up dated prices and historical observations")
 
     async def fetch(asset):
@@ -73,23 +78,21 @@ async def research_question(question, *, runtime=None, provider=None, progress=N
                 except ValueError as asset_error:
                     result["errors"].append(f"{asset['symbol']}: {asset_error}")
     if result["analyses"]:
-        result["risks"] = risk_plan(profile, assets, result["analyses"])
-        if any(risk["id"] == "purchasing_power" for risk in result["risks"]):
-            progress("Checking purchasing power against Canadian CPI")
-            try:
-                result["cpi"] = await asyncio.to_thread(provider.cpi)
-            except ResearchUnavailable as exc:
-                for risk in result["risks"]:
-                    if risk["id"] == "purchasing_power":
-                        risk["limitation"] = str(exc)
-        progress("Running the checks relevant to your stated conditions")
-        result["risks"] = quantify_risks(result["risks"], profile, result["analyses"], budget,
-                                         cpi=result["cpi"], market_data=market_data,
-                                         today=result["created_at"][:10])
-        result["blocks"], required = evidence_blocks(plan, result["analyses"], result["errors"])
-        additional, risk_priority = risk_blocks(result["risks"])
-        result["blocks"].update(additional)
-        required = risk_priority or required
+        raw_blocks, _ = evidence_blocks(plan, result["analyses"], result["errors"])
+        # Keep facts and evidence gaps, not prewritten goal-based verdicts.
+        result["blocks"] = {key: block for key, block in raw_blocks.items()
+                            if key.endswith((".behavior", ".budget", ".stale")) or key in {"data_gap", "portfolio_gap"}}
+        if not result["blocks"]:
+            result["blocks"] = raw_blocks
+        checks = result["planning"]["checks"]
+        if runtime is None:
+            # Explicitly labeled offline evidence recovery; never a model judgment.
+            checks = [{"tool": risk["id"], "question": risk["reason"], "context_ids": ["user.request"]}
+                      for risk in risk_plan(profile, assets, result["analyses"])]
+        async def execute(requests):
+            await execute_checks(result, requests, provider, market_data)
+        progress("Collecting evidence for the selected analysis questions")
+        await execute(checks)
         result["rule_checks"] = explicit_rule_checks(profile, result["analyses"])
         for index, check in enumerate(result["rule_checks"]):
             key = f"explicit_rule.{index}"
@@ -97,13 +100,11 @@ async def research_question(question, *, runtime=None, provider=None, progress=N
             cap = f"{check['cap']:.2%}" if check["metric"] != "recovery_days" else f"{check['cap']} days"
             result["blocks"][key] = {"title": f"Explicit rule · {check['status'].replace('_', ' ')}",
                 "text": f"{check['symbol']} · {check['metric']}: stated cap {cap}, observed result {actual}. {check['reason']}", "sources": []}
-            if check["status"] == "observed_breach":
-                required = key
         missing_client = next((risk for risk in result["risks"] if risk["id"] == "cash_needs" and risk["status"] == "needs_client_information"), None)
         if missing_client and not profile["conflicts"]:
             plan["question"] = missing_client["limitation"]
         progress("Preparing the conclusion, supporting evidence and follow-up")
-        result["editor"] = await edit_report(plan, result["blocks"], runtime, required)
+        result["editor"] = await synthesize(result, result["planning"], runtime, execute, progress)
         result["status"] = "partial" if result["errors"] else "ready"
     else:
         result["status"] = "unavailable"

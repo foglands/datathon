@@ -795,9 +795,12 @@ def main():
         render_customer(market_data)
     else:
         st.title("Reference cases")
-        legacy = st.radio("Reference workspace", ("Audited trade examples", "Historical decision workbench", "Earlier assistant validation"),
+        legacy = st.radio("Reference workspace", ("Audited trade examples", "Historical decision workbench", "Earlier assistant validation", "Reasoning acceptance"),
                            horizontal=True, key="reference_workspace")
-        if legacy == "Historical decision workbench":
+        if legacy == "Reasoning acceptance":
+            from datathon.customer_acceptance import render_acceptance
+            render_acceptance(market_data)
+        elif legacy == "Historical decision workbench":
             render_decisions(market_data)
         elif legacy == "Earlier assistant validation":
             st.caption("Earlier release retained for regression comparison. Use Investment assistant for conversational research.")

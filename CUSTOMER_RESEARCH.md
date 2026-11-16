@@ -2,15 +2,23 @@
 
 The default customer workspace implements the current product direction and the November 16 general-profile/risk requirements. The historical workbench remains available for regression validation and explicitly authorized funding searches.
 
-## Journey and model boundaries
+## Inquiry and synthesis
 
-The user describes an idea and relevant conditions. Optional free-text profile fields are available, but no complete questionnaire is required. Bedrock extracts exact asset/condition excerpts and literal amounts. Fields retain their wording, category and `extracted_unconfirmed` status. Unknowns stay unknown; conflicting amount/currency statements withhold sizing without blocking independent price analysis.
+The current flow is **understand → plan → execute evidence tools → synthesize → independently review**. The complete user request, including optional fields, reaches planning, synthesis and review. Extracted excerpts also receive stable per-request context references. Names and unrelated background do not define model routes or financial rules.
 
-The data tool fetches public adjusted closes, dated latest prices, and Bank of Canada FX. Goals and withdrawals trigger Canadian CPI. A deterministic plan identifies relevant checks, reasons, required evidence, methods and statuses. Python computes all financial values. Existing `decision_replay.evaluate` and `verify` supply the historical metrics and independent checks; new withdrawal, CPI, duration and trading-volume calculations use independent rational arithmetic checks.
+A Bedrock planner proposes up to four analytical questions, identifies the relevant user context and selects evidence tools. Basic dated asset/FX observations are validated first. The analyst then receives actual tool outcomes and can request up to two further batches of previously unused tools. A tool failure or missing holdings can cause a narrower answer or focused follow-up. No risk module is mandatory merely because its keyword appears in a profile. Explicit stated numerical rules remain checked facts; they do not force a particular lead conclusion.
 
-Bedrock selects checked evidence and writes a qualitative interpretation. A separate model call reviews it against the evidence and user statements. Literal/spelled-out quantities and unsupported counterfactuals are rejected; numbers and rule verdicts remain deterministic. Semantic review is a safeguard, not proof that a model can never make an incorrect inference. Failed interpretation is withheld and the checked evidence remains available. Local fallback never masquerades as an AWS call.
+The synthesis has four sections: direct conclusion, supporting evidence, counterevidence, and important gaps/next step. Each substantive section cites checked evidence and client statements. Python owns arithmetic. Numeric literals must match exact values in cited Python-authored evidence or an explicitly cited, extracted client input. Registry placeholders resolve to checked evidence. Input quotations must remain labeled inputs; they cannot become computed outcomes. An analysis question is not verified evidence and cannot seed the numeric registry. This checks numeric origin, while the independent reviewer checks meaning and citation relevance. It is not proof of every qualitative inference.
 
-The report presents a conclusion, graphs, relevant risks, assumptions, dates, gaps and a focused follow-up. Downloadable HTML includes vector charts and sources; Markdown contains the text. Observable activity records identify model/tool execution, not private model reasoning.
+A separate reviewer checks whether the answer addresses the question, uses material context, grounds its claims, weighs both sides and respects evidence limits. A rejection produces specific feedback for one repair attempt. If that repair fails, the interface explicitly displays an evidence-only result instead of presenting a generic template as a personalized conclusion. This is a bounded orchestration loop, not unbounded autonomous browsing or proof that an LLM cannot err.
+
+The report puts the reviewed answer and both sides of the reasoning before profile details, risk tables and charts. The former editor-only path and keyword-triggered recovery remain for legacy/offline tests, not as the online synthesis decision maker. Old cached reports are invalidated when the workflow version changes.
+
+## Tools and scope
+
+The planner can choose historical market analysis, holding-period windows, cash-needs replay, CPI purchasing power, duration, credit, traded-value proxy, exposures, a named controversy screen, tail-metric eligibility and portfolio-context checks. New holding-period analysis derives a single explicitly stated month/year horizon, checks overlapping historical outcomes with independent rational arithmetic, and refuses to extrapolate beyond available data. An unknown horizon produces a question, not a default.
+
+The tool catalog is the current capability boundary. The model can choose tools and revise its scope; it cannot invent a data source, execute arbitrary code, manufacture thresholds or start an unrequested alternative-allocation search. Whole-portfolio impact remains unassessed without the required holdings and before/after allocation. The financial methods and source limits below still apply.
 
 ## General profiles
 
@@ -56,8 +64,14 @@ The small [bond disclosure catalog](datathon/bond_disclosures.json) is a factual
 
 Use the README environment and AWS configuration. Intake, explanation and explanation review use `DATATHON_PROFILE_MODEL_ID` in `us-east-1`, with bounded stage time/request/token budgets. Real traces expose successful versus failed or local execution.
 
-Main files: `customer_agents.py`, `customer_profile.py`, `customer_data.py`, `customer_workflow.py`, `customer_risks.py`, `customer_bonds.py`, `customer_report.py`, `customer_view.py`. Existing replay and qualified exposure code is reused.
+Main files: `customer_reasoning.py`, `customer_tools.py`, `customer_acceptance.py`, `customer_agents.py`, `customer_profile.py`, `customer_data.py`, `customer_workflow.py`, `customer_risks.py`, `customer_bonds.py`, `customer_report.py`, `customer_view.py`. Existing replay and qualified exposure code is reused.
 
 Run `python -m unittest tests.test_customer_research tests.test_customer_risks tests.test_customer_view -v`. Tests cover profile-name invariance, contrasting triggers, high willingness with a down payment, recurring withdrawals, complete weights, missing/conflicting data, absent FX, adjustment/date validation, tampering, source gaps and the simplified UI. The full suite retains existing workbench coverage.
 
 Live acceptance must identify this revision independently of the old architecture baseline. Current validation is recorded in `submission/customer-validation.md`; earlier PDFs/videos and the 474-test baseline do not prove this new workspace.
+
+## Generalization acceptance
+
+Reference cases → Reasoning acceptance runs five previously unused fictional MSFT questions with frozen public observations: baseline, changed name, synonymous wording, irrelevant hobby and added tuition withdrawal/loss-capacity details. Independent comparisons assess substantive equivalence for the first transformations and justified contextual sensitivity for the material change; identical wording or a mechanically different verdict is not required. Accepted answers and identical core financial metrics are also required. Results are samples, not a guarantee of invariance for all language.
+
+Automated tests separately exercise optional-form propagation, analysis-before-tools, follow-up tool use, absence of a forced lead, rejected/repair cycles, numeric-origin validation, horizon invariance and conclusion placement. See `submission/reasoning-validation.md` for this revision's observed acceptance, distinct from the earlier customer validation.

@@ -740,6 +740,9 @@ class StrandsAgents:
     def _role_config(self, role: str) -> Role:
         return ROLES[role]
 
+    def _read_timeout(self, role: str) -> float:
+        return 12
+
     def _output_token_limit(self, role: str) -> int:
         return _MAX_OUTPUT_TOKENS
 
@@ -747,6 +750,9 @@ class StrandsAgents:
         """Keep the ordinary tool-only numeric boundary unchanged by default."""
         instructions = self._role_config(role).instructions
         return instructions if role == "profile" else _COMMON_PROMPT + instructions
+
+    def _inference_parameters(self, role: str) -> dict:
+        return {}
 
     async def run(
         self,
@@ -966,9 +972,10 @@ class StrandsAgents:
             region_name=self.region,
             streaming=False,
             max_tokens=self._output_token_limit(role),
+            **self._inference_parameters(role),
             boto_client_config=Config(
                 connect_timeout=max(.1, min(3, remaining)),
-                read_timeout=max(.1, min(12, remaining)),
+                read_timeout=max(.1, min(self._read_timeout(role), remaining)),
                 retries={"mode": "standard", "total_max_attempts": 2},
             ),
         )

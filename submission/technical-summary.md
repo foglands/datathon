@@ -1,6 +1,6 @@
 # AlphaForge AI · Technical documentation
 
-**Current customer workspace:** see [Conversational investment research](../CUSTOMER_RESEARCH.md) for the general profile, public-data research, withdrawals, CPI, risk-trigger plan and reviewed model interpretation. The document below describes the preserved historical workbench. Official personas are validation fixtures only.
+**Current customer workspace:** see [Conversational investment research](../CUSTOMER_RESEARCH.md) for question understanding, model-led analysis planning, selected evidence tools, contextual synthesis and independent answer review. The conclusion comes first; optional client details are available at every reasoning stage. See [current acceptance](reasoning-validation.md) for tests and live observations. The document below describes the preserved historical workbench. Official personas are validation fixtures only.
 
 PolyFinances Datathon 2026 · Banque Nationale × AWS
 

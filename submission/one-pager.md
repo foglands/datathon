@@ -10,7 +10,7 @@ A fictional user considers AMD with CAD 3,000 and recurring withdrawals. High wi
 
 ### Agentic work with checked calculations
 
-Amazon Bedrock extracts source-linked asset and condition statements. Public-data tools retrieve dated prices, adjusted history and Bank of Canada FX/CPI. Python computes the financial results; separate implementations verify them. Bedrock prioritizes the evidence and writes a qualitative explanation, then a separate model call reviews its claims. Failed explanation checks retain the verified evidence and disclose the missing interpretation. Observable traces show actual calls and local fallback separately.
+Amazon Bedrock extracts source-linked asset and condition statements, then proposes the analytical questions and relevant tools. Public-data tools retrieve dated prices, adjusted history and Bank of Canada FX/CPI. Python computes the financial results; separate implementations verify them. The analyst can request further evidence after seeing tool results, then synthesizes supporting and opposing evidence into a contextual answer. A separate reviewer checks relevance, use of client conditions, claim support, balance and scope; a failed answer gets one repair attempt. Failed explanation checks retain the verified evidence and disclose the missing interpretation. Observable traces show actual calls and local fallback separately.
 
 ### What the report can establish
 

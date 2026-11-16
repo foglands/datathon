@@ -1,0 +1,78 @@
+{
+  "status": "superseded failed validation runs, not accepted product evidence",
+  "runs": [
+    {
+      "run": "first five-case run",
+      "accepted_pairs": 0,
+      "problem": "Synthesis transport used the inherited 12-second read timeout; no accepted answers.",
+      "remediation": "Separate 40-second read timeout within a 45-second bounded stage for new inquiry roles."
+    },
+    {
+      "run": "second five-case run",
+      "accepted_answers": 4,
+      "automatic_pair_passes": 2,
+      "manual_disposition": "failed",
+      "problems": [
+        "An irrelevant-detail answer was withheld after unsupported example quantities and a date-range tokenization error.",
+        "The paraphrase pair reviewer was unavailable.",
+        "Both semantic reviewers accepted a false 343-days-exceeds-12-months comparison.",
+        "The material-context answer treated absence of backup funds as an explicit zero-loss threshold and overstated the scope of one replay."
+      ],
+      "remediation": [
+        "Constrain headings in tool schema; give concise structured correction feedback.",
+        "Preserve loss signs while treating date-range hyphens as separators.",
+        "Reject uncomputed digit-form days/months comparisons; require Python-authored relationships.",
+        "Include actual replay and withdrawal dates and the separate no-withdrawal recovery limitation.",
+        "Strengthen semantic checks for unsupported thresholds, conditional scope and genuine counterevidence.",
+        "Remove duplicated transport traces from paired semantic review payloads."
+      ]
+    },
+    {
+      "run": "third five-case run",
+      "accepted_answers": 5,
+      "automatic_pair_passes": 1,
+      "manual_disposition": "failed",
+      "problems": [
+        "Name, paraphrase and irrelevant-detail variants produced inconsistent analysis scope and differently qualified conclusions.",
+        "A material-context answer still contained an unsupported zero-loss-capacity interpretation and a favorable liquidity claim without a benchmark."
+      ],
+      "remediation": [
+        "Resolve current reasoning-role contracts at call time and record their hashes to make runtime prompt versions observable.",
+        "Clarify that pair review compares substantive stance and caveats, not identical tool lists or extra supporting calculations.",
+        "Allow exact stated numerical inputs only with their extracted user-context citation; do not convert them into computed facts."
+      ],
+      "note": "The final live run is recorded separately. No universal stability or infallible semantic review is claimed."
+    },
+    {
+      "run": "fourth five-case run",
+      "accepted_answers": 5,
+      "automatic_pair_passes": 2,
+      "manual_disposition": "failed",
+      "problems": [
+        "Name and paraphrase comparisons still differed in caveats and analysis scope.",
+        "A conclusion quoted CPI-aligned real growth alongside a different full-price-history interval."
+      ],
+      "remediation": [
+        "Use temperature 0 for customer reasoning and omit operational traces/generated follow-up suggestions from planner inputs.",
+        "Require exact CPI-aligned start/end dates when quoting purchasing-power percentages."
+      ],
+      "note": "Zero temperature reduces sampling variation; it does not prove semantic invariance."
+    },
+    {
+      "run": "fifth five-case run",
+      "accepted_answers": 4,
+      "automatic_pair_passes": 1,
+      "manual_disposition": "failed",
+      "problems": [
+        "Reference-format retries exhausted the old shared turn budget before a review repair could run.",
+        "Paraphrase and irrelevant-detail answers differed in treatment of the unspecified horizon."
+      ],
+      "remediation": [
+        "Separate investigation, format-repair and reviewed-answer allowances in a bounded six-turn loop.",
+        "Use direct quotations from evidence rather than duplicating every number in a model-facing registry.",
+        "Provide complete profile fields and explicit unknowns to planning, synthesis and review."
+      ]
+    }
+  ],
+  "limitations": "These fixes do not make semantic LLM review infallible. Literal numeric checks do not prove every qualitative inference. Additional unseen-case and human evaluation remain necessary."
+}

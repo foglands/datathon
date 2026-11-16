@@ -6,6 +6,8 @@ The official release contains the English and French 19-page case briefs, the En
 
 ## How to work in this project
 
+- Latest reasoning requirement: online conclusions must be synthesized from the full current question and relevant context. Let the model propose analysis questions, request bounded follow-up evidence and revise its scope. Do not force conclusions from persona labels, short horizons, risk willingness or a largest-risk ordering. Review question relevance, material context, both sides of evidence and scope independently. Validate name/paraphrase/irrelevant-detail invariance and justified responses to material changes. Place the conclusion first.
+
 - Current user product direction (November 16): the customer workspace is a general investment-research conversation. Infer no profile from a name or age. Users state their own ideas, objectives, withdrawal needs, loss capacity, preferences and constraints. The official Amira, Mateo and Robert personas are validation fixtures only; they must not supply defaults, routing rules or model assumptions in production. Keep technical configuration in the validation workspace.
 
 - Respond to the user in Chinese by default. Keep official French labels where they help trace a requirement and use the language requested for competition deliverables.

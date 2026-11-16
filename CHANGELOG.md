@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-16 · Contextual inquiry and conclusion-first reporting
+
+- Replace online report sorting with model-selected analysis questions, bounded follow-up evidence tools, synthesis and a separate answer review.
+- Pass the full current question and optional details to all reasoning stages. Keep unknowns, conflicts and explicit numerical rules visible without imposing a preset conclusion.
+- Place the reviewed conclusion, supporting evidence, counterevidence and gaps above the report's context, metrics and charts. Every section links to user statements and checked evidence.
+- Check numeric quotations against cited Python results; withhold an answer that fails independent review after a bounded repair.
+- Add unseen name, paraphrase, irrelevant-detail and material-context acceptance cases. See `submission/reasoning-validation.md` for observed results and runtime failures found during validation.
+
 ## 2026-11-16 · General conversational investment research
 
 - Replace the default professional workflow chooser with a plain-language customer journey and optional profile details. Keep official personas as test fixtures only.

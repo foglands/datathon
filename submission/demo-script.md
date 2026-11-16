@@ -24,11 +24,9 @@ Show the conclusion, indexed historical path, drawdown and withdrawal paths. Use
 
 Show any withheld model explanation honestly. A rejected explanation is replaced by checked evidence, not silently relabeled as model prose.
 
-## 2:50–3:40 · A different investment, same general workflow
+## 2:50–3:40 · A material condition changes the analysis
 
-Enter: `I am considering investing 5000 CAD in AGG, a bond ETF. My goal is capital preservation over 3 years. I want to understand interest-rate and credit risks.`
-
-Show rate and credit checks, issuer disclosure dates and the explicit illustrative rate shock. Distinguish underlying bond ratings from a rating of the ETF. The qualified AGG disclosure is a dated catalog snapshot, not an automatically refreshed issuer feed. Other funds require their own disclosures.
+Show the five unseen-question results under Reference cases → Reasoning acceptance. Compare the original growth question with the same proposed investment plus a tuition withdrawal and no other tuition funds. Show how the analysis questions, selected evidence and conclusion respond. Names, paraphrases and an unrelated hobby should not change the substantive judgment. Use the actual accepted outputs; do not script a refusal or force a different verdict.
 
 ## 3:40–4:25 · Evidence and AWS
 

@@ -1,0 +1,926 @@
+{
+  "question": "I am considering putting 5700 CAD into VTI for a home purchase in 7 years. I can tolerate price swings but have not decided how much loss I could absorb. What can the available evidence establish, and what remains uncertain?",
+  "conditions": [
+    {
+      "kind": "investment_amount",
+      "excerpt": "5700 CAD",
+      "source_type": "current_request"
+    },
+    {
+      "kind": "goal",
+      "excerpt": "home purchase",
+      "source_type": "current_request"
+    },
+    {
+      "kind": "horizon",
+      "excerpt": "7 years",
+      "source_type": "current_request"
+    },
+    {
+      "kind": "willingness",
+      "excerpt": "I can tolerate price swings",
+      "source_type": "current_request"
+    },
+    {
+      "kind": "capacity",
+      "excerpt": "have not decided how much loss I could absorb",
+      "source_type": "current_request"
+    }
+  ],
+  "analysis_questions": [
+    {
+      "tool": "horizon_window",
+      "question": "What were the historical 7-year holding period outcomes for VTI, showing best, worst, and typical cases?",
+      "context_ids": [
+        "user.0",
+        "user.2"
+      ]
+    },
+    {
+      "tool": "historical_market",
+      "question": "What were VTI's historical maximum drawdowns, recovery periods, volatility, and USD/CAD currency attribution?",
+      "context_ids": [
+        "user.0",
+        "user.3",
+        "user.4"
+      ]
+    },
+    {
+      "tool": "purchasing_power",
+      "question": "What were VTI's inflation-adjusted CAD returns to assess real purchasing power for a home purchase goal?",
+      "context_ids": [
+        "user.0",
+        "user.1"
+      ]
+    }
+  ],
+  "tools": [
+    "horizon_window",
+    "historical_market",
+    "purchasing_power"
+  ],
+  "tool_outcomes": [
+    {
+      "tool": "horizon_window",
+      "question": "What were the historical 7-year holding period outcomes for VTI, showing best, worst, and typical cases?",
+      "context_ids": [
+        "user.0",
+        "user.2"
+      ],
+      "evidence_ids": [
+        "analysis.horizon"
+      ],
+      "outcome": "VTI: available history cannot cover the stated 84-month horizon. No long-horizon result was extrapolated."
+    },
+    {
+      "tool": "historical_market",
+      "question": "What were VTI's historical maximum drawdowns, recovery periods, volatility, and USD/CAD currency attribution?",
+      "context_ids": [
+        "user.0",
+        "user.3",
+        "user.4"
+      ],
+      "status": "assessed",
+      "evidence_ids": [
+        "risk.historical_market"
+      ],
+      "outcome": "VTI: terminal loss 0.00%; annualized observed volatility 17.13% (252-observation convention; session coverage uncertified); worst complete monthly return -6.98% (2022-04); worst rolling 12m return -15.57%; worst rolling 36m return 28.04%; maximum-drawdown recovery 608 calendar days from its peak; local-price return 64.56%; FX impact including interaction 22.88%; 2022 market decline: return -14.03%, drawdown 22.98%; Early 2025: return -16.73%, drawdown 20.04%. History cannot establish a future loss limit or achieve a long-term goal."
+    },
+    {
+      "tool": "purchasing_power",
+      "question": "What were VTI's inflation-adjusted CAD returns to assess real purchasing power for a home purchase goal?",
+      "context_ids": [
+        "user.0",
+        "user.1"
+      ],
+      "status": "assessed",
+      "evidence_ids": [
+        "risk.purchasing_power"
+      ],
+      "outcome": "Between 2021-11-30 and 2026-09-29, VTI's CAD nominal change was +91.12%, Canadian CPI rose 17.89%, and the inflation-adjusted change was +62.11%. The CPI observations refer to months, not publication dates; this is retrospective. Retrospective CPI is not a future inflation forecast; release vintages are unavailable."
+    }
+  ],
+  "execution_trace": [
+    {
+      "event": "inquiry_contract",
+      "role": "customer_analyst",
+      "instructions_sha256": "d0c78d68a694179e60f0424c0d1da9d632ab2688d53c041d90b4f62c7afdf816",
+      "inference_parameters": {
+        "temperature": 0.0
+      }
+    },
+    {
+      "event": "agent_start",
+      "role": "customer_analyst",
+      "run_id": "985d2595f18947828e9fbb95341a3500",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "kind": "bedrock",
+      "timeout_seconds": 44.999895167013165,
+      "max_turns": 5,
+      "max_total_tokens": 26000,
+      "max_output_tokens": 2200
+    },
+    {
+      "event": "bedrock",
+      "role": "customer_analyst",
+      "run_id": "985d2595f18947828e9fbb95341a3500",
+      "operation": "Converse",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "status": "success",
+      "http_status": 200,
+      "request_id": "77810673-48fd-44d7-86d2-c272939cef4d",
+      "retry_attempts": 0,
+      "throttled": false,
+      "error_code": null,
+      "input_tokens": 3707,
+      "output_tokens": 737,
+      "total_tokens": 4444,
+      "cache_read_input_tokens": 0,
+      "cache_write_input_tokens": 0
+    },
+    {
+      "event": "tool",
+      "role": "customer_analyst",
+      "run_id": "985d2595f18947828e9fbb95341a3500",
+      "tool_name": "advance_analysis",
+      "tool_use_id": "tooluse_FaYhEYjR9U3rsHmPAkvwTZ",
+      "input": {},
+      "status": "error",
+      "output": null,
+      "duration_ms": 2
+    },
+    {
+      "event": "bedrock",
+      "role": "customer_analyst",
+      "run_id": "985d2595f18947828e9fbb95341a3500",
+      "operation": "Converse",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "status": "success",
+      "http_status": 200,
+      "request_id": "2049c2dc-d56c-4e93-a476-e0a3d4ea5d2a",
+      "retry_attempts": 0,
+      "throttled": false,
+      "error_code": null,
+      "input_tokens": 4429,
+      "output_tokens": 645,
+      "total_tokens": 5074,
+      "cache_read_input_tokens": 0,
+      "cache_write_input_tokens": 0
+    },
+    {
+      "event": "tool",
+      "role": "customer_analyst",
+      "run_id": "985d2595f18947828e9fbb95341a3500",
+      "tool_name": "advance_analysis",
+      "tool_use_id": "tooluse_cmWRku8nUeMep80vNqgJrn",
+      "input": {},
+      "status": "error",
+      "output": null,
+      "duration_ms": 4
+    },
+    {
+      "event": "agent_exception",
+      "role": "customer_analyst",
+      "run_id": "985d2595f18947828e9fbb95341a3500",
+      "error_type": "EventLoopException",
+      "error_code": null
+    },
+    {
+      "event": "agent_end",
+      "role": "customer_analyst",
+      "run_id": "985d2595f18947828e9fbb95341a3500",
+      "status": "error",
+      "stop_reason": "invocation_error",
+      "duration_ms": 14594
+    },
+    {
+      "event": "inquiry_contract",
+      "role": "customer_analyst",
+      "instructions_sha256": "d0c78d68a694179e60f0424c0d1da9d632ab2688d53c041d90b4f62c7afdf816",
+      "inference_parameters": {
+        "temperature": 0.0
+      }
+    },
+    {
+      "event": "agent_start",
+      "role": "customer_analyst",
+      "run_id": "918c1f560e9e429580d6db9bf845efc7",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "kind": "bedrock",
+      "timeout_seconds": 44.99989595799707,
+      "max_turns": 5,
+      "max_total_tokens": 26000,
+      "max_output_tokens": 2200
+    },
+    {
+      "event": "bedrock",
+      "role": "customer_analyst",
+      "run_id": "918c1f560e9e429580d6db9bf845efc7",
+      "operation": "Converse",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "status": "success",
+      "http_status": 200,
+      "request_id": "e2a8f487-62d7-4d9b-bfcb-80f3051ce0ce",
+      "retry_attempts": 0,
+      "throttled": false,
+      "error_code": null,
+      "input_tokens": 3614,
+      "output_tokens": 819,
+      "total_tokens": 4433,
+      "cache_read_input_tokens": 0,
+      "cache_write_input_tokens": 0
+    },
+    {
+      "event": "tool",
+      "role": "customer_analyst",
+      "run_id": "918c1f560e9e429580d6db9bf845efc7",
+      "tool_name": "advance_analysis",
+      "tool_use_id": "tooluse_q2OoEbCwiXEwFAgHjX9xko",
+      "input": {},
+      "status": "success",
+      "output": {
+        "status": "ok",
+        "summary": "Analysis handoff recorded."
+      },
+      "duration_ms": 3
+    },
+    {
+      "event": "agent_end",
+      "role": "customer_analyst",
+      "run_id": "918c1f560e9e429580d6db9bf845efc7",
+      "status": "ok",
+      "stop_reason": "end_turn",
+      "duration_ms": 11508
+    },
+    {
+      "event": "inquiry_contract",
+      "role": "customer_analyst",
+      "instructions_sha256": "d0c78d68a694179e60f0424c0d1da9d632ab2688d53c041d90b4f62c7afdf816",
+      "inference_parameters": {
+        "temperature": 0.0
+      }
+    },
+    {
+      "event": "agent_start",
+      "role": "customer_analyst",
+      "run_id": "c06d231834eb48b6aa5238be0c74a2c4",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "kind": "bedrock",
+      "timeout_seconds": 44.99983945899294,
+      "max_turns": 5,
+      "max_total_tokens": 26000,
+      "max_output_tokens": 2200
+    },
+    {
+      "event": "bedrock",
+      "role": "customer_analyst",
+      "run_id": "c06d231834eb48b6aa5238be0c74a2c4",
+      "operation": "Converse",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "us-east-1",
+      "status": "success",
+      "http_status": 200,
+      "request_id": "ff2a2dd3-9954-4b69-b3c4-a93ced013433",
+      "retry_attempts": 0,
+      "throttled": false,
+      "error_code": null,
+      "input_tokens": 4617,
+      "output_tokens": 800,
+      "total_tokens": 5417,
+      "cache_read_input_tokens": 0,
+      "cache_write_input_tokens": 0
+    },
+    {
+      "event": "tool",
+      "role": "customer_analyst",
+      "run_id": "c06d231834eb48b6aa5238be0c74a2c4",
+      "tool_name": "advance_analysis",
+      "tool_use_id": "tooluse_MCDSgn1YozCKYslXzrZytc",
+      "input": {},
+      "status": "success",
+      "output": {
+        "status": "ok",
+        "summary": "Analysis handoff recorded."
+      },
+      "duration_ms": 3
+    },
+    {
+      "event": "agent_end",
+      "role": "customer_analyst",
+      "run_id": "c06d231834eb48b6aa5238be0c74a2c4",
+      "status": "ok",
+      "stop_reason": "end_turn",
+      "duration_ms": 7012
+    }
+  ],
+  "analysis_steps": [
+    {
+      "action": "unavailable",
+      "stage": "synthesis",
+      "details": {
+        "ok": false,
+        "trace": [
+          {
+            "event": "inquiry_contract",
+            "role": "customer_analyst",
+            "instructions_sha256": "d0c78d68a694179e60f0424c0d1da9d632ab2688d53c041d90b4f62c7afdf816",
+            "inference_parameters": {
+              "temperature": 0.0
+            }
+          },
+          {
+            "event": "agent_start",
+            "role": "customer_analyst",
+            "run_id": "985d2595f18947828e9fbb95341a3500",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "kind": "bedrock",
+            "timeout_seconds": 44.999895167013165,
+            "max_turns": 5,
+            "max_total_tokens": 26000,
+            "max_output_tokens": 2200
+          },
+          {
+            "event": "bedrock",
+            "role": "customer_analyst",
+            "run_id": "985d2595f18947828e9fbb95341a3500",
+            "operation": "Converse",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "status": "success",
+            "http_status": 200,
+            "request_id": "77810673-48fd-44d7-86d2-c272939cef4d",
+            "retry_attempts": 0,
+            "throttled": false,
+            "error_code": null,
+            "input_tokens": 3707,
+            "output_tokens": 737,
+            "total_tokens": 4444,
+            "cache_read_input_tokens": 0,
+            "cache_write_input_tokens": 0
+          },
+          {
+            "event": "tool",
+            "role": "customer_analyst",
+            "run_id": "985d2595f18947828e9fbb95341a3500",
+            "tool_name": "advance_analysis",
+            "tool_use_id": "tooluse_FaYhEYjR9U3rsHmPAkvwTZ",
+            "input": {},
+            "status": "error",
+            "output": null,
+            "duration_ms": 2
+          },
+          {
+            "event": "bedrock",
+            "role": "customer_analyst",
+            "run_id": "985d2595f18947828e9fbb95341a3500",
+            "operation": "Converse",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "status": "success",
+            "http_status": 200,
+            "request_id": "2049c2dc-d56c-4e93-a476-e0a3d4ea5d2a",
+            "retry_attempts": 0,
+            "throttled": false,
+            "error_code": null,
+            "input_tokens": 4429,
+            "output_tokens": 645,
+            "total_tokens": 5074,
+            "cache_read_input_tokens": 0,
+            "cache_write_input_tokens": 0
+          },
+          {
+            "event": "tool",
+            "role": "customer_analyst",
+            "run_id": "985d2595f18947828e9fbb95341a3500",
+            "tool_name": "advance_analysis",
+            "tool_use_id": "tooluse_cmWRku8nUeMep80vNqgJrn",
+            "input": {},
+            "status": "error",
+            "output": null,
+            "duration_ms": 4
+          },
+          {
+            "event": "agent_exception",
+            "role": "customer_analyst",
+            "run_id": "985d2595f18947828e9fbb95341a3500",
+            "error_type": "EventLoopException",
+            "error_code": null
+          },
+          {
+            "event": "agent_end",
+            "role": "customer_analyst",
+            "run_id": "985d2595f18947828e9fbb95341a3500",
+            "status": "error",
+            "stop_reason": "invocation_error",
+            "duration_ms": 14594
+          }
+        ],
+        "usage": {
+          "elapsed_ms": 14594.53,
+          "deadline_ms": 45000,
+          "http_attempts_started": 2,
+          "http_attempt_limit": 2,
+          "reported_response_retries": 0,
+          "responses_observed": 2,
+          "responses_with_usage": 2,
+          "final_throttled_responses": 0,
+          "reported_total_tokens": 9518,
+          "observed_token_threshold": 26000,
+          "limit_reached": "http_attempts"
+        },
+        "stop_reason": "invocation_error",
+        "validation_errors": [
+          "These numeric values are absent from cited checked evidence and extracted user conditions: 5",
+          "Quote the exact CPI-aligned start and end dates with purchasing-power values; do not substitute the full-price-history period."
+        ]
+      }
+    },
+    {
+      "action": "review",
+      "accepted": false,
+      "feedback": "grounded_claims fails: The answer states \"Between 2021-11-30 and 2026-09-29, nominal CAD return was +91.12% and inflation-adjusted return was +62.11% after Canadian CPI rose 17.89%\" but risk.purchasing_power gives these exact dates and values. However, the answer also claims \"over the observed 2021\u20132026 window, VTI rose 87.43% in CAD\" citing VTI.behavior which covers \"2021-11-15 to 2026-11-13\"\u2014different dates. The answer conflates two distinct measurement periods (2021-11-15 to 2026-11-13 for the 87.43% figure vs 2021-11-30 to 2026-09-29 for the 91.12% figure) without clarifying they are separate windows, creating ambiguity about which period supports which claim.",
+      "answer": [
+        {
+          "heading": "My research conclusion",
+          "text": "VTI's available history is too short to simulate your 7-year horizon, so evidence cannot establish typical or worst-case outcomes for that period. Over the observed 2021\u20132026 window, VTI rose 87.43% in CAD and recovered from a 23.59% drawdown in 608 days, but without a full 84-month rolling window no historical path tests your actual timeline or shows whether a 7-year hold would have met a home-purchase target.",
+          "evidence_ids": [
+            "analysis.horizon",
+            "VTI.behavior",
+            "risk.historical_market"
+          ],
+          "context_ids": [
+            "user.2",
+            "user.0"
+          ]
+        },
+        {
+          "heading": "What supports this view",
+          "text": "The historical_market tool confirms annualized volatility of 17.13%, worst 12-month return of -15.57%, and worst 36-month return of +28.04%, showing VTI can swing sharply but recovered positively over three years. Between 2021-11-30 and 2026-09-29, nominal CAD return was +91.12% and inflation-adjusted return was +62.11% after Canadian CPI rose 17.89%, preserving real purchasing power in that retrospective period.",
+          "evidence_ids": [
+            "risk.historical_market",
+            "risk.purchasing_power"
+          ],
+          "context_ids": [
+            "user.3",
+            "user.1"
+          ]
+        },
+        {
+          "heading": "What argues against it",
+          "text": "The 2022 decline produced a -14.03% return and 22.98% drawdown, and early 2025 saw -16.73% return with 20.04% drawdown. Because you have not decided how much loss you could absorb, these historical drops may exceed your undetermined capacity, risking forced sale or shortfall at the home-purchase date if a similar decline occurs near year seven.",
+          "evidence_ids": [
+            "risk.historical_market"
+          ],
+          "context_ids": [
+            "user.4",
+            "user.1"
+          ]
+        },
+        {
+          "heading": "Important gaps and next step",
+          "text": "History cannot establish a future loss limit or confirm VTI will meet a long-term goal. The missing 7-year rolling-window data means no evidence shows best, worst, or median outcomes for your timeline. Decide your maximum acceptable dollar loss and whether you have reserve funds outside the 5,700 CAD; that will clarify whether VTI's observed drawdowns fit your capacity and whether a shorter-duration or less-volatile alternative better matches your fixed home-purchase deadline.",
+          "evidence_ids": [
+            "analysis.horizon",
+            "risk.historical_market"
+          ],
+          "context_ids": [
+            "user.4",
+            "user.2",
+            "user.0"
+          ]
+        }
+      ],
+      "review": {
+        "accepted": false,
+        "checks": {
+          "answers_question": true,
+          "uses_context": true,
+          "grounded_claims": false,
+          "balanced_evidence": true,
+          "bounded_scope": true
+        },
+        "feedback": "grounded_claims fails: The answer states \"Between 2021-11-30 and 2026-09-29, nominal CAD return was +91.12% and inflation-adjusted return was +62.11% after Canadian CPI rose 17.89%\" but risk.purchasing_power gives these exact dates and values. However, the answer also claims \"over the observed 2021\u20132026 window, VTI rose 87.43% in CAD\" citing VTI.behavior which covers \"2021-11-15 to 2026-11-13\"\u2014different dates. The answer conflates two distinct measurement periods (2021-11-15 to 2026-11-13 for the 87.43% figure vs 2021-11-30 to 2026-09-29 for the 91.12% figure) without clarifying they are separate windows, creating ambiguity about which period supports which claim.",
+        "ok": true,
+        "trace": [
+          {
+            "event": "inquiry_contract",
+            "role": "customer_auditor",
+            "instructions_sha256": "df24068fd66d2bb8e36901c8e9dbd7f05455626abf7536d5aa7fc248a53c820c",
+            "inference_parameters": {
+              "temperature": 0.0
+            }
+          },
+          {
+            "event": "agent_start",
+            "role": "customer_auditor",
+            "run_id": "4d8e36d32dfb4d4588600ded624fa61f",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "kind": "bedrock",
+            "timeout_seconds": 44.99969191700802,
+            "max_turns": 5,
+            "max_total_tokens": 26000,
+            "max_output_tokens": 1000
+          },
+          {
+            "event": "bedrock",
+            "role": "customer_auditor",
+            "run_id": "4d8e36d32dfb4d4588600ded624fa61f",
+            "operation": "Converse",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "status": "success",
+            "http_status": 200,
+            "request_id": "5d4afb57-3b92-486b-a9c4-226478c60b5e",
+            "retry_attempts": 0,
+            "throttled": false,
+            "error_code": null,
+            "input_tokens": 3841,
+            "output_tokens": 359,
+            "total_tokens": 4200,
+            "cache_read_input_tokens": 0,
+            "cache_write_input_tokens": 0
+          },
+          {
+            "event": "tool",
+            "role": "customer_auditor",
+            "run_id": "4d8e36d32dfb4d4588600ded624fa61f",
+            "tool_name": "audit_analysis",
+            "tool_use_id": "tooluse_oz9ZWlw1RDOwXGO1sTN12O",
+            "input": {},
+            "status": "success",
+            "output": {
+              "status": "ok",
+              "summary": "Independent answer review completed."
+            },
+            "duration_ms": 1
+          },
+          {
+            "event": "agent_end",
+            "role": "customer_auditor",
+            "run_id": "4d8e36d32dfb4d4588600ded624fa61f",
+            "status": "ok",
+            "stop_reason": "end_turn",
+            "duration_ms": 4473
+          }
+        ],
+        "usage": {
+          "elapsed_ms": 4473.66,
+          "deadline_ms": 45000,
+          "http_attempts_started": 1,
+          "http_attempt_limit": 2,
+          "reported_response_retries": 0,
+          "responses_observed": 1,
+          "responses_with_usage": 1,
+          "final_throttled_responses": 0,
+          "reported_total_tokens": 4200,
+          "observed_token_threshold": 26000,
+          "limit_reached": null
+        },
+        "stop_reason": "end_turn",
+        "validation_errors": []
+      }
+    },
+    {
+      "action": "review",
+      "accepted": true,
+      "feedback": "All checks pass. The answer directly addresses what evidence establishes and what remains uncertain for the 7-year home-purchase goal. It explains that the undecided loss capacity (user.4) creates ambiguity about whether historical drawdowns exceed tolerance, affecting suitability for the fixed deadline (user.1, user.2). Every claim cites its source: the two distinct measurement windows (87.43% over 2021-11-15 to 2026-11-13 from VTI.behavior; 91.12% over 2021-11-30 to 2026-09-29 from risk.purchasing_power) are now clearly separated and attributed. Volatility, drawdown, and recovery figures quote risk.historical_market verbatim. The answer presents supporting evidence (positive 36-month returns, real purchasing power preservation), counterevidence (2022 and 2025 drawdowns, 608-day recovery), and gaps (no 84-month window, no future loss limit, unknown reserve funds). It avoids claiming certain failure, hidden thresholds, or that more information guarantees completeness. Scope is appropriately bounded.",
+      "answer": [
+        {
+          "heading": "My research conclusion",
+          "text": "VTI's available history cannot cover the stated 84-month horizon, so evidence cannot establish typical or worst-case outcomes for your 7-year period. Two separate historical windows show positive CAD returns\u201487.43% over 2021-11-15 to 2026-11-13 and 91.12% nominal over 2021-11-30 to 2026-09-29\u2014but neither spans 84 months, leaving your actual timeline untested.",
+          "evidence_ids": [
+            "analysis.horizon",
+            "VTI.behavior",
+            "risk.purchasing_power"
+          ],
+          "context_ids": [
+            "user.2",
+            "user.0"
+          ]
+        },
+        {
+          "heading": "What supports this view",
+          "text": "Annualized observed volatility was 17.13%, worst rolling 12-month return was -15.57%, and worst rolling 36-month return was +28.04%, showing recovery over three years. Between 2021-11-30 and 2026-09-29, inflation-adjusted CAD return was +62.11% after Canadian CPI rose 17.89%, preserving real purchasing power in that retrospective measurement.",
+          "evidence_ids": [
+            "risk.historical_market",
+            "risk.purchasing_power"
+          ],
+          "context_ids": [
+            "user.3",
+            "user.1"
+          ]
+        },
+        {
+          "heading": "What argues against it",
+          "text": "The 2022 market decline produced a -14.03% return and 22.98% drawdown; early 2025 saw -16.73% return and 20.04% drawdown. Maximum-drawdown recovery took 608 calendar days from its peak. Because you have not decided how much loss you could absorb, these historical drops may exceed your undetermined capacity, risking a shortfall at the home-purchase date if a similar decline occurs near year seven.",
+          "evidence_ids": [
+            "risk.historical_market"
+          ],
+          "context_ids": [
+            "user.4",
+            "user.1",
+            "user.2"
+          ]
+        },
+        {
+          "heading": "Important gaps and next step",
+          "text": "History cannot establish a future loss limit or confirm VTI will meet a long-term goal. The missing 7-year rolling-window data means no evidence shows best, worst, or median outcomes for your timeline. Decide your maximum acceptable dollar loss and whether you have reserve funds outside the 5,700 CAD; that will clarify whether VTI's observed drawdowns fit your capacity and whether the asset matches your fixed home-purchase deadline.",
+          "evidence_ids": [
+            "analysis.horizon",
+            "risk.historical_market"
+          ],
+          "context_ids": [
+            "user.4",
+            "user.2",
+            "user.0"
+          ]
+        }
+      ],
+      "review": {
+        "accepted": true,
+        "checks": {
+          "answers_question": true,
+          "uses_context": true,
+          "grounded_claims": true,
+          "balanced_evidence": true,
+          "bounded_scope": true
+        },
+        "feedback": "All checks pass. The answer directly addresses what evidence establishes and what remains uncertain for the 7-year home-purchase goal. It explains that the undecided loss capacity (user.4) creates ambiguity about whether historical drawdowns exceed tolerance, affecting suitability for the fixed deadline (user.1, user.2). Every claim cites its source: the two distinct measurement windows (87.43% over 2021-11-15 to 2026-11-13 from VTI.behavior; 91.12% over 2021-11-30 to 2026-09-29 from risk.purchasing_power) are now clearly separated and attributed. Volatility, drawdown, and recovery figures quote risk.historical_market verbatim. The answer presents supporting evidence (positive 36-month returns, real purchasing power preservation), counterevidence (2022 and 2025 drawdowns, 608-day recovery), and gaps (no 84-month window, no future loss limit, unknown reserve funds). It avoids claiming certain failure, hidden thresholds, or that more information guarantees completeness. Scope is appropriately bounded.",
+        "ok": true,
+        "trace": [
+          {
+            "event": "inquiry_contract",
+            "role": "customer_auditor",
+            "instructions_sha256": "df24068fd66d2bb8e36901c8e9dbd7f05455626abf7536d5aa7fc248a53c820c",
+            "inference_parameters": {
+              "temperature": 0.0
+            }
+          },
+          {
+            "event": "agent_start",
+            "role": "customer_auditor",
+            "run_id": "1119c49afc58462589314a244c19559a",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "kind": "bedrock",
+            "timeout_seconds": 44.999710749980295,
+            "max_turns": 5,
+            "max_total_tokens": 26000,
+            "max_output_tokens": 1000
+          },
+          {
+            "event": "bedrock",
+            "role": "customer_auditor",
+            "run_id": "1119c49afc58462589314a244c19559a",
+            "operation": "Converse",
+            "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "region": "us-east-1",
+            "status": "success",
+            "http_status": 200,
+            "request_id": "6f50ed4e-93be-4668-973e-c363bfaffb79",
+            "retry_attempts": 0,
+            "throttled": false,
+            "error_code": null,
+            "input_tokens": 4832,
+            "output_tokens": 402,
+            "total_tokens": 5234,
+            "cache_read_input_tokens": 0,
+            "cache_write_input_tokens": 0
+          },
+          {
+            "event": "tool",
+            "role": "customer_auditor",
+            "run_id": "1119c49afc58462589314a244c19559a",
+            "tool_name": "audit_analysis",
+            "tool_use_id": "tooluse_kXmakCmoD6bMji1jpHnA8n",
+            "input": {},
+            "status": "success",
+            "output": {
+              "status": "ok",
+              "summary": "Independent answer review completed."
+            },
+            "duration_ms": 2
+          },
+          {
+            "event": "agent_end",
+            "role": "customer_auditor",
+            "run_id": "1119c49afc58462589314a244c19559a",
+            "status": "ok",
+            "stop_reason": "end_turn",
+            "duration_ms": 6625
+          }
+        ],
+        "usage": {
+          "elapsed_ms": 6626.13,
+          "deadline_ms": 45000,
+          "http_attempts_started": 1,
+          "http_attempt_limit": 2,
+          "reported_response_retries": 0,
+          "responses_observed": 1,
+          "responses_with_usage": 1,
+          "final_throttled_responses": 0,
+          "reported_total_tokens": 5234,
+          "observed_token_threshold": 26000,
+          "limit_reached": null
+        },
+        "stop_reason": "end_turn",
+        "validation_errors": []
+      }
+    }
+  ],
+  "answer": [
+    {
+      "heading": "My research conclusion",
+      "text": "VTI's available history cannot cover the stated 84-month horizon, so evidence cannot establish typical or worst-case outcomes for your 7-year period. Two separate historical windows show positive CAD returns\u201487.43% over 2021-11-15 to 2026-11-13 and 91.12% nominal over 2021-11-30 to 2026-09-29\u2014but neither spans 84 months, leaving your actual timeline untested.",
+      "evidence_ids": [
+        "analysis.horizon",
+        "VTI.behavior",
+        "risk.purchasing_power"
+      ],
+      "context_ids": [
+        "user.2",
+        "user.0"
+      ]
+    },
+    {
+      "heading": "What supports this view",
+      "text": "Annualized observed volatility was 17.13%, worst rolling 12-month return was -15.57%, and worst rolling 36-month return was +28.04%, showing recovery over three years. Between 2021-11-30 and 2026-09-29, inflation-adjusted CAD return was +62.11% after Canadian CPI rose 17.89%, preserving real purchasing power in that retrospective measurement.",
+      "evidence_ids": [
+        "risk.historical_market",
+        "risk.purchasing_power"
+      ],
+      "context_ids": [
+        "user.3",
+        "user.1"
+      ]
+    },
+    {
+      "heading": "What argues against it",
+      "text": "The 2022 market decline produced a -14.03% return and 22.98% drawdown; early 2025 saw -16.73% return and 20.04% drawdown. Maximum-drawdown recovery took 608 calendar days from its peak. Because you have not decided how much loss you could absorb, these historical drops may exceed your undetermined capacity, risking a shortfall at the home-purchase date if a similar decline occurs near year seven.",
+      "evidence_ids": [
+        "risk.historical_market"
+      ],
+      "context_ids": [
+        "user.4",
+        "user.1",
+        "user.2"
+      ]
+    },
+    {
+      "heading": "Important gaps and next step",
+      "text": "History cannot establish a future loss limit or confirm VTI will meet a long-term goal. The missing 7-year rolling-window data means no evidence shows best, worst, or median outcomes for your timeline. Decide your maximum acceptable dollar loss and whether you have reserve funds outside the 5,700 CAD; that will clarify whether VTI's observed drawdowns fit your capacity and whether the asset matches your fixed home-purchase deadline.",
+      "evidence_ids": [
+        "analysis.horizon",
+        "risk.historical_market"
+      ],
+      "context_ids": [
+        "user.4",
+        "user.2",
+        "user.0"
+      ]
+    }
+  ],
+  "review": {
+    "accepted": true,
+    "checks": {
+      "answers_question": true,
+      "uses_context": true,
+      "grounded_claims": true,
+      "balanced_evidence": true,
+      "bounded_scope": true
+    },
+    "feedback": "All checks pass. The answer directly addresses what evidence establishes and what remains uncertain for the 7-year home-purchase goal. It explains that the undecided loss capacity (user.4) creates ambiguity about whether historical drawdowns exceed tolerance, affecting suitability for the fixed deadline (user.1, user.2). Every claim cites its source: the two distinct measurement windows (87.43% over 2021-11-15 to 2026-11-13 from VTI.behavior; 91.12% over 2021-11-30 to 2026-09-29 from risk.purchasing_power) are now clearly separated and attributed. Volatility, drawdown, and recovery figures quote risk.historical_market verbatim. The answer presents supporting evidence (positive 36-month returns, real purchasing power preservation), counterevidence (2022 and 2025 drawdowns, 608-day recovery), and gaps (no 84-month window, no future loss limit, unknown reserve funds). It avoids claiming certain failure, hidden thresholds, or that more information guarantees completeness. Scope is appropriately bounded.",
+    "ok": true,
+    "trace": [
+      {
+        "event": "inquiry_contract",
+        "role": "customer_auditor",
+        "instructions_sha256": "df24068fd66d2bb8e36901c8e9dbd7f05455626abf7536d5aa7fc248a53c820c",
+        "inference_parameters": {
+          "temperature": 0.0
+        }
+      },
+      {
+        "event": "agent_start",
+        "role": "customer_auditor",
+        "run_id": "1119c49afc58462589314a244c19559a",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "region": "us-east-1",
+        "kind": "bedrock",
+        "timeout_seconds": 44.999710749980295,
+        "max_turns": 5,
+        "max_total_tokens": 26000,
+        "max_output_tokens": 1000
+      },
+      {
+        "event": "bedrock",
+        "role": "customer_auditor",
+        "run_id": "1119c49afc58462589314a244c19559a",
+        "operation": "Converse",
+        "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "region": "us-east-1",
+        "status": "success",
+        "http_status": 200,
+        "request_id": "6f50ed4e-93be-4668-973e-c363bfaffb79",
+        "retry_attempts": 0,
+        "throttled": false,
+        "error_code": null,
+        "input_tokens": 4832,
+        "output_tokens": 402,
+        "total_tokens": 5234,
+        "cache_read_input_tokens": 0,
+        "cache_write_input_tokens": 0
+      },
+      {
+        "event": "tool",
+        "role": "customer_auditor",
+        "run_id": "1119c49afc58462589314a244c19559a",
+        "tool_name": "audit_analysis",
+        "tool_use_id": "tooluse_kXmakCmoD6bMji1jpHnA8n",
+        "input": {},
+        "status": "success",
+        "output": {
+          "status": "ok",
+          "summary": "Independent answer review completed."
+        },
+        "duration_ms": 2
+      },
+      {
+        "event": "agent_end",
+        "role": "customer_auditor",
+        "run_id": "1119c49afc58462589314a244c19559a",
+        "status": "ok",
+        "stop_reason": "end_turn",
+        "duration_ms": 6625
+      }
+    ],
+    "usage": {
+      "elapsed_ms": 6626.13,
+      "deadline_ms": 45000,
+      "http_attempts_started": 1,
+      "http_attempt_limit": 2,
+      "reported_response_retries": 0,
+      "responses_observed": 1,
+      "responses_with_usage": 1,
+      "final_throttled_responses": 0,
+      "reported_total_tokens": 5234,
+      "observed_token_threshold": 26000,
+      "limit_reached": null
+    },
+    "stop_reason": "end_turn",
+    "validation_errors": []
+  },
+  "metrics": [
+    {
+      "symbol": "VTI",
+      "currency": "CAD",
+      "return": 0.8743076693910143,
+      "drawdown": 0.2359077094752582
+    }
+  ],
+  "evidence": {
+    "VTI.behavior": {
+      "title": "What the history says about VTI",
+      "text": "Over 2021-11-15 to 2026-11-13, VTI's adjusted-price series changed by +87.43% in CAD. Its largest observed fall from a previous high was 23.59%. These describe different risks: finishing ahead does not mean the journey avoided large losses.",
+      "sources": [
+        "https://finance.yahoo.com/quote/VTI/history/"
+      ]
+    },
+    "VTI.budget": {
+      "title": "What your amount represents in VTI",
+      "text": "Used entirely for this one asset, CAD 5,700.00 corresponds to approximately 10 whole shares at the observed price, leaving CAD 409.08 before fees and currency spreads. This is an indicative sizing calculation, not an order or a forecast. This current-price whole-share estimate is separate from the historical replay, which invests the full stated amount in fractional units at its starting date. It uses the Bank of Canada daily exchange rate dated 2026-11-13; the FX and equity observations are not simultaneous.",
+      "sources": [
+        "https://finance.yahoo.com/quote/VTI/history/",
+        "https://www.bankofcanada.ca/rates/exchange/daily-exchange-rates/"
+      ]
+    },
+    "analysis.horizon": {
+      "title": "Evidence for your stated holding period",
+      "text": "VTI: available history cannot cover the stated 84-month horizon. No long-horizon result was extrapolated.",
+      "sources": [
+        "https://finance.yahoo.com/quote/VTI/history/"
+      ]
+    },
+    "risk.historical_market": {
+      "title": "Historical market \u00b7 assessed evidence",
+      "text": "VTI: terminal loss 0.00%; annualized observed volatility 17.13% (252-observation convention; session coverage uncertified); worst complete monthly return -6.98% (2022-04); worst rolling 12m return -15.57%; worst rolling 36m return 28.04%; maximum-drawdown recovery 608 calendar days from its peak; local-price return 64.56%; FX impact including interaction 22.88%; 2022 market decline: return -14.03%, drawdown 22.98%; Early 2025: return -16.73%, drawdown 20.04%. History cannot establish a future loss limit or achieve a long-term goal.",
+      "sources": []
+    },
+    "risk.purchasing_power": {
+      "title": "Purchasing power \u00b7 assessed evidence",
+      "text": "Between 2021-11-30 and 2026-09-29, VTI's CAD nominal change was +91.12%, Canadian CPI rose 17.89%, and the inflation-adjusted change was +62.11%. The CPI observations refer to months, not publication dates; this is retrospective. Retrospective CPI is not a future inflation forecast; release vintages are unavailable.",
+      "sources": [
+        "https://www.bankofcanada.ca/valet/observations/V41690973/json?start_date=2021-09-03"
+      ]
+    }
+  },
+  "report_digest": "40e8b12ae4fab4bdc14639ab88e264f1b03d95689e649a939744a6054e6c230f"
+}
