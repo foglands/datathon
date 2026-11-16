@@ -100,7 +100,7 @@ async def verified_issuer_filings(assets, budget, transport=_read_sec):
         return {}
 
     async def read(url):
-        return await asyncio.wait_for(asyncio.to_thread(transport, url), timeout=min(4, budget.remaining()))
+        return await asyncio.wait_for(asyncio.to_thread(transport, url), timeout=min(10, budget.remaining()))
 
     try:
         index = await read(SEC_TICKERS)

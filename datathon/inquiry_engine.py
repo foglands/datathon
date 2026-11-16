@@ -54,6 +54,8 @@ ANALYST = Role(
     "currency and adjustment basis. Ask about the ticker only when the resolution actually reports ambiguity. "
     "Web searches supply source leads. Use them to explain which documents were found and what still needs retrieval. "
     "Only checked source records can support prices, financial facts or quantitative results. "
+    "If a source could not supply a verified series, state the missing evidence in the answer. "
+    "Leave follow_up empty unless the user can provide material context. Do not ask permission to retry an unavailable data source. "
     "Keep your own prose qualitative, including relevance, assumptions and limitations. Do not type financial "
     "quantities or numeric paraphrases. When a figure is necessary, insert a complete Python quotation "
     "{{EXACT_KEY}} from verified_facts and cite its evidence_id. Copy its key exactly. Detailed numeric "

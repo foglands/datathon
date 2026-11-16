@@ -1,5 +1,11 @@
 # Final repository verification
 
+## Hosted live web search verification
+
+On [`cfaedbd`](https://github.com/foglands/datathon/commit/cfaedbdd3a1074ac0e76ea867c6b85f80fc8b6b5), a public TSLA request produced successful Bedrock Converse responses and two live AgentCore searches, one for daily adjusted closes and one for issuer filings. Each returned four clickable source links. The report cited one dated split-adjusted price episode and identified the missing daily series. Full-history drawdown, volatility and recovery remained uncomputed.
+
+The local organizer-data regression passed 591 tests. GitHub Actions passed on the [default branch](https://github.com/foglands/datathon/actions/runs/43831043293) and the [deployment branch](https://github.com/foglands/datathon/actions/runs/43831033253).
+
 ## Daily price archive and customer report verification
 
 The approved-archive workflow validates and packages daily prices, Bank of Canada USD/CAD data and source metadata. It computes the common observation window for each of the three examples. An end-to-end local Streamlit check with synthetic prices for all five instruments displayed both historical charts in every example. IBIT's later start shortened the common window as expected.

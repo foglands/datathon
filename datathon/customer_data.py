@@ -47,7 +47,8 @@ class ResearchUnavailable(ValueError):
 def read_public_json(url, *, user_agent="AlphaForge-Research/1.0"):
     request = Request(url, headers={"User-Agent": user_agent, "Accept": "application/json"})
     try:
-        context = ssl.create_default_context(cafile=certifi.where())
+        context = ssl.create_default_context()
+        context.load_verify_locations(cafile=certifi.where())
         with build_opener(_NoRedirects(), HTTPSHandler(context=context)).open(request, timeout=8) as response:
             raw = response.read(2_000_001)
         if len(raw) > 2_000_000:
