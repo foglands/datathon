@@ -51,6 +51,8 @@ The customer route can retrieve public prices and FX without the organizer archi
 
 See [setup and troubleshooting](docs/RUNNING.md) for organizer data, environment settings, AWS diagnostics and CLI reproduction.
 
+For a hosted submission, see [cloud deployment configuration](docs/DEPLOYMENT.md). Deploy the customer `app.py` and verify both reviewer access and a real research request before using the assigned URL in the submission.
+
 ## Evidence and supported scope
 
 | Capability | Current boundary |
