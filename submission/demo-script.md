@@ -4,11 +4,9 @@ Five-minute recording plan for `app.py`. This script is current; `alphaforge-dem
 
 ## 0:00-0:40: One question
 
-Show the customer homepage: no example buttons, persona choices or Reference cases navigation.
+Select **AI and Bitcoin**, click **Apply question**, then click **Analyze my question**. The question is a fictional adaptation of the official Amira case. The investor holds SPY, has at least 15 years, tolerates big swings and is considering adding NVDA and IBIT. They want to know what that means for diversification.
 
-Enter: `I am considering investing 3000 CAD in AMD. I may need the money in two years. What should I understand?`
-
-Explain that unknown conditions remain unknown and optional context is interpreted in relation to the question.
+Show that the loaded text can be edited. Explain that the application uses the conditions the user stated, and that the size of each position is still unknown.
 
 ## 0:40-1:30: Observable analysis
 
@@ -22,11 +20,11 @@ Start with the conclusion and its support, counterevidence and limits. Show the 
 
 If the result is partial or the interpretation is withheld, explain the specific unresolved task or review feedback. Checked evidence is not relabeled as an accepted personalized answer.
 
-## 2:40-3:40: Change a material condition
+## 2:40-3:40: Compare a different situation
 
-Add a fictional follow-up: `Correction: I need to withdraw 2500 CAD in six months for tuition, and I have no other money for that payment.`
+Start a new research request with **A stock before retirement**, the Robert adaptation. The investor hopes to retire in about four years, wants to protect savings and is tempted by TSLA. Show how the analysis addresses historical declines and the retirement horizon. Use the actual answer and identify any missing position size or withdrawal details.
 
-Show which active facts changed, which persisted, and how the tasks or conclusion respond. Do not script a predetermined rejection or different verdict. Missing schedule details may legitimately cause a focused question.
+The third example, **Growth with ESG preferences**, adapts the Mateo case. In an extended walkthrough, compare growth and stability across ESGU and SPY and show what the available evidence can establish about the investor's controversy exclusions.
 
 ## 3:40-4:25: Evidence and AWS
 
@@ -34,6 +32,6 @@ Open source dates, evidence references and model activity. Identify actual Bedro
 
 ## 4:25-5:00: Limits and reproducibility
 
-State the missing data coverage and generalization limits. Explain that official personas are tests only. Point to the README, current validation and technical PDF.
+State the missing data coverage and generalization limits. Explain that the three examples use the same workflow as a question typed from scratch. Point to the README, current validation and technical PDF.
 
 Developer tests and historical cases run separately with `python -m streamlit run validation_app.py`. They do not belong in the customer tour. If showing them in a technical appendix, label them validation and distinguish recorded failed pairs from passed ones.

@@ -7,9 +7,9 @@ AlphaForge is a conversational investment-research prototype. A user describes a
 
 ## 1. Customer experience and scope
 
-Run `app.py` for the customer interface: one question field, optional context and follow-up conversation. Sidebar example questions fill the composer only when Apply question is selected; they never run analysis or supply profile defaults. The reviewed conclusion appears before the submitted question and evidence tabs. The separate `validation_app.py` retains developer workflows and persona fixtures.
+Run `app.py` for the customer interface with one question field, optional context and follow-up conversation. Three optional examples adapt the official case brief (pp. 5–7): diversification with AI and Bitcoin, growth and stability with ESG preferences, and stock risk before retirement. **Apply question** fills editable text, and **Analyze my question** submits it. All questions use the same workflow. The separate `validation_app.py` retains developer workflows and formal persona fixtures.
 
-The report begins with the conclusion, then supporting evidence, counterevidence and important gaps. Context, task status, figures, sources and traces are available below. Downloadable HTML includes vector charts; Markdown provides a text version. A partial result is labeled partial. When review fails, checked evidence remains available without a fabricated personalized conclusion.
+The report begins with a scoped conclusion of up to 80 words, followed by supporting evidence, counterevidence and important gaps. Context, tasks, figures, sources and traces are available below. Downloadable HTML includes vector charts. Markdown provides a text version. When review cannot release a conclusion, the report preserves checked evidence and explains the limit.
 
 Profiles supply context, not verdicts. Goals, willingness, loss capacity, withdrawal needs, holdings and explicit rules are separate facts. Names, ages and the official personas do not supply default thresholds. Changing context may change the investigation or interpretation; identical numerical inputs must preserve their calculations.
 
@@ -33,7 +33,7 @@ flowchart TD
 | Execution | Resolve listings, retrieve dated observations and run selected calculations with numerical checks | customer_data, customer_tools, customer_risks, customer_bonds |
 | Synthesis | Produce checkable claims; request additional feasible evidence; distinguish asset, product and portfolio scope | inquiry_engine |
 | Review | Check claim support, material context, task completion, scope and counterevidence; request repair or narrow the answer | inquiry_engine |
-| Publication | Preserve provenance, review results and content fingerprint in the displayed/exported report | customer_workflow, customer_report, customer_view |
+| Publication | Preserve provenance, review results and content fingerprint in the displayed/exported report | customer_workflow, customer_report, customer_ui |
 
 Amazon Bedrock through Strands supplies the language-model calls. Intake, planner, analyst and reviewer use the configured profile model; the default is `global.anthropic.claude-sonnet-4-5-20250929-v1:0` in `us-east-1`. The reviewer is a separate invocation with its own contract, not an independently trained model. Semantic review can be wrong; Python calculation checks are a different control.
 
@@ -86,9 +86,13 @@ Duration uses first-order negative duration times yield change with labeled syst
 Underneath the conversational route, and exposed directly in the historical workbench, sits a deterministic engine (`datathon/decision_*.py`, with the original `finance.py`/`governance.py` reference pair) that does not depend on any model call:
 
 - **Replay.** Buy-and-hold valuation in CAD on the frozen archive over the full shared history, the named 2022 and early-2025 stress windows, an optional 2023 window and user-specified intervals, each with its own calendar-coverage status.
+
 - **Metrics.** Signed terminal return, nonnegative terminal loss, maximum drawdown with peak and trough dates, recovery time or unresolved time underwater, rolling 12/36-month outcomes, annualized volatility, worst complete month, per-asset drawdown contributions and FX decomposition.
+
 - **Funding search.** One or more authorized source holdings, explicit ticker-weight bounds and terminal-loss, drawdown or rolling-loss caps solved as a linear feasibility problem with exact-rational certificates; infeasibility is returned with a certificate rather than a relaxed answer.
+
 - **Independent review.** A second implementation rebuilds the CAD series from the raw CSV rows and recomputes every published figure; any mismatch blocks publication.
+
 - **Challenge.** One changed assumption at a time, at most three rounds, stopping when the verdict changes, with the original report preserved.
 
 **Traceability (reference audit).** Published historical metrics retain their rule and method versions, named replay window, aligned observation dates and source hashes. CAD values can be rebuilt from each instrument's `adj_close` row in `prices_daily.csv` and the same-date `usdcad` row in `fx_usdcad_daily.csv` for USD instruments. The independent implementation checks the rebuilt values before publication. Original-proposal results and separately authorized funding searches remain distinct; historical examples and commands are recorded in [verification.md](verification.md) and [historical-workbench.md](../docs/historical-workbench.md).
@@ -105,7 +109,7 @@ A separate reviewer may reject valid conditional wording or miss an unsupported 
 
 Bedrock contributes to actual question interpretation, task planning, synthesis and review. Traces distinguish successful cloud calls, failures and local fallbacks. Optional versioned S3 storage belongs to the developer workbench; it checks versioning and returns an ETag/version receipt. No Knowledge Base, managed Guardrails, Step Functions, custom CloudWatch deployment or Object Lock is claimed.
 
-Install `requirements.txt`, authenticate the application process and run `python -m streamlit run app.py`. For developer validation, run `python -m streamlit run validation_app.py`. Set both starter-path variables for full-data tests. See [RUNNING.md](../docs/RUNNING.md) for configuration, CLI commands and troubleshooting.
+Open the [hosted app](https://alphaforge-datathon.streamlit.app/) or install `requirements.txt`, authenticate the application process and run `python -m streamlit run app.py`. For developer validation, run `python -m streamlit run validation_app.py`. Set both starter-path variables for full-data tests. See the [running guide](../docs/RUNNING.md) and [deployment guide](../docs/DEPLOYMENT.md) for AWS setup, reproduction and limitations.
 
 Automated regression establishes arithmetic, provenance, state, authorization, publication and interface behavior. Live model evaluation is a separate question. Earlier name/material-context pairs passed while paraphrase/irrelevant-detail consistency failed; later task-contract runs exposed semantic-review false positives and retained partial outcomes. These observations are not relabeled as complete acceptance.
 

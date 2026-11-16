@@ -4,15 +4,23 @@
 
 **PolyFinances Datathon 2026 · Banque Nationale · AWS**
 
-**Hosted app:** [alphaforge-datathon.streamlit.app](https://alphaforge-datathon.streamlit.app/). Public homepage, market-data retrieval, Python calculations and charts verified on November 16, 2026. Cloud Bedrock credentials are not configured yet; model-led conclusions are currently unavailable and the app labels the result as partial/evidence-only.
+**Try AlphaForge:** [Open the hosted app](https://alphaforge-datathon.streamlit.app/) · [One-page summary](submission/one-pager.pdf) · [Technical guide](submission/technical-summary.pdf) · [Submission index](submission/README.md)
+
+The hosted verification recorded working market-data retrieval, Python calculations and charts. That run returned checked evidence with no reviewed conclusion because the host had no usable Bedrock credentials. See the [deployment guide](docs/DEPLOYMENT.md) and [verification record](submission/final-verification.md).
 
 Describe what you are considering and what matters to you. AlphaForge turns that question into an analysis plan, retrieves dated public observations, calculates the evidence in Python, and presents a conclusion with supporting evidence, counterevidence, charts and important gaps.
 
-The customer interface starts with a single question and optional context. Example questions can be selected and applied from the sidebar without running an analysis. Professional workflow choices and developer validation navigation remain separate. Optional details and later corrections become analysis context. The official investor personas are used only as test fixtures.
+The customer interface starts with one question and optional context. Use **Apply question** in the sidebar to load an editable example, then select **Analyze my question** to start. Follow-up questions can add or correct conditions.
 
-[Quick start](#quick-start) · [Technical guide](submission/technical-summary.md) · [One-page summary](submission/one-pager.pdf) · [Validation](submission/final-verification.md) · [All deliverables](submission/README.md)
+## Three example questions
 
-![AlphaForge customer homepage](submission/customer-homepage.jpg)
+The examples are fictional adaptations of the official PolyFinances Datathon 2026 case brief (English edition, pp. 5–7). The instruments are illustrative. All three use the same analysis workflow and only the context stated in the question.
+
+| Example | What the user wants to understand |
+| --- | --- |
+| AI and Bitcoin (Amira) | Whether adding NVDA and IBIT to SPY could undermine diversification, even when the investor can tolerate volatility and has at least 15 years. |
+| Growth with ESG preferences (Mateo) | How ESGU and SPY compare for a ten-year investor seeking growth and stability, and what the available evidence establishes about environmental or social controversy screening. |
+| A stock before retirement (Robert) | How TSLA's historical losses relate to a four-year retirement horizon and a need to protect savings. |
 
 ## How it works
 
@@ -22,38 +30,36 @@ The customer interface starts with a single question and optional context. Examp
 4. **Synthesize an answer.** Weigh supporting and opposing evidence. Request additional analysis when a gap can be resolved within the available tools and budget.
 5. **Review the conclusion.** A separate model call checks claims, citations, material context and unresolved tasks. Failed review can trigger repair; unsupported prose is withheld.
 
-The reviewed conclusion is the first content in the result, above the original question, export action and evidence tabs. Supporting evidence and counterpoints appear only when released by the review; an incomplete assessment displays checked observations instead of empty argument cards. Seven stage indicators show execution progress, and service diagnostics are available under analysis details. Download the report as standalone HTML with charts or Markdown. The assistant does not place trades.
-
-For example: `I am considering investing 3000 CAD in AMD. I may need the money in two years. What should I understand?` Add a relevant condition or correct an earlier statement using the follow-up field. A changed condition should affect the analysis when justified by evidence; a changed name should not.
+The reviewed conclusion appears above the supporting evidence and source tabs. If the evidence or review is incomplete, the result shows the checked observations and what remains unresolved. Reports can be downloaded as standalone HTML with charts or as Markdown. The application is for research and simulation.
 
 ## Quick start
 
-Use **Python 3.10 or later**; recorded local validation uses Python 3.10. Cloud deployment uses Python 3.11.
+Use **Python 3.10 or later**. Cloud deployment uses Python 3.11. Clone the repository and enter its directory:
 
 ```bash
 git clone --branch architecture-completion-20261115 https://github.com/foglands/datathon.git
 cd datathon
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-python -m streamlit run app.py
 ```
 
-On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1`. Open the URL printed by Streamlit, normally `http://localhost:8501`.
-
-**For model-led research**, launch Streamlit from a shell with a valid AWS session and access to the configured Amazon Bedrock model. Credentials set in another terminal are not inherited by an already running app. Use the normal AWS credential provider chain; do not put credentials in repository files.
+**macOS and Linux**
 
 ```bash
-export DATATHON_AWS_REGION=us-east-1
-export DATATHON_PROFILE_MODEL_ID=global.anthropic.claude-sonnet-4-5-20250929-v1:0
-python -m streamlit run app.py
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m streamlit run app.py
 ```
 
-Set `DATATHON_STARTER_PATH` to prefer covered instruments and FX from the organizer archive. Instruments outside it use the public source; `DATATHON_PUBLIC_FALLBACK=0` disables public price, FX and CPI retrieval. Without an archive, public prices and FX remain the default. The full reasoning workflow needs a valid Bedrock session. Without it, supported local interpretation/calculations may remain available, but the app reports limited or unavailable research rather than claiming a reviewed model conclusion. Offline historical validation is available separately.
+**Windows PowerShell**
 
-See [setup and troubleshooting](docs/RUNNING.md) for organizer data, environment settings, AWS diagnostics and CLI reproduction.
+```powershell
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m streamlit run app.py
+```
 
-For a hosted submission, see [cloud deployment configuration](docs/DEPLOYMENT.md). Deploy the customer `app.py` and verify both reviewer access and a real research request before using the assigned URL in the submission.
+Open the URL printed by Streamlit, normally `http://localhost:8501`. For model-led research, configure an authorized AWS session with access to the configured Bedrock model in `us-east-1`, then launch the app from that shell. Temporary credentials include a session token. Use the [AWS setup and diagnostics](docs/RUNNING.md#aws-configuration) for local use or the [deployment guide](docs/DEPLOYMENT.md) for Streamlit Cloud Secrets.
+
+The organizer archive is optional for customer research. When `DATATHON_STARTER_PATH` is set, covered instruments and FX use the archive. Public sources cover other instruments when fallback is enabled. See [setup and troubleshooting](docs/RUNNING.md) for data configuration and CLI reproduction.
 
 ## Evidence and supported scope
 

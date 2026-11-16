@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-16 - Case-based customer examples and submission documentation
+
+- Rewrite the three sidebar questions around the official growth and diversification, growth and ESG, and retirement risk cases. Each is editable question text and uses the standard research flow.
+- Align the README, setup documentation, demo script and submission package with the current interface and documented coverage limits.
+
 ## 2026-11-16 - Direct, evidence-bounded research conclusions
 
 - Require a concise answer to the actual investment question before supporting figures or missing-information details; cap the expanded main answer at 80 words and version the customer contract as v4.

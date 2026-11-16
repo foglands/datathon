@@ -45,11 +45,16 @@ class CustomerViewTests(unittest.TestCase):
 
     def test_sidebar_applies_question_without_running_it(self):
         from datathon.customer_ui import EXAMPLES
-        self.app.radio(key='customer_example').set_value('Compare two funds').run()
-        next(b for b in self.app.button if b.label == 'Apply question').click().run()
-        self.assertEqual(self.app.session_state['customer_question'], EXAMPLES['Compare two funds'])
-        self.assertFalse(self.app.exception)
-        self.assertFalse(self.app.session_state.filtered_state.get('customer_report'))
+        self.assertEqual(len(self.app.radio(key='customer_example').options), 3)
+        with patch('datathon.customer_ui.research_question', new_callable=AsyncMock) as workflow:
+            for label, question in EXAMPLES.items():
+                with self.subTest(example=label):
+                    self.app.radio(key='customer_example').set_value(label).run()
+                    next(b for b in self.app.button if b.label == 'Apply question').click().run()
+                    self.assertEqual(self.app.text_area(key='customer_question').value, question)
+                    self.assertFalse(self.app.exception)
+                    self.assertFalse(self.app.session_state.filtered_state.get('customer_report'))
+            workflow.assert_not_called()
 
     def test_reviewed_conclusion_precedes_question_export_tabs_and_evidence(self):
         report = deepcopy(self.base)

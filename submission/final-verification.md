@@ -1,6 +1,12 @@
 # Final repository verification
 
-November 16, 2026. Application baseline: `de17408bd400f465ddbe9d9de1ae4bcea06a1b1c`, plus the customer-only entry-point changes in this finalization commit. [Machine-readable results and tested-file hashes](final-verification.json) identify the checked source without relying on a mutable branch name.
+## Official case examples and submission update (November 16, 2026)
+
+Three sidebar questions adapt the official case brief's investor situations (English edition, pp. 5–7). The current customer interface test exercises all three selections. Each fills the exact editable question, produces no report and makes no research call until the separate analysis action.
+
+The full suite with the official organizer archive passed **578 tests with zero skips** on Linux Python 3.12 in 87.618 seconds. The seven customer interface tests also passed separately. The one-page summary and five-page technical guide were rebuilt from Markdown and reviewed visually. Current documentation links and installed dependency compatibility were checked. This regression uses local calculations and test fixtures. Hosted results and earlier live AWS evidence are recorded separately below.
+
+The [earlier machine-readable results and tested-file hashes](final-verification.json) identify the earlier customer-only baseline based on `de17408bd400f465ddbe9d9de1ae4bcea06a1b1c`.
 
 ## Customer interface follow-up (Windows, November 16)
 
@@ -22,7 +28,7 @@ The stash reconciliation was published as `81a034b9ce155ba82787af43e6306d8e3fee9
 
 The subsequent conclusion change separates a direct bounded assessment from its detailed figures and requires independent review to assess decision relevance as well as factual support. Model-facing claim references are restricted to the evidence and context IDs available in that run. It does not impose a verdict from persona, horizon or willingness. The 81 targeted fixture tests pass, including rejection of an expanded evidence dump in the main conclusion. The v4 contract invalidates cached results from the older output format; live answer quality is evaluated separately.
 
-## Local results
+## Earlier local results
 
 | Check | Observed result |
 | --- | --- |

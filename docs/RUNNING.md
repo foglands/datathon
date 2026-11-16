@@ -25,6 +25,8 @@ Use an authorized AWS session or profile in the environment that launches Stream
 | `AWS_PROFILE` | Optional existing profile through the normal AWS provider chain |
 | `DATATHON_AUDIT_BUCKET` | Optional existing versioned S3 bucket for historical-workbench storage |
 
+Set the AWS environment before launching Streamlit. In PowerShell, use `$env:DATATHON_AWS_REGION = "us-east-1"`. A temporary AWS session uses `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN` from the same session. A configured AWS profile can also provide credentials. Use the [hosted deployment guide](DEPLOYMENT.md) for Streamlit Cloud.
+
 The customer analyst and reviewer are separate invocations of the configured model, not independently trained models. Agreement does not prove semantic correctness. Numerical checks run separately in Python.
 
 Customer inquiry defaults are 240 seconds, 10 model-role calls, 8 tool calls and 12 source calls, with bounded investigations, format repairs and reviews. These are execution limits, not a latency guarantee. Source and per-stage limits also apply. `inquiry_contracts.py` is authoritative.
@@ -46,6 +48,8 @@ python -m unittest discover -s tests -q
 ```
 
 A complete extracted directory is also accepted. The second variable enables full-archive tests. Skipped official-data cases do not constitute full-data acceptance. Regression tests use local calculations and mocked services; live AWS credentials are not required.
+
+For customer research, `DATATHON_STARTER_PATH` alone enables archive-first prices and FX. Set `DATATHON_PUBLIC_FALLBACK=0` to disable public price, FX and CPI retrieval.
 
 ## Historical workbench and CLI
 

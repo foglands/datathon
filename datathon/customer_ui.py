@@ -15,9 +15,21 @@ from .runtime_budget import RuntimeBudgetExceeded, run_sync_action
 
 
 EXAMPLES = {
-    "A stock I’m considering": "I am considering investing 3,000 CAD in AMD. I may need the money in two years. What can the available evidence tell me, and what remains uncertain?",
-    "Compare two funds": "Compare SPY and XIU.TO in CAD over the same available historical period. Explain their observed returns, drawdowns and important limitations.",
-    "A planned withdrawal": "I am considering investing 4,800 USD in SCHX, but I must withdraw 4,800 USD in three months to pay for a course. I have no other funds for this payment. What should I understand?",
+    "AI and Bitcoin": (
+        "I already hold SPY and I'm investing for at least 15 years. I'm okay with big swings, "
+        "and I'd like to add some Nvidia (NVDA) and a Bitcoin ETF (IBIT). "
+        "Would that still leave me diversified, or would I be leaning too heavily on the same risks?"
+    ),
+    "Growth with ESG preferences": (
+        "I want to grow my savings over the next 10 years, but I'd like to keep the ups and downs manageable. "
+        "I'm looking at ESGU and SPY, and I want to avoid companies with serious environmental or social controversies. "
+        "How do the two funds compare, and how can I tell what they actually screen out?"
+    ),
+    "A stock before retirement": (
+        "I'm hoping to retire in about four years. I'd still like my savings to grow, but I can't afford a big drop. "
+        "I keep hearing about Tesla (TSLA) and I'm tempted to buy some. "
+        "How bad have its past drops been, and what would that risk mean for my retirement savings?"
+    ),
 }
 STEPS = (
     ("understand", "Understand your question", "Identify the idea and the conditions you stated."),

@@ -17,12 +17,12 @@ Financial calculations belong to Python and receive separate numerical checks. C
 
 ### Data and demonstration
 
-Dated public adjusted prices, Bank of Canada FX/CPI and qualified disclosures support historical risk, CAD conversion, explicit-weight portfolios, fixed withdrawal paths, purchasing power and selected bond measures. A fictional user considering CAD 3,000 in AMD can add a near-term withdrawal need; the assistant should explain which evidence becomes relevant without imposing a preset verdict. HTML export preserves charts and source references.
+Dated prices, Bank of Canada FX/CPI and qualified disclosures support historical risk, currency conversion, portfolios with stated weights, fixed withdrawals, purchasing power and selected bond measures. Three examples adapt the official cases: AI and Bitcoin with diversification, growth and stability with ESG preferences, and a popular stock before retirement. HTML export preserves charts and sources.
 
 ### Honest limits and validation
 
 Quotes may be delayed. Historical observations do not predict performance or establish suitability. Complete fund look-through, fundamentals/news and unrestricted ESG research are unavailable; initial duration/credit coverage is a dated AGG extract. A volume ratio does not establish execution feasibility. No trades are placed.
 
-Automated regression covers calculations, source/state contracts, authorization, tampering and interface behavior. Live generalization remains partial: paraphrase consistency and fallible semantic review are documented limitations. Official personas are test fixtures alongside other fictional questions, not production routes.
+Automated regression covers calculations, provenance, state, authorization, tampering and the interface. Live validation records inconsistent responses to paraphrases and errors in semantic review. Each example runs through the same analysis workflow as a question typed from scratch.
 
-[Code and setup](https://github.com/foglands/datathon/tree/architecture-completion-20261115) | [Technical guide](technical-summary.md) | [Validation](final-verification.md)
+[Hosted app](https://alphaforge-datathon.streamlit.app/) | [Code and setup](https://github.com/foglands/datathon/tree/architecture-completion-20261115) | [Technical guide](technical-summary.md) | [Validation](final-verification.md)

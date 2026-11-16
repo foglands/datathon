@@ -8,10 +8,10 @@ The customer application is `app.py`. Developer/reference tools are in `validati
 | --- | --- |
 | [Repository README](../README.md) | Product overview, startup and navigation |
 | [Running guide](../docs/RUNNING.md) | Configuration, organizer data, diagnostics and CLI reproduction |
+| [Hosted customer app](https://alphaforge-datathon.streamlit.app/) | Streamlit deployment of the customer entry point |
 | [One-pager](one-pager.md) / [PDF](one-pager.pdf) | One-page product, agentic approach, evidence and limits |
 | [Technical documentation](technical-summary.md) / [PDF](technical-summary.pdf) | Current inquiry architecture, methods, AWS contribution and boundaries |
-| [Demo script](demo-script.md) | Recording plan for the current customer experience |
-| [Customer homepage](customer-homepage.jpg) | Finalized customer UI without example buttons or validation navigation |
+| [Demo script](demo-script.md) | Walkthrough of contrasting official case adaptations in the current customer interface |
 | [Final verification](final-verification.md) | Current regression and packaging checks |
 
 The PDFs are generated from their adjacent Markdown by `python scripts/render_submission.py`.
@@ -30,7 +30,7 @@ The `revision-*.json` and `reasoning-*.json` files retain sanitized development 
 
 ## Historical visual artifacts
 
-`alphaforge-demo.mp4` records revision `13ccc42`, not the current customer interface. A fresh customer-flow recording remains outstanding. `visual-handout.pdf`, the `architecture-*.jpg` images, `customer-workspace.jpg`, `customer-report.jpg`, `contextual-reasoning.jpg` and `analysis-report-2209.jpg` are earlier-stage illustrations and remain for traceability. Current one-pager and technical-summary PDFs supersede their earlier content.
+`alphaforge-demo.mp4` records workbench revision `13ccc42`. The demo script describes the current customer workflow. The [earlier homepage screenshot](customer-homepage.jpg), `visual-handout.pdf`, the `architecture-*.jpg` images, `customer-workspace.jpg`, `customer-report.jpg`, `contextual-reasoning.jpg` and `analysis-report-2209.jpg` illustrate earlier revisions.
 
 ## Requirements and development history
 
