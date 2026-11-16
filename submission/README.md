@@ -13,7 +13,7 @@ The customer application is `app.py`. Developer/reference tools are in `validati
 | [Hosted customer app](https://alphaforge-datathon.streamlit.app/) | Streamlit deployment of the customer entry point |
 | [One-pager](one-pager.md) / [PDF](one-pager.pdf) | Team 38, problem, architecture, worked evidence, supported capabilities and limits |
 | [Technical documentation](technical-summary.md) / [PDF](technical-summary.pdf) | Current inquiry architecture, live AWS calls, financial methods, evidence and verification |
-| Final demo video, `EQUIPE-38_video_datathon_2026.mp4` | Three-minute continuous recording of the Tesla retirement-risk request, the user's correction, the ESGU and SPY comparison, and the HTML report export |
+| [Final demo video](https://drive.google.com/file/d/1JEEQanqmdXmtC_KFFB8hs1QXTGWqdqv8/view?usp=sharing) | `EQUIPE-38_video_datathon_2026.mp4`. Three-minute continuous recording of the Tesla retirement-risk request, the user's correction, the ESGU and SPY comparison, and the HTML report export |
 | [Demo walkthrough](demo-script.md) | Timestamped guide to the final recording and its checked findings |
 | [Final verification](final-verification.md) | Current regression and packaging checks |
 
