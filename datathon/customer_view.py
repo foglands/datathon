@@ -10,13 +10,6 @@ from .customer_workflow import research_question
 from .runtime_budget import run_sync_action
 
 
-EXAMPLES = (
-    ("Explore an idea", "I am considering investing 3000 CAD in AMD. I can leave this money invested for 10 years and can tolerate substantial losses. Help me understand the trade-offs."),
-    ("Protect money I will need", "I am considering investing 3000 CAD in AMD, but I need the money in 6 months and cannot afford to lose more than 10%. Help me assess this idea."),
-    ("Compare two funds", "Compare SPY and AGG for a possible 5000 CAD investment. My goal is stability over the next 3 years, and I want to understand the downside."),
-)
-
-
 def _reset(question=""):
     st.session_state.customer_question = question
     st.session_state.pop("customer_report", None)
@@ -271,9 +264,6 @@ def render_customer(market_loader=None):
     st.write("Tell me what you are considering, what you want the money to do, and any conditions that matter. "
              "I will research the evidence, calculate the trade-offs, and explain what the results support.")
     st.caption("Investment research and hypothetical scenarios. No transactions are placed.")
-    if "customer_report" not in st.session_state:
-        for column, (label, question) in zip(st.columns(3), EXAMPLES):
-            column.button(label, on_click=_reset, args=(question,), width="stretch")
     question = st.text_area("What are you thinking about?", key="customer_question", height=115, max_chars=4000,
                             placeholder="I am thinking of investing 3,000 CAD in AMD. I may need the money in two years. What should I understand?")
     action, reset = st.columns((4, 1))
