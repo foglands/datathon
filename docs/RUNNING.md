@@ -49,7 +49,7 @@ python -m unittest discover -s tests -q
 
 A complete extracted directory is also accepted. The second variable enables full-archive tests. Skipped official-data cases do not constitute full-data acceptance. Regression tests use local calculations and mocked services; live AWS credentials are not required.
 
-For customer research, `DATATHON_STARTER_PATH` alone enables archive-first prices and FX. Set `DATATHON_PUBLIC_FALLBACK=0` to disable public price, FX and CPI retrieval.
+For customer research, `DATATHON_STARTER_PATH` alone enables archive prices and FX. Use the three sidebar cases to test intake and dated disclosures. The organizer archive covers SPY, NVDA and TSLA, with disclosures supplying limited evidence for ESGU and IBIT. For Streamlit Cloud, a private approved ZIP can be configured using `DATATHON_PRICE_ARCHIVE_S3_URI` and `DATATHON_PRICE_ARCHIVE_SHA256`. The external adapter is opt-in for an authorized deployment. See the [hosting guide](DEPLOYMENT.md#market-data-for-the-hosted-app).
 
 ## Historical workbench and CLI
 

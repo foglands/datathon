@@ -77,6 +77,7 @@ class MarketData:
     source_path: str = ""
     official_starter: bool = False
     source_csvs: tuple[tuple[str, str], ...] = field(default=(), repr=False)
+    source_name: str = ""
 
 
 class MarketProvenanceError(ValueError):

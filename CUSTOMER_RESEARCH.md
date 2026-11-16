@@ -25,7 +25,7 @@ The tool catalog is the current capability boundary. The model can choose tools 
 
 ## General profiles
 
-Supported fields include goals, horizon, withdrawals, willingness, capacity, income/debt/reserves, holdings, amount, base currency, concentration and asset-class conditions, exclusions, ESG preferences, experience and explanation depth. No name, age or occupation supplies defaults. Amira, Mateo and Robert exist only as validation fixtures. Profile changes can alter relevance, explanation and questions; they cannot change a historical calculation on identical inputs.
+Supported fields include goals, horizon, withdrawals, willingness, capacity, income/debt/reserves, holdings, amount, base currency, concentration and asset-class conditions, exclusions, ESG preferences, experience and explanation depth. The three sidebar questions adapt the official situations. Names, ages and occupations supply no defaults. Profile changes can affect the interpretation while identical calculation inputs preserve their numerical results.
 
 Extracted statements remain unconfirmed interpretations until the user reviews/corrects them. Multiple complete allocations and conflicting values are retained. A complete explicitly stated weight vector can use the existing buy-and-hold engine. No daily rebalancing, inferred allocation or automatic funding solver is introduced.
 
@@ -48,9 +48,13 @@ Current whole-share sizing uses the latest observed price and can leave uninvest
 
 ## Sources and qualification
 
-Yahoo Finance's unofficial chart interface uses `range=5y`, daily adjusted closes and completed dates only. Provider adjustments are not applied twice. It may be delayed, throttled or changed. HTTPS verification remains enabled with certifi. This private research interface does not grant public redistribution rights; raw downloaded data are not bundled with the repository.
+An approved archive supplies dated adjusted closes and FX. Hosted ZIPs are read from a private S3 object and checked against a configured digest. The [organizer archive](docs/RUNNING.md#organizer-archive-and-full-data-validation) is subject to its source terms.
 
-FX uses [Bank of Canada Valet](https://www.bankofcanada.ca/valet/docs/) `FXUSDCAD`, CAD per USD. CPI uses Statistics Canada all-items Canada CPI `V41690973` via [Bank of Canada](https://www.bankofcanada.ca/rates/price-indexes/cpi/). Real returns align the final observed price in each CPI reference month. Release vintages and future inflation are not inferred.
+Yahoo Finance's unofficial chart interface uses `range=5y`, daily adjusted closes and completed dates. HTTPS verification remains enabled. The adapter is disabled by default because [Yahoo's terms](https://legal.yahoo.com/ca/en/yahoo/terms/otos/) require permission for automated access. An operator who enables it must verify both access and intended reuse rights. No raw price history is committed.
+
+FX uses [Bank of Canada Valet](https://www.bankofcanada.ca/valet/docs/) `FXUSDCAD`, CAD per USD. CPI uses Statistics Canada all-items Canada CPI `V41690973` via [Bank of Canada](https://www.bankofcanada.ca/rates/price-indexes/cpi/). Real returns align the final observed price in each CPI reference month. Release vintages and future inflation are not inferred. See the [Bank of Canada terms](https://www.bankofcanada.ca/terms/).
+
+The [disclosure catalog](datathon/product_disclosures.py) records factual extracts from SEC EDGAR filings and issuer documents, checked November 16, 2026. It includes ESGU and ESGV screening methods, the SPY investment objective and a dated NVIDIA holding, IBIT's Bitcoin objective, published ESGU and SPY calendar 2022 fund returns, and an ordered pair of TSLA closing-price extremes across two quarters. Python calculates the difference in fund returns and the TSLA decline. These observations support scoped findings when a daily series is unavailable. They do not supply daily volatility, full-period drawdowns, current weights or individual controversy verification. See the [SEC reuse policy](https://www.sec.gov/about/webmaster-frequently-asked-questions).
 
 The small [bond disclosure catalog](datathon/bond_disclosures.json) is a factual extract checked against the [issuer's AGG page](https://www.ishares.com/us/products/239458/ishares-core-u-s-aggregate-bond-etf-agg). As-of date, observation date, unknown original publication date, locator and URL are separate. Disclosures older than 31 days or observed after the research date are rejected. They are dated snapshots, not fresh per-request lookups. Underlying rating weights retain issuer rounding/unclassified residual as unknown.
 

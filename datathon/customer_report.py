@@ -11,7 +11,7 @@ from .review_snapshot import fingerprint
 from .decision_replay import evaluate as evaluate_history, verify as verify_history
 
 
-METHOD = "customer-inquiry-v4"
+METHOD = "customer-inquiry-v5"
 
 
 def calculate(rows):
@@ -212,13 +212,15 @@ def report_markdown(report):
              "Simulation and research · dated observations, not future-return estimates.", ""]
     if report["editor"].get("answer_status") in {"partial", "evidence_only"}:
         lines += ["**Part of this question could not be answered yet. The findings below are the parts that were checked; open points are listed with the reason.**", ""]
-    if analyses:
+    if report["blocks"]:
         for section in report["editor"].get("explanations", []):
             lines += [f"## {section['heading']}", "", section["text"], "",
                       "Evidence: " + "; ".join(report["blocks"][key]["title"] for key in section["evidence_ids"]), ""]
         for key in dict.fromkeys([report["editor"]["takeaway"], *report["editor"]["order"]]):
             block = report["blocks"][key]
             lines += [f"## {block['title']}", "", block["text"], ""]
+            lines += [f"- [Supporting source]({url})" for url in block["sources"]]
+    if analyses:
         lines += ["## Market evidence", "", "| Asset | Latest observation | Historical change | Largest observed fall | Currency |",
                   "| --- | --- | --- | --- | --- |"]
         for item in analyses:
@@ -276,7 +278,7 @@ def _svg(analyses, field, label):
 
 def report_html(report):
     """Standalone, escaped, printable report with reviewed vector charts."""
-    if not verify_report(report) or not report["analyses"]:
+    if not verify_report(report) or not report["blocks"]:
         raise ValueError("Only a checked report can be exported.")
     parts = ['<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">',
              '<title>AlphaForge · Investment research</title><style>body{font:16px/1.6 system-ui,sans-serif;max-width:980px;margin:48px auto;padding:0 24px;color:#17332b}h1{font-size:36px;line-height:1.2}h2{margin-top:32px}p{max-width:80ch}small{color:#596d63}a{color:#155e4c}table{border-collapse:collapse;width:100%}td,th{padding:10px;border-bottom:1px solid #dbe4df;text-align:left}figure{margin:28px 0;break-inside:avoid}svg{width:100%;height:auto}blockquote{border-left:4px solid #155e4c;margin-left:0;padding-left:20px}@media print{body{margin:12px;font-size:11pt}h2{break-after:avoid}}</style>',
@@ -288,15 +290,16 @@ def report_html(report):
     for section in report["editor"].get("explanations", []):
         parts += [f'<h2>{escape(section["heading"])}</h2><p>{escape(section["text"])}</p>',
                   '<small>Model interpretation checked against: ' + escape("; ".join(report["blocks"][key]["title"] for key in section["evidence_ids"])) + '</small>']
-    parts += ['<h2>The market evidence</h2><table><tr><th>Asset</th><th>Latest observed</th><th>Historical change</th><th>Largest fall</th></tr>']
-    for item in report["analyses"]:
-        asset, metric = item["asset"], item["metrics"]
-        parts += [f'<tr><td>{escape(asset["symbol"])}</td><td>{escape(asset["currency"])} {asset["price"]:,.2f}<br><small>{escape(asset["price_as_of"])}</small></td>'
-                  f'<td>{metric["return"]:+.2%} ({escape(item["basis"])})</td><td>{metric["drawdown"]:.2%}</td></tr>']
-    parts += ['</table><figure><figcaption>Observed history · each series starts at 100</figcaption>',
-              _svg(report["analyses"], "index", "Observed indexed investment values"), '</figure>',
-              '<figure><figcaption>Observed fall from earlier highs (%)</figcaption>',
-              _svg(report["analyses"], "drawdown", "Observed peak-to-trough falls"), '</figure>']
+    if report["analyses"]:
+        parts += ['<h2>The market evidence</h2><table><tr><th>Asset</th><th>Latest observed</th><th>Historical change</th><th>Largest fall</th></tr>']
+        for item in report["analyses"]:
+            asset, metric = item["asset"], item["metrics"]
+            parts += [f'<tr><td>{escape(asset["symbol"])}</td><td>{escape(asset["currency"])} {asset["price"]:,.2f}<br><small>{escape(asset["price_as_of"])}</small></td>'
+                      f'<td>{metric["return"]:+.2%} ({escape(item["basis"])})</td><td>{metric["drawdown"]:.2%}</td></tr>']
+        parts += ['</table><figure><figcaption>Observed history · each series starts at 100</figcaption>',
+                  _svg(report["analyses"], "index", "Observed indexed investment values"), '</figure>',
+                  '<figure><figcaption>Observed fall from earlier highs (%)</figcaption>',
+                  _svg(report["analyses"], "drawdown", "Observed peak-to-trough falls"), '</figure>']
     for risk in report.get("risks", []):
         if risk["id"] == "cash_needs":
             for row in risk["results"]:

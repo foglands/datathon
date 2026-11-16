@@ -1,5 +1,11 @@
 # Final repository verification
 
+## Hosted Bedrock and public-source evidence (November 16, 2026)
+
+After the operator saved Streamlit Secrets, the hosted `f637000` revision reached Bedrock planning, analysis and review in all three cases. The ESG case returned a partial price comparison. The diversification case retained findings without a lead conclusion. The retirement case selected the wrong security despite the supplied TSLA ticker. Those observed results describe the pre-fix revision.
+
+The follow-up release prioritizes explicit tickers, adds dated public filing evidence, and exposes successful Bedrock Converse calls in the evidence tab. The external Yahoo adapter now requires an explicit authorized opt-in. For broader daily-price coverage, configure a permitted archive locally or through the optional private S3 reader. The filing-based path retains its source links and can export a report when daily prices are missing.
+
 ## Official case examples and submission update (November 16, 2026)
 
 Three sidebar questions adapt the official case brief's investor situations (English edition, pp. 5–7). The current customer interface test exercises all three selections. Each fills the exact editable question, produces no report and makes no research call until the separate analysis action.

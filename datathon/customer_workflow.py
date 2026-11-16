@@ -10,24 +10,21 @@ from .inquiry_contracts import InquiryBudget
 from .customer_tools import execute_checks
 from .customer_data import PublicResearch, ResearchUnavailable, ResearchAmbiguous, BudgetedResearch, StarterResearch, UnavailableResearch
 from .customer_report import analyze, evidence_blocks, METHOD
+from .product_disclosures import disclosure_evidence
 from .review_snapshot import fingerprint
 from .customer_profile import build_profile, risk_plan
 from .customer_risks import explicit_rule_checks
 
 
 def default_provider(market_data=None):
-    """Organizer dataset first; the public source only for instruments it does not cover.
-
-    DATATHON_PUBLIC_FALLBACK=0 disables the public source entirely, so every
-    answer is reproducible from the archive alone.
-    """
+    """Use the configured archive and only opt into the external feed explicitly."""
     from os import environ
-    public = None if environ.get("DATATHON_PUBLIC_FALLBACK", "1").strip() == "0" else PublicResearch()
+    public = PublicResearch() if environ.get("DATATHON_PUBLIC_FALLBACK", "").strip() == "1" else None
     if market_data is not None:
         return StarterResearch(market_data, fallback=public)
     if public is None:
-        return UnavailableResearch("No market data is configured: set DATATHON_STARTER_PATH to the organizer archive, "
-                                   "or enable the public source with DATATHON_PUBLIC_FALLBACK=1.")
+        return UnavailableResearch("This app has no approved market price source configured. "
+                                   "A data source must be configured by the app operator.")
     return public
 
 
@@ -117,6 +114,16 @@ async def research_question(question, *, runtime=None, provider=None, progress=N
                             if key.endswith((".behavior", ".budget", ".stale")) or key in {"data_gap", "portfolio_gap"}}
         if not result["blocks"]:
             result["blocks"] = raw_blocks
+    confirmed = {item["asset"]["symbol"] for item in result["analyses"]}
+    ambiguous = {item["query"] for item in result["resolutions"] if item.get("status") == "needs_confirmation"}
+    confirmed.update(asset["query"].strip().removeprefix("$") for asset in plan["assets"]
+                     if asset["role"] in {"consider", "holding"} and asset["query"] not in ambiguous)
+    result["blocks"].update(disclosure_evidence(confirmed))
+    if result["blocks"]:
+        if not result["analyses"]:
+            result["blocks"]["data_gap"] = {"title": "Daily price history is unavailable",
+                "text": "The available disclosures cover specific dated observations. Daily risk, current prices, "
+                        "currency-adjusted paths and portfolio metrics were not calculated.", "sources": []}
         checks = result["planning"]["checks"]
         if runtime is None:
             # Explicitly labeled offline evidence recovery; never a model judgment.

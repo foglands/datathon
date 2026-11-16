@@ -107,6 +107,7 @@ class PublicResearch:
     def asset(self, query):
         resolution = self.resolve_security(query)
         symbol = resolution["symbol"]
+        entered = query.strip().removeprefix("$")
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol, safe='')}?" + urlencode(
             {"range": "5y", "interval": "1d", "events": "div,splits", "includeAdjustedClose": "true"})
         try:
@@ -117,6 +118,8 @@ class PublicResearch:
             searched = self.resolve_security(query, search=True)
             if searched["symbol"] == symbol:
                 raise
+            if entered == symbol:
+                raise ResearchAmbiguous(query, searched["candidates"], searched["source_url"]) from None
             result = self.asset(searched["symbol"])
             result["resolution"] = {**searched, "verified_exchange": result["exchange"], "verified_currency": result["currency"], "verified_type": result["instrument_type"]}
             result["digest"] = fingerprint({k: v for k, v in result.items() if k != "digest"})
@@ -258,8 +261,12 @@ class StarterResearch:
                 self.series.setdefault(row["ticker"], []).append(record)
         for rows in self.series.values():
             rows.sort(key=lambda item: item["date"])
-        self.source_url = next((row.get("source_url") for row in getattr(market_data, "metadata", ())
-                                if row.get("file") == "prices_daily.csv" and row.get("source_url")), None)
+        self.source_name = getattr(market_data, "source_name", "") or self.SOURCE
+        self.archive_label = "configured market snapshot" if getattr(market_data, "source_name", "") else "organizer dataset"
+        source = next((row for row in getattr(market_data, "metadata", ()) if row.get("file") == "prices_daily.csv"), {})
+        self.source_url = source.get("source_url")
+        terms = re.search(r"https?://[^\s)]+", source.get("terms_of_use", "") or "")
+        self.terms_url = terms[0] if terms else None
 
     def covers(self, query):
         return query.strip().removeprefix("$").upper() in self.series
@@ -267,7 +274,7 @@ class StarterResearch:
     def resolve_security(self, query, *, search=False):
         if self.covers(query):
             symbol = query.strip().removeprefix("$").upper()
-            return {"symbol": symbol, "query": query, "method": "organizer dataset ticker", "candidates": [],
+            return {"symbol": symbol, "query": query, "method": self.archive_label + " ticker", "candidates": [],
                     "source_url": self.source_url, "retrieved_at": self.clock().isoformat()}
         if self.fallback is None:
             raise ResearchUnavailable(self._outside(query))
@@ -281,7 +288,7 @@ class StarterResearch:
 
     def _outside(self, query):
         covered = ", ".join(sorted(self.series))
-        return (f"{query.strip()} is not one of the {len(self.series)} instruments in the organizer dataset ({covered}). "
+        return (f"{query.strip()} is not one of the {len(self.series)} instruments in the {self.archive_label} ({covered}). "
                 "No public fallback source is enabled, so no prices were retrieved. Ask about a covered instrument, "
                 "or supply a dated price file with its source.")
 
@@ -292,39 +299,40 @@ class StarterResearch:
             resolution = self.fallback.resolve_security(query)
             if self.covers(resolution["symbol"]):
                 result = self.asset(resolution["symbol"])
-                result["resolution"].update(query=query, method="public name resolution; organizer dataset prices")
+                result["resolution"].update(query=query, method=f"public name resolution; {self.archive_label} prices")
                 result["digest"] = fingerprint({k: v for k, v in result.items() if k != "digest"})
                 return result
             result = self.fallback.asset(resolution["symbol"])
             result["resolution"] = {**resolution, "verified_exchange": result["exchange"],
                                     "verified_currency": result["currency"], "verified_type": result["instrument_type"]}
-            result["coverage"] = "outside organizer dataset; public fallback source"
+            result["coverage"] = f"outside {self.archive_label}; public fallback source"
             result["digest"] = fingerprint({k: v for k, v in result.items() if k != "digest"})
             return result
         symbol = query.strip().removeprefix("$").upper()
         rows = self.series[symbol]
         currency = rows[-1]["currency"]
         if any(row["currency"] != currency for row in rows):
-            raise ResearchUnavailable(f"The organizer dataset lists {symbol} in more than one currency.")
+            raise ResearchUnavailable(f"The {self.archive_label} lists {symbol} in more than one currency.")
         retrieved = self.clock()
         last = rows[-1]
         as_of = datetime.fromisoformat(last["date"]).replace(tzinfo=timezone.utc)
         trading = [{"date": row["date"], "close": row["close"], "volume": row["volume"]} for row in rows if "close" in row]
         result = {
             "symbol": symbol, "name": self.names.get(symbol, symbol)[:120], "currency": currency,
-            "exchange": "organizer dataset", "price": positive(last.get("close", last["price"])), "price_as_of": as_of.isoformat(),
+            "exchange": self.archive_label, "price": positive(last.get("close", last["price"])), "price_as_of": as_of.isoformat(),
             "price_field": "close" if "close" in last else "adj_close",
             "retrieved_at": retrieved.isoformat(), "price_age_days": max(0, (retrieved - as_of).total_seconds() / 86400),
             "rows": [{"date": row["date"], "price": positive(row["price"])} for row in rows],
-            "omitted_rows": 0, "trading": trading, "instrument_type": "organizer dataset instrument",
-            "source": self.SOURCE, "source_url": self.source_url or "https://polyfinances.ca/datathon",
+            "omitted_rows": 0, "trading": trading, "instrument_type": self.archive_label + " instrument",
+            "source": self.source_name, "source_url": self.source_url or "https://polyfinances.ca/datathon",
             "request_url": "alphaforge_starter/prices_daily.csv", "dataset_sha256": self.dataset_sha256,
-            "adjustment": "organizer adj_close; dividends and splits reflected by the organizer",
-            "terms_url": "organizer distribution terms",
-            "coverage": "organizer dataset",
+            "adjustment": "archive adj_close; adjustments are defined by the source metadata" if self.archive_label != "organizer dataset"
+                          else "organizer adj_close; dividends and splits reflected by the organizer",
+            "terms_url": self.terms_url,
+            "coverage": self.archive_label,
             "limitations": f"Frozen dataset; last observation {last['date']}. Not a live quote. Reproducible from the archive hash.",
         }
-        result["resolution"] = {"symbol": symbol, "query": query, "method": "organizer dataset ticker", "candidates": [],
+        result["resolution"] = {"symbol": symbol, "query": query, "method": self.archive_label + " ticker", "candidates": [],
                                 "verified_exchange": result["exchange"], "verified_currency": currency, "verified_type": result["instrument_type"]}
         result["digest"] = fingerprint(result)
         return result

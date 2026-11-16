@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-16 - Hosted AWS and market data readiness
+
+- Recover literal tickers for evidence when model intake is unavailable, while keeping the lack of a reviewed conclusion visible.
+- Preserve explicit tickers and add dated fund and security disclosures for the three examples. Show successful Bedrock Converse responses alongside the evidence.
+- Support a private, digest-pinned S3 snapshot for deployment and disable the external price adapter by default.
+
 ## 2026-11-16 - Case-based customer examples and submission documentation
 
 - Rewrite the three sidebar questions around the official growth and diversification, growth and ESG, and retirement risk cases. Each is editable question text and uses the standard research flow.

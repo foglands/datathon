@@ -54,7 +54,9 @@ The shared default inquiry budget is 240 seconds, 10 model-role calls, 8 tool ca
 | Source | Treatment | Boundary |
 | --- | --- | --- |
 | Organizer starter archive (first source) | Historical `adj_close` in listing currency, raw `close` for indicative share sizing, same-date Bank of Canada USD/CAD fixings, price CSV SHA-256 and dated observations retained with the asset; `StarterResearch` in `customer_data.py` | 31 instruments, 2021-11-12 to 2026-11-12; frozen, not a live quote; CPI is not in the price archive |
-| Yahoo Finance chart/search (fallback only) | Used only for instruments outside the archive; listing-resolution provenance, daily adjusted observations, timestamps and completed dates; request-local caching; reports label the row `outside organizer dataset` | Unofficial interface; may be delayed, throttled or changed; up to five years; no execution quote; `DATATHON_PUBLIC_FALLBACK=0` disables it |
+| Private S3 price snapshot | Optional approved ZIP with a pinned SHA-256 digest and source metadata | Requires permission to use the data and read access to the named S3 object |
+| Yahoo Finance chart/search | Optional external adapter for daily prices | Disabled by default. Enable only with authorization for automated access and intended use |
+| SEC EDGAR and issuer disclosures | SPY holding and IBIT objective, ESG screening and annual fund returns, and a TSLA historical decline calculated from split-adjusted closes | Dates and sources appear in reports. These limited extracts do not substitute for a daily price series or current holdings |
 | Bank of Canada Valet | FXUSDCAD, expressed as CAD per USD; compatible dates for historical conversion | FX and equity observations need not be simultaneous for latest-price sizing |
 | Canadian CPI via Bank of Canada | Statistics Canada all-items Canada series V41690973; align month-end observed prices to CPI reference months | Latest vintage, not point-in-time releases or forecast inflation |
 | Bond disclosure catalog | Dated issuer extract with locators, observation/as-of dates and eligibility checks | Initial AGG coverage only; older than 31 days or observed after research date is rejected |
@@ -107,7 +109,7 @@ A separate reviewer may reject valid conditional wording or miss an unsupported 
 
 ## 7. AWS, reproduction and validation
 
-Bedrock contributes to actual question interpretation, task planning, synthesis and review. Traces distinguish successful cloud calls, failures and local fallbacks. Optional versioned S3 storage belongs to the developer workbench; it checks versioning and returns an ETag/version receipt. No Knowledge Base, managed Guardrails, Step Functions, custom CloudWatch deployment or Object Lock is claimed.
+Bedrock Converse interprets the question, plans tasks, synthesizes findings and reviews claims. The report's Evidence & sources tab shows a runtime receipt only after a successful Converse response. It displays the model, request region and roles. Python calculates financial figures and checks citations and scope. Bedrock's Standard tier bills by input and output tokens. To estimate a run, multiply each token total by its corresponding per-million-token rate from [Bedrock pricing](https://aws.amazon.com/bedrock/pricing/) and divide by one million. Optional S3 reads for price snapshots are billed separately.
 
 Open the [hosted app](https://alphaforge-datathon.streamlit.app/) or install `requirements.txt`, authenticate the application process and run `python -m streamlit run app.py`. For developer validation, run `python -m streamlit run validation_app.py`. Set both starter-path variables for full-data tests. See the [running guide](../docs/RUNNING.md) and [deployment guide](../docs/DEPLOYMENT.md) for AWS setup, reproduction and limitations.
 

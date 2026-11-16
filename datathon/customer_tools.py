@@ -76,9 +76,9 @@ async def _execute_checks(report, checks, provider, market_data):
             report["executed_tools"].append(key)
         if key == "verify_calculations":
             from .customer_report import review
-            checked = all(review(item["rows"], item["metrics"]) for item in report["analyses"])
+            checked = bool(report["analyses"]) and all(review(item["rows"], item["metrics"]) for item in report["analyses"])
             window = horizon_evidence(report["profile"], report["analyses"])
-            text = ("Independent Python replay of existing financial metrics: " + ("passed. " if checked else "failed. ") +
+            text = ("Independent Python replay of existing financial metrics: " + ("passed. " if checked else "not available or failed. ") +
                     "Holding-window verification: " + repr(window.get("calculation_review", [])) +
                     ". Each observed date can start an overlapping holding window; this is not a count of non-overlapping or monthly-start periods.")
             report["blocks"]["analysis.verification"] = {"title": "Independent calculation recheck", "text": text, "sources": window["sources"], "calculation_review": window.get("calculation_review", [])}

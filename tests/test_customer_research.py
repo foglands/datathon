@@ -11,7 +11,7 @@ from datathon.customer_agents import understand, edit_report
 from datathon.customer_data import PublicResearch, ResearchUnavailable, StarterResearch, UnavailableResearch
 from datathon.customer_workflow import default_provider
 from datathon.data import MarketData
-from datathon.customer_report import analyze, calculate, review, evidence_blocks, verify_report
+from datathon.customer_report import analyze, calculate, review, evidence_blocks, report_html, verify_report
 from datathon.customer_workflow import research_question
 
 
@@ -191,10 +191,59 @@ class AgentAndWorkflowTests(unittest.IsolatedAsyncioTestCase):
         result = await understand("Invest $3000 in amd", runtime)
         self.assertNotEqual((result.get("budget") or {}).get("currency"), "CAD")
 
+    async def test_explicit_ticker_wins_over_model_selected_company_name(self):
+        question = "How bad have Tesla (TSLA) losses been? I need the money for retirement."
+        runtime = AsyncMock()
+
+        async def run(role, payload, *, tools, stop_after_tool):
+            tools[0].handler(mode="research", assets=[{"query": "Tesla", "excerpt": "Tesla", "role": "consider"}],
+                conditions=[], budget_text="", currency="", budget_excerpt="", question_to_ask="")
+            return AgentRun("ok", {})
+
+        runtime.run.side_effect = run
+        result = await understand(question, runtime)
+        self.assertEqual(result["assets"], [{"query": "TSLA", "excerpt": "TSLA", "role": "consider"}])
+
+    async def test_disclosure_report_remains_available_without_price_permission(self):
+        from datathon.customer_ui import EXAMPLES
+
+        provider = UnavailableResearch("No daily prices configured.")
+        expected = {"AI and Bitcoin": ("SPY.disclosure", "IBIT.disclosure"),
+            "Growth with ESG preferences": ("ESGU.disclosure", "ESGU-SPY.disclosure"),
+            "A stock before retirement": ("TSLA.disclosure",)}
+        for name, evidence_ids in expected.items():
+            with self.subTest(case=name):
+                result = await research_question(EXAMPLES[name], provider=provider)
+                self.assertEqual(result["status"], "partial")
+                self.assertEqual(result["analyses"], [])
+                self.assertTrue(set(evidence_ids) <= result["blocks"].keys())
+                self.assertTrue(verify_report(result))
+                page = report_html(result)
+                self.assertNotIn("<svg", page)
+                self.assertIn(result["blocks"][evidence_ids[0]]["sources"][0], page)
+        self.assertIn("73.39%", result["blocks"]["TSLA.disclosure"]["text"])
+
     async def test_local_fallback_is_labelled_and_preserves_cash_amount(self):
         result = await understand("i want to invest stock share of amd with 3000 cad", None)
         self.assertEqual(result["origin"], "local")
         self.assertEqual(result["budget"]["amount"], 3000)
+
+    async def test_case_tickers_survive_failed_bedrock_intake(self):
+        from datathon.customer_ui import EXAMPLES
+        runtime = AsyncMock()
+        runtime.run.return_value = AgentRun("error", {})
+        expected = [("SPY", "NVDA", "IBIT"), ("ESGU", "SPY"), ("TSLA",)]
+        for question, symbols in zip(EXAMPLES.values(), expected, strict=True):
+            with self.subTest(symbols=symbols):
+                result = await understand(question, runtime)
+                self.assertEqual(result["origin"], "local")
+                self.assertEqual(result["mode"], "research")
+                self.assertEqual(tuple(asset["query"] for asset in result["assets"]), symbols)
+                self.assertTrue(all(asset["excerpt"] in question for asset in result["assets"]))
+
+    async def test_fallback_does_not_treat_quoted_advice_as_a_research_request(self):
+        result = await understand('My advisor said "Buy Tesla (TSLA)." How do investment risks work?', None)
+        self.assertEqual(result["assets"], [])
 
     async def test_funding_and_existing_holdings_are_not_fetched_as_purchase_candidates(self):
         provider = AsyncMock()
@@ -322,6 +371,9 @@ class StarterFirstTests(unittest.TestCase):
     def test_workflow_prefers_the_archive_and_can_disable_the_public_source(self):
         import os
         from unittest.mock import patch as patch_env
+        with patch_env.dict(os.environ, {}, clear=True):
+            self.assertIsNone(default_provider(starter_market()).fallback)
+            self.assertIsInstance(default_provider(None), UnavailableResearch)
         with patch_env.dict(os.environ, {"DATATHON_PUBLIC_FALLBACK": "0"}):
             provider = default_provider(starter_market())
             self.assertIsInstance(provider, StarterResearch)
@@ -331,6 +383,33 @@ class StarterFirstTests(unittest.TestCase):
             provider = default_provider(starter_market())
             self.assertIsInstance(provider.fallback, PublicResearch)
             self.assertIsInstance(default_provider(None), PublicResearch)
+
+    def test_private_archive_verifies_digest_and_retains_csv_provenance(self):
+        from hashlib import sha256
+        from io import BytesIO
+        from zipfile import ZipFile
+        from datathon.hosted_market import HostedArchiveError, load_hosted_market_data
+
+        frozen = starter_market()
+        zipped = BytesIO()
+        with ZipFile(zipped, "w") as archive:
+            archive.writestr("alphaforge_starter/prices_daily.csv", dict(frozen.source_csvs)["prices_daily.csv"])
+            archive.writestr("alphaforge_starter/fx_usdcad_daily.csv", "date,usdcad\n" + "\n".join(
+                f"{day},{value}" for day, value in frozen.fx.items()))
+            archive.writestr("alphaforge_starter/sources_metadata.csv",
+                "file,source,source_url,retrieved_on,terms_of_use\n"
+                "prices_daily.csv,Fixture,https://example.org/data,2026-11-12,https://example.org/terms\n")
+        payload = zipped.getvalue()
+        client = unittest.mock.Mock()
+        client.get_object.side_effect = lambda **_: {"Body": BytesIO(payload), "ContentLength": len(payload)}
+        uri = "s3://private-data/prices.zip"
+        market = load_hosted_market_data(uri, sha256(payload).hexdigest(), "us-east-1", client=client)
+        client.get_object.assert_called_once_with(Bucket="private-data", Key="prices.zip")
+        self.assertEqual(market.source_path, "")
+        self.assertFalse(market.official_starter)
+        self.assertEqual(StarterResearch(market).asset("SPY")["terms_url"], "https://example.org/terms")
+        with self.assertRaisesRegex(HostedArchiveError, "SHA-256"):
+            load_hosted_market_data(uri, "0" * 64, "us-east-1", client=client)
 
     def test_end_to_end_report_from_archive_only(self):
         provider = StarterResearch(starter_market(), fallback=None, clock=lambda: NOW)

@@ -7,9 +7,11 @@ from pathlib import Path
 import streamlit as st
 
 from .customer_agents import customer_runtime
+from .customer_data import UnavailableResearch
 from .customer_report import METHOD, report_html, report_markdown, verify_report
 from .customer_view import _charts, _risk_checks, _scenarios, _sources
 from .customer_workflow import research_question
+from .hosted_market import HostedArchiveError
 from .model_settings import bedrock_failure_message
 from .runtime_budget import RuntimeBudgetExceeded, run_sync_action
 
@@ -124,7 +126,7 @@ def _issues(report):
         result.append({"stage": "Source data", "reason": str(error)[:700],
                        "action": "Check the instrument name and exchange, or retry if the source is temporarily unavailable."})
     review = editor.get("explanation_review", {}) or {}
-    if report.get("analyses") and editor.get("answer_status") == "evidence_only":
+    if report.get("blocks") and editor.get("answer_status") == "evidence_only":
         failure = editor.get("failure") or review.get("failure") or editor.get("budget", {}).get("stop_reason")
         reason = _service_problem(trace, failure)["reason"] if failure else review.get("feedback")
         result.append({"stage": "Answer review", "reason": reason or "A supported written conclusion could not be completed.",
@@ -179,12 +181,16 @@ def _run(question, market_loader=None, *, continue_conversation=False, retry=Fal
 
         draw()
         try:
+            provider = None
             try:
                 market = market_loader() if market_loader else None
+            except HostedArchiveError as exc:
+                market = None
+                provider = UnavailableResearch(str(exc))
             except (OSError, ValueError):
                 market = None
             report = run_sync_action(research_question(question, runtime=customer_runtime(), progress=progress,
-                market_data=market, previous_state=prior_state))
+                market_data=market, provider=provider, previous_state=prior_state))
         except Exception as exc:
             if current:
                 states[current] = "attention"
@@ -217,7 +223,7 @@ def _run(question, market_loader=None, *, continue_conversation=False, retry=Fal
             states["sources"] = "attention"
         if any(task.get("status") in {"blocked", "partial"} for task in report.get("tasks", [])):
             states["investigate"] = "attention"
-        if report.get("analyses") and report.get("editor", {}).get("answer_status") == "evidence_only" and states["review"] != "skipped":
+        if report.get("blocks") and report.get("editor", {}).get("answer_status") == "evidence_only" and states["review"] != "skipped":
             states["review"] = "attention"
         draw()
         status.update(label="Research complete" if report["status"] == "ready" else "Research finished · see the open questions below",
@@ -329,8 +335,8 @@ def _conclusion(report):
                 _section(section, False)
         else:
             st.html('<h1 class="conclusion-unavailable">A conclusion is not available yet.</h1>')
-            if report.get("analyses"):
-                st.write("The price calculations are available, but the written assessment could not be verified. Review the available evidence below or retry the analysis.")
+            if report.get("blocks"):
+                st.write("Checked evidence is available below. The written assessment could not be verified.")
             else:
                 st.write(report["plan"].get("question") or "We could not retrieve enough evidence. Check the investment name and exchange, then try again.")
 
@@ -338,7 +344,6 @@ def _conclusion(report):
 def _available_evidence(report):
     """Show checked facts without inventing a conclusion or opposing arguments."""
     st.subheader("Available evidence")
-    st.write("These are the calculated findings, rather than a conclusion about your proposed investment.")
     for block in report.get("blocks", {}).values():
         with st.container(border=True):
             st.markdown("**" + block["title"] + "**")
@@ -382,6 +387,14 @@ def _evidence(report):
                     st.write(block["text"])
     _risk_checks(report)
     _sources(report)
+    calls = [event for event in _trace_events(report) if event.get("event") == "bedrock" and event.get("status") == "success"]
+    if calls:
+        with st.expander("Research service verification"):
+            st.write("Amazon Bedrock Converse returned successful responses for this research.")
+            stages = {event.get("role", "") for event in calls} - {""}
+            if stages:
+                st.caption("Roles: " + ", ".join(sorted(stages)))
+            st.caption("Model: " + calls[0]["model_id"] + " · Request region: " + calls[0]["region"])
     with st.expander("The question and context used"):
         st.write(report["question"])
         for condition in report["plan"].get("conditions", []):
@@ -404,14 +417,18 @@ def render_report(report):
     with title:
         st.html('<div class="result-meta"><span class="result-status" data-state="' + escape(status) + '">' + labels.get(status, "Research") + '</span><span>AlphaForge Investment Research</span></div>')
     with actions:
-        if analyses:
+        if report.get("blocks"):
             with st.popover("Export", icon=":material/ios_share:", use_container_width=True):
-                st.download_button("Report with charts", report_html(report), "investment-research.html", "text/html", use_container_width=True)
+                st.download_button("Report with charts" if analyses else "HTML report", report_html(report), "investment-research.html", "text/html", use_container_width=True)
                 st.download_button("Markdown", report_markdown(report), "investment-research.md", "text/markdown", use_container_width=True)
-    if not analyses:
+    if not report.get("blocks"):
         _customer_issues(report)
         return
-    overview, charts, evidence = st.tabs(["Assessment", "Charts & scenarios", "Evidence & sources"])
+    labels = ["Assessment", "Evidence & sources"]
+    if analyses:
+        labels.insert(1, "Charts & scenarios")
+    tabs = dict(zip(labels, st.tabs(labels)))
+    overview, evidence = tabs["Assessment"], tabs["Evidence & sources"]
     with overview:
         explanations = editor.get("explanations", [])
         panels = [(label, [s for s in explanations if s["heading"] == heading])
@@ -433,10 +450,11 @@ def render_report(report):
         for conflict in report.get("profile", {}).get("conflicts", []):
             st.warning("Conflicting " + conflict["field"].replace("_", " ") + ": " + " / ".join(conflict["statements"]) + ". " + conflict["impact"])
         _customer_issues(report)
-    with charts:
-        _charts(analyses)
-        _scenarios(report)
-        st.caption("Observed history and hypothetical scenarios, with their own dates and assumptions. Neither is a forecast.")
+    if analyses:
+        with tabs["Charts & scenarios"]:
+            _charts(analyses)
+            _scenarios(report)
+            st.caption("Observed history and hypothetical scenarios, with their own dates and assumptions. Neither is a forecast.")
     with evidence:
         _evidence(report)
 

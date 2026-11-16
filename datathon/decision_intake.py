@@ -960,6 +960,14 @@ def _finish(draft, clauses):
     return draft
 
 
+def _unsupported_market_request(clauses):
+    return any(
+        _positive_match(_ORDER, clause) or _positive_match(_FORECAST, clause)
+        or _SHARE_ORDER.fullmatch(clause) or _DIRECT_ORDER.fullmatch(clause) or _UNSUPPORTED.search(clause)
+        for clause in clauses
+    )
+
+
 async def draft_decision(question, runtime=None):
     """Return an unconfirmed draft. Pass a runtime for Sonnet or None for local interpretation."""
     draft = _empty()
@@ -976,11 +984,7 @@ async def draft_decision(question, runtime=None):
         draft.update(missing=["binding_scope"], clarification="I understood that this is a fictional review. I still need the actual investment terms without instructions to bypass verification.",
                      trace=({"role": "decision_intake", "event": "instruction_conflict"},))
         return draft
-    if any(
-        _positive_match(_ORDER, clause) or _positive_match(_FORECAST, clause)
-        or _SHARE_ORDER.fullmatch(clause) or _DIRECT_ORDER.fullmatch(clause) or _UNSUPPORTED.search(clause)
-        for clause in clauses
-    ):
+    if _unsupported_market_request(clauses):
         draft.update(intent="out_of_scope", clarification="Use a fictional proposed trade or a historical question.")
         return draft
     if runtime is None or not clauses:

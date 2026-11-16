@@ -15,7 +15,7 @@ The November 16, 2026 verification recorded a public customer homepage, market a
 | Dependencies | Root `requirements.txt` |
 | Audience | Reviewers need working access to the deployed app; repository visibility is separate |
 
-Streamlit Community Cloud follows changes pushed to the deployment branch. Publish application updates to that branch and keep GitHub's default branch `agent-optimization` synchronized. Use `app.py` for the customer deployment and `validation_app.py` for local developer validation. The hosted customer workflow can use public prices and FX without the organizer archive.
+Streamlit Community Cloud follows changes pushed to the deployment branch. Publish application updates to that branch and keep GitHub's default branch `agent-optimization` synchronized. Use `app.py` for the customer deployment and `validation_app.py` for local developer validation.
 
 ## Account and secrets
 
@@ -23,14 +23,22 @@ Sign in at [Streamlit Community Cloud](https://share.streamlit.io/), review the 
 
 In Advanced settings, select Python 3.11 and enter runtime configuration using [.streamlit/secrets.example.toml](../.streamlit/secrets.example.toml) as the non-secret template. Root-level secrets become environment variables consumed by the existing AWS provider chain. Enter actual AWS credentials directly in the hosting Secrets editor, never in GitHub, source files, screenshots or chat.
 
-Bedrock credentials must be valid and authorized for the configured model. Temporary AWS sessions expire. Hosting the UI does not extend the life of the competition account or its credentials. The project records the competition-account shutdown as November 16, 2026 at 13:59 Montreal time; continued model availability requires a valid authorized AWS environment after that deadline. Do not present a loaded homepage as proof that research works.
+Bedrock needs an active AWS session with permission to invoke the configured model. Put all three fields of a temporary session at the top level of the Secrets editor. Saving credentials in a local PowerShell session affects only processes started from that shell. Streamlit Cloud reads its own Secrets configuration after the update propagates. Refresh expired credentials in the same editor.
+
+## Market data for the hosted app
+
+The three examples can use public filing evidence with Bedrock even without a configured daily price provider. To add daily return and drawdown charts, use a market snapshot that you have permission to use for the intended audience and report exports. The ZIP must use the starter CSV schema and include source URLs, access and reuse terms, dates, processing and limitations. The organizer supplied its archive for the Datathon, and its source terms still apply to other uses.
+
+Keep the approved ZIP in a private S3 bucket and grant the app's AWS identity read access to that single object. Enter `DATATHON_PRICE_ARCHIVE_S3_URI` and `DATATHON_PRICE_ARCHIVE_SHA256` in Secrets, using the exact digest of the ZIP. In PowerShell, `Get-FileHash -Algorithm SHA256 -LiteralPath <archive-path>` computes it locally. The app checks the digest before using the data and reads a ZIP of up to 32 MiB. Reports retain the underlying price CSV hash and observation period.
+
+The external Yahoo adapter is disabled by default. Activate `DATATHON_PUBLIC_FALLBACK="1"` only with verified permission for automated access and for the intended use of results. See the [source qualification](../CUSTOMER_RESEARCH.md#sources-and-qualification).
 
 ## Verify a release
 
 1. Open the [hosted app](https://alphaforge-datathon.streamlit.app/) after Streamlit updates.
 2. Check the three example questions. **Apply question** should fill editable text before **Analyze my question** starts the run.
-3. Submit a fictional question and check the observed service status, data dates, calculations and report export. Record any unavailable Bedrock access separately from the UI and data checks.
-4. Test a follow-up correction when the full reasoning workflow is available.
+3. Run the three fictional cases. Check which assets were interpreted, the observed Bedrock status, data dates, checked calculations, conclusion status and report export.
+4. Test a follow-up correction and record the result against the deployed revision. Open **Evidence & sources → Research service verification** to confirm a successful Bedrock Converse response for that research. Record unavailable prices, incomplete review and missing user inputs separately.
 
 Do not send reviewer invitations unless specifically requested. If the app is made publicly accessible, its model calls consume the configured AWS account's quota/budget. Public app access and uploading AWS credentials to a hosting provider require the account owner's approval.
 

@@ -19,7 +19,7 @@ The examples are fictional adaptations of the official PolyFinances Datathon 202
 | Example | What the user wants to understand |
 | --- | --- |
 | AI and Bitcoin (Amira) | Whether adding NVDA and IBIT to SPY could undermine diversification, even when the investor can tolerate volatility and has at least 15 years. |
-| Growth with ESG preferences (Mateo) | How ESGU and SPY compare for a ten-year investor seeking growth and stability, and what the available evidence establishes about environmental or social controversy screening. |
+| Growth with ESG preferences (Mateo) | How ESGU and SPY compare for a ten-year investor seeking growth and stability, and what the issuers' disclosures establish about screening. |
 | A stock before retirement (Robert) | How TSLA's historical losses relate to a four-year retirement horizon and a need to protect savings. |
 
 ## How it works
@@ -59,17 +59,17 @@ py -m venv .venv
 
 Open the URL printed by Streamlit, normally `http://localhost:8501`. For model-led research, configure an authorized AWS session with access to the configured Bedrock model in `us-east-1`, then launch the app from that shell. Temporary credentials include a session token. Use the [AWS setup and diagnostics](docs/RUNNING.md#aws-configuration) for local use or the [deployment guide](docs/DEPLOYMENT.md) for Streamlit Cloud Secrets.
 
-The organizer archive is optional for customer research. When `DATATHON_STARTER_PATH` is set, covered instruments and FX use the archive. Public sources cover other instruments when fallback is enabled. See [setup and troubleshooting](docs/RUNNING.md) for data configuration and CLI reproduction.
+Set `DATATHON_STARTER_PATH` to use a local archive. A hosted app can load an approved ZIP from a private S3 object with a pinned SHA-256 digest. The three examples also have sourced filing evidence that remains usable without daily prices. Broader historical analysis and charts need a configured price source. The external Yahoo adapter starts disabled. An operator can enable it only after confirming permission for the intended access and use. See the [data setup](docs/RUNNING.md#organizer-archive-and-full-data-validation) and [hosted configuration](docs/DEPLOYMENT.md).
 
 ## Evidence and supported scope
 
 | Capability | Current boundary |
 | --- | --- |
-| Asset research | Up to three instruments; configured organizer archive first, with CSV hash and dates retained; public price fallback for uncovered instruments; ambiguous listings need clarification |
+| Asset research | Up to three instruments, using the configured archive and an external feed only if authorized and enabled. Reports preserve dates and source hashes. Ambiguous listings need clarification. |
 | Historical risk | Return/loss, drawdown, volatility, rolling outcomes, recovery and selected stress replays; history is not a forecast |
 | Currency and purchasing power | CAD/USD conversion using Bank of Canada FX; Canadian CPI where relevant and available; distinct observation periods |
 | Portfolio and withdrawals | Complete explicitly stated weights; single or fixed monthly withdrawal schedules with sufficient inputs; no inferred holdings or success probability |
-| Bond and exposure evidence | Dated AGG duration/credit extract and qualified issuer/sector evidence; limited coverage and unknown weights remain explicit |
+| Product and exposure evidence | Dated fund and issuer disclosures, including ESGU screening, SPY holdings, IBIT exposure and a TSLA historical decline. Screening methodology alone cannot verify holdings or company controversies. |
 | Follow-up and review | Sourced corrections/retractions, bounded extra tool calls, claim/task review, visible partial and evidence-only outcomes |
 
 Quotes may be delayed. Public research is a current retrospective, not a historical-vintage backtest or execution feed. Fundamentals, valuation, news, complete fund look-through and comprehensive ESG screening are not supplied. A traded-volume ratio does not prove execution feasibility. VaR/ES are withheld without certified observation coverage. See [sources and method boundaries](CUSTOMER_RESEARCH.md).

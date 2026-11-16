@@ -17,7 +17,7 @@ Financial calculations belong to Python and receive separate numerical checks. C
 
 ### Data and demonstration
 
-Dated prices, Bank of Canada FX/CPI and qualified disclosures support historical risk, currency conversion, portfolios with stated weights, fixed withdrawals, purchasing power and selected bond measures. Three examples adapt the official cases: AI and Bitcoin with diversification, growth and stability with ESG preferences, and a popular stock before retirement. HTML export preserves charts and sources.
+Three examples use verifiable evidence: SPY's disclosed NVIDIA holding and IBIT's Bitcoin exposure, ESGU's screening and historical fund returns, and a documented TSLA decline. A configured price archive adds daily risk charts. HTML reports keep the sources and limits. The evidence tab shows a successful Bedrock Converse receipt for the current run.
 
 ### Honest limits and validation
 

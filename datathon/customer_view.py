@@ -96,6 +96,12 @@ def _sources(report):
         if report.get("cpi"):
             st.markdown(f"[Statistics Canada CPI via Bank of Canada]({report['cpi']['source_url']})")
             st.caption(report["cpi"]["basis"] + " · " + report["cpi"]["vintage"])
+        for evidence_id, block in report["blocks"].items():
+            if evidence_id.endswith(".disclosure"):
+                st.markdown(f"**{block['title']}**")
+                st.caption(block["text"])
+                for url in block["sources"]:
+                    st.markdown(f"[Disclosure]({url})")
         st.write(methodology(report))
 
 

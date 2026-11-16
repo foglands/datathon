@@ -2,6 +2,7 @@
 
 import json
 from dataclasses import replace
+from os import environ
 from pathlib import Path
 from uuid import uuid4
 from zipfile import BadZipFile
@@ -15,6 +16,7 @@ from datathon.data import load_market_data, market_data_source
 from datathon.decision_view import render_decisions
 from datathon.customer_ui import render_customer
 from datathon.finance import BASE_WEIGHTS
+from datathon.hosted_market import load_hosted_market_data
 from datathon.model_settings import configured_bedrock_runtime
 from datathon.publication import publish_check, publish_report
 from datathon.question_language import ENGLISH_QUESTION_MESSAGE, is_english_question
@@ -65,6 +67,19 @@ def _cached_market_data(source_key):
 def market_data():
     source_key = st.session_state.get("market_source")
     return _cached_market_data(source_key) if source_key is not None else load_market_data()
+
+
+@st.cache_data(show_spinner=False)
+def _cached_hosted_market_data(uri, digest, region):
+    return load_hosted_market_data(uri, digest, region)
+
+
+def customer_market_data():
+    uri = environ.get("DATATHON_PRICE_ARCHIVE_S3_URI", "").strip()
+    if uri and not environ.get("DATATHON_STARTER_PATH"):
+        return _cached_hosted_market_data(uri, environ.get("DATATHON_PRICE_ARCHIVE_SHA256", "").strip().lower(),
+                                          environ.get("DATATHON_AWS_REGION", "us-east-1"))
+    return market_data()
 
 
 def refresh_market_source():
@@ -795,7 +810,7 @@ def main(*, validation=False):
             st.session_state.pop(key, None)
         st.session_state.active_workspace = workspace
     if workspace == "Investment assistant":
-        render_customer(market_data)
+        render_customer(customer_market_data)
     else:
         st.title("Reference cases")
         legacy = st.radio("Reference workspace", ("Audited trade examples", "Historical decision workbench", "Earlier assistant validation", "Reasoning acceptance"),
