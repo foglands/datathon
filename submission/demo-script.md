@@ -2,38 +2,28 @@
 
 **PolyFinances Datathon 2026 · Team 38 · Peng Peng, Shaoze Ying, Xuhan Liu**
 
-Five-minute recording plan for the current customer app. The main example is the retirement-risk case used in the [one-pager](one-pager.pdf) and [technical documentation](technical-summary.pdf). Use fictional inputs and capture the result from the current run. Keep credentials and hosting settings outside the frame.
+The final `EQUIPE-38_video_datathon_2026.mp4` is a three-minute, 1080p recording of the hosted customer app with English captions throughout. It follows two fictional research requests from input to evidence and shows the HTML export for the fund comparison. The cases also appear in the [one-pager](one-pager.pdf) and [technical documentation](technical-summary.pdf).
 
-## 0:00-0:35 · Problem and team
+## 0:00-0:31 · Enter the retirement-risk question
 
-Show the product and identify Team 38. Explain that the same stock can raise different questions for someone retiring in four years and someone investing for much longer. AlphaForge connects the decision to disclosed evidence, the person's constraints and the limits of the available data.
+Team 38 opens the editable retirement example, then enters a four-year retirement horizon, a proposed Tesla investment and a 20% maximum acceptable loss. Submitting the question starts intake, planning, evidence retrieval and review. The recording shortens the processing wait.
 
-## 0:35-1:20 · Start the retirement-risk investigation
+## 0:31-0:57 · Read the initial assessment
 
-Choose **A stock before retirement** and select **Apply question**. Show the editable question. The fictional investor is considering Tesla, wants to protect savings and expects to retire in about four years. Submit with **Analyze my question**.
+The report relates the user's 20% limit to a documented 73.39% TSLA decline between two split-adjusted closing observations, USD 409.97 in Q4 2021 and USD 109.10 in Q4 2022. It identifies the complete daily series needed to assess maximum drawdown and rolling four-year outcomes.
 
-Show progress through intake, planning, sources, calculation, synthesis and review. Point out that the app preserves the stated horizon and that the proposed allocation and acceptable numerical loss threshold remain unknown. A model-only estimate cannot establish those inputs.
+## 0:57-1:24 · Inspect sources and review activity
 
-## 1:20-2:15 · Show the finding and its consequence
+In **Evidence & sources**, the walkthrough expands the filing and calculation details, then scrolls through the live AgentCore searches. The panel shows the query, lookup time and links for further verification. Python calculates the decline from the two disclosed prices. The Bedrock Converse verification panel shows successful intake, planner, analyst and auditor calls.
 
-Show the release status and the first available checked finding. The documented pair of split-adjusted closes is USD 409.97 in Q4 2021 and USD 109.10 in Q4 2022. Python computes a 73.39% decline between those points. If both numbers are shown on screen, use them to explain the calculation. This is a concrete example of the size of loss relevant to the stated concern. Full-history maximum drawdown, recovery and the effect on all retirement savings require more evidence.
+## 1:24-2:14 · Apply the user's correction
 
-If the current run releases only checked evidence, show that evidence and label the result accordingly. Show price and drawdown charts when the run has a verified series. Show the documented episode, source links and missing tasks when it has limited coverage.
+In the same conversation, the user changes the horizon from four years to two and adds a proposed TSLA allocation of 5% of savings. **The question and context used** shows the updated horizon, new allocation and retained 20% loss limit. The revised report keeps the checked price episode and displays an incomplete assessment. **Earlier questions** preserves the first request and its result.
 
-## 2:15-3:20 · Show how the system obtained and checked evidence
+## 2:14-2:47 · Compare ESGU and SPY
 
-Open **Evidence & sources**. In **Live web searches**, show the returned query, search time, actual links and status. When shown, open **Research service verification** and point to the actual Bedrock Converse model, region and role records. Show the checked filing source separately from the general search links. If the selected example omits a needed lookup, label a supplemental request explicitly and use it to show the relevant search topic.
+The second investor wants ten years of growth, manageable volatility and an explanation of the funds' screening. The report describes ESGU's published screening method and SPY's S&P 500 objective. Its calendar 2022 comparison uses reported before-tax USD returns of −20.22% for ESGU and −18.17% for SPY. Longer-horizon risk comparisons need aligned daily prices. Checking individual company exclusions needs dated holdings and screening records.
 
-Explain that Converse plans and reviews the analysis, AgentCore finds sources and Python calculates and verifies the financial measures. Open one observable task to show the requested measure, scope and actual completion status. Show HTML or Markdown export as available, with charts where the evidence supports them.
+## 2:47-3:00 · Export the report
 
-## 3:20-4:20 · Show another decision
-
-Use **AI and Bitcoin** to show that dated SPY holdings provide evidence of NVIDIA overlap and the IBIT objective identifies Bitcoin exposure. The combined diversification effect needs current exposure and allocations. Briefly point to **Growth with ESG preferences** as an additional test of the same workflow. ESGU's published screening method addresses part of that question. Issuer-level exclusion needs the relevant holdings and screening evidence.
-
-Use a follow-up with a changed constraint, such as a two-year retirement horizon, if it helps show which assumption changed. Corner cases and separate developer tools can be explained while showing the documented capability and its boundary.
-
-## 4:20-5:00 · Close with validation and limitations
-
-Show the GitHub submission index with the team details, technical PDF, one-pager and verification record. Mention the 591-test regression and the separately recorded live AWS searches. Explain that the developer workbench supports reproducible portfolio replay and explicitly authorized funding searches. Note the remaining daily-series and holdings coverage gaps, and describe the review as a distinct check with a visible outcome.
-
-The earlier `alphaforge-demo.mp4` records the historical workbench. This script addresses the customer interface.
+The recording opens **Export**, shows HTML and Markdown options and downloads the HTML report. The export carries the evidence, sources and open questions.
