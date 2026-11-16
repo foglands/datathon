@@ -33,7 +33,7 @@ Use `python -m streamlit run app.py` for customers and `python -m streamlit run 
 
 ## CI scope
 
-The GitHub workflow installs pinned dependencies and runs the suite on Python 3.10 with no cloud credentials or organizer archive. Its run status is available in [GitHub Actions](https://github.com/foglands/datathon/actions). Data-dependent skips are expected and are not counted as full-data acceptance. The local results above do not assert that a remote workflow has run successfully.
+The GitHub workflow installs pinned dependencies and runs the suite on Python 3.10 with no cloud credentials or organizer archive. Its run status is available in [GitHub Actions](https://github.com/foglands/datathon/actions). Data-dependent skips are expected and are not counted as full-data acceptance. The local results above do not assert that a remote workflow has run successfully. The first clean Linux run at `301042d` exposed one missing test dependency: `pypdf`. It is now explicitly pinned to the same 7.1.0 version used locally; the PDF extraction check and dependency compatibility check passed after the correction. The initial failed run remains visible in Actions. The follow-up commit triggers a fresh complete CI run.
 
 ## What this finalization does not establish
 
