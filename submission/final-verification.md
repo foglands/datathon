@@ -4,6 +4,8 @@
 
 On [`cfaedbd`](https://github.com/foglands/datathon/commit/cfaedbdd3a1074ac0e76ea867c6b85f80fc8b6b5), a public TSLA request produced successful Bedrock Converse responses and two live AgentCore searches, one for daily adjusted closes and one for issuer filings. Each returned four clickable source links. The report cited one dated split-adjusted price episode and identified the missing daily series. Full-history drawdown, volatility and recovery remained uncomputed.
 
+On [`a29f1f2`](https://github.com/foglands/datathon/commit/a29f1f296351a9948905a5752b6b3dce57950cd9), the hosted retest returned live links for both topics. A direct local read from SEC EDGAR verified Tesla's Form 10-Q filed October 22, 2026. The hosted report displayed search links for filings and the previously checked historical price disclosure. It did not display the newly verified SEC registry entry.
+
 The local organizer-data regression passed 591 tests. GitHub Actions passed on the [default branch](https://github.com/foglands/datathon/actions/runs/43831043293) and the [deployment branch](https://github.com/foglands/datathon/actions/runs/43831033253).
 
 ## Daily price archive and customer report verification

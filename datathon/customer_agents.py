@@ -226,7 +226,9 @@ async def understand(question, runtime, previous_state=None):
         for asset in assets:
             query = asset["query"]
             # Preserve the instrument the user named even if intake chooses its company name.
-            named = re.findall(rf"(?<!\w){re.escape(query)}\s*\(\s*\$?({_SYMBOL})\s*\)", _operative_text(question))
+            tagged = re.fullmatch(rf"(.+?)\s*\(\s*\$?({_SYMBOL})\s*\)", query)
+            name = tagged[1] if tagged else query
+            named = re.findall(rf"(?<!\w){re.escape(name)}\s*\(\s*\$?({_SYMBOL})\s*\)", _operative_text(question))
             named = set(named) - _NON_TICKERS
             if len(named) > 1:
                 raise ValueError("Use the exact ticker for each named listing.")

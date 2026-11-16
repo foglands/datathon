@@ -196,13 +196,15 @@ class AgentAndWorkflowTests(unittest.IsolatedAsyncioTestCase):
         runtime = AsyncMock()
 
         async def run(role, payload, *, tools, stop_after_tool):
-            tools[0].handler(mode="research", assets=[{"query": "Tesla", "excerpt": "Tesla", "role": "consider"}],
+            tools[0].handler(mode="research", assets=[{"query": query, "excerpt": query, "role": "consider"}],
                 conditions=[], budget_text="", currency="", budget_excerpt="", question_to_ask="")
             return AgentRun("ok", {})
 
         runtime.run.side_effect = run
-        result = await understand(question, runtime)
-        self.assertEqual(result["assets"], [{"query": "TSLA", "excerpt": "TSLA", "role": "consider"}])
+        for query in ("Tesla", "Tesla (TSLA)"):
+            with self.subTest(query=query):
+                result = await understand(question, runtime)
+                self.assertEqual(result["assets"], [{"query": "TSLA", "excerpt": "TSLA", "role": "consider"}])
 
     async def test_disclosure_report_remains_available_without_price_permission(self):
         from datathon.customer_ui import EXAMPLES
