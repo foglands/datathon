@@ -258,6 +258,34 @@ class AgentAndWorkflowTests(unittest.IsolatedAsyncioTestCase):
         result["analyses"][0]["metrics"]["return"] += .1
         self.assertFalse(verify_report(result))
 
+    async def test_comparison_fetches_existing_holding_without_assigning_its_purchase_budget(self):
+        from unittest.mock import Mock
+
+        provider = Mock(asset=Mock(side_effect=asset), fx=Mock(return_value=fx()))
+        assets = [{"query": "SPY", "excerpt": "SPY", "role": "holding"},
+                  {"query": "NVDA", "excerpt": "NVDA", "role": "consider"},
+                  {"query": "IBIT", "excerpt": "IBIT", "role": "consider"}]
+        planning = {"origin": "local", "checks": [{"tool": "product_comparison"}]}
+        with patch("datathon.customer_workflow.understand", AsyncMock(return_value=plan(assets=assets))), \
+             patch("datathon.customer_workflow.plan_analysis", AsyncMock(return_value=planning)):
+            result = await research_question("I hold SPY and am considering NVDA and IBIT.", provider=provider)
+        analysis = {row["asset"]["symbol"]: row for row in result["analyses"]}
+        self.assertEqual(set(analysis), {"SPY", "NVDA", "IBIT"})
+        self.assertIsNone(analysis["SPY"]["valuation"])
+        self.assertIsNotNone(analysis["NVDA"]["valuation"])
+
+    async def test_reports_market_configuration_as_one_issue_for_multiple_symbols(self):
+        from datathon.customer_ui import _issues
+
+        question = "Compare ESGU and SPY."
+        provider = UnavailableResearch("Daily price history has no source configured.")
+        result = await research_question(question, provider=provider)
+        issues = [issue for issue in _issues(result) if issue["stage"] == "Source data"]
+        self.assertEqual(len(issues), 1)
+        self.assertIn("ESGU", issues[0]["reason"])
+        self.assertIn("SPY", issues[0]["reason"])
+        self.assertIn("app operator", issues[0]["action"])
+
     async def test_explicit_base_currency_does_not_require_an_invented_budget(self):
         provider = unittest.mock.Mock()
         provider.asset.return_value = asset()
@@ -339,6 +367,37 @@ def starter_market():
 
 
 class StarterFirstTests(unittest.TestCase):
+    def test_price_preparation_checks_common_dates_for_all_three_examples(self):
+        from hashlib import sha256
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from scripts.prepare_price_archive import EXAMPLE_GROUPS, prepare_archive
+
+        with TemporaryDirectory() as temp:
+            source = Path(temp)
+            output = source / "snapshot.zip"
+            observations = asset()["rows"]
+            symbols = sorted({symbol for group in EXAMPLE_GROUPS for symbol in group})
+            prices = "date,ticker,adj_close,currency\n" + "".join(
+                f"{row['date']},{symbol},{row['price']},USD\n"
+                for symbol in symbols for row in (observations[10:] if symbol == "IBIT" else observations))
+            (source / "prices_daily.csv").write_text(prices, encoding="utf-8")
+            (source / "fx_usdcad_daily.csv").write_text("date,usdcad\n" + "".join(
+                f"{row['date']},1.4\n" for row in observations), encoding="utf-8")
+            (source / "sources_metadata.csv").write_text(
+                "file,source,source_url,retrieved_on,terms_of_use,processing,limitations,price_basis\n"
+                "prices_daily.csv,Fixture,https://example.org/fixture,2026-11-16,https://example.org/terms,"
+                "Split adjustments,Fixture only,split_adjusted_price\n"
+                "fx_usdcad_daily.csv,FX fixture,https://example.org/fx,2026-11-16,https://example.org/terms,"
+                "CAD per USD,Fixture only,\n", encoding="utf-8")
+            digest, coverage = prepare_archive(source, output, verify_examples=True)
+            self.assertEqual(digest, sha256(output.read_bytes()).hexdigest())
+            self.assertEqual([entry[-1] for entry in coverage], [30, 40, 40])
+            (source / "prices_daily.csv").write_text(prices.replace(",IBIT,", ",VTI,"), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Missing example prices for IBIT"):
+                prepare_archive(source, output, verify_examples=True)
+            self.assertEqual(digest, sha256(output.read_bytes()).hexdigest())
+
     def test_covered_instrument_comes_from_the_frozen_archive_with_hash(self):
         fallback = PublicResearch(transport=lambda url: (_ for _ in ()).throw(AssertionError("public source must not be called")), clock=lambda: NOW)
         research = StarterResearch(starter_market(), fallback=fallback, clock=lambda: NOW)
@@ -365,7 +424,7 @@ class StarterFirstTests(unittest.TestCase):
         research = StarterResearch(starter_market(), fallback=None, clock=lambda: NOW)
         with self.assertRaises(ResearchUnavailable) as caught:
             research.asset("AMD")
-        self.assertIn("AMD is not one of the 2 instruments", str(caught.exception))
+        self.assertIn("AMD is outside the daily price coverage", str(caught.exception))
         self.assertIn("SPY", str(caught.exception))
 
     def test_workflow_prefers_the_archive_and_can_disable_the_public_source(self):

@@ -29,6 +29,23 @@ Bedrock needs an active AWS session with permission to invoke the configured mod
 
 The three examples can use public filing evidence with Bedrock even without a configured daily price provider. To add daily return and drawdown charts, use a market snapshot that you have permission to use for the intended audience and report exports. The ZIP must use the starter CSV schema and include source URLs, access and reuse terms, dates, processing and limitations. The organizer supplied its archive for the Datathon, and its source terms still apply to other uses.
 
+### Prepare and verify the snapshot
+
+1. Export daily closing prices for SPY, NVDA, IBIT, ESGU and TSLA. Use one adjustment basis across the file. Prefer closes adjusted for splits and cash distributions for historical growth comparisons. The app can also compare split-adjusted price returns, with distributions excluded. Include the raw close only if it is available independently.
+2. Prepare a directory with these three CSVs:
+
+   | File | Columns |
+   | --- | --- |
+   | `prices_daily.csv` | `date,ticker,adj_close,currency`. Optional `close,volume,name`. Use ISO dates, one completed daily observation per ticker and date, and CAD or USD. |
+   | `fx_usdcad_daily.csv` | `date,usdcad`. Source `FXUSDCAD` observations from the [Bank of Canada Valet API](https://www.bankofcanada.ca/valet-api-how-to/). Preserve its CAD-per-USD convention and missing days. |
+   | `sources_metadata.csv` | `file,source,source_url,retrieved_on,terms_of_use,processing,limitations,price_basis`. Include entries for both data files and link to the applicable terms. For prices use `split_adjusted_price` or `split_and_cash_distribution_adjusted`. |
+
+3. From the repository root run `python -m scripts.prepare_price_archive path/to/csvs path/to/prices.zip --verify-examples`. The command validates the input using the application's reader, checks the shared analysis window for each example, and prints the ZIP's SHA-256. Locally set `DATATHON_PRICE_ARCHIVE_PATH` to the resulting ZIP and run the customer app. The reference workbench uses its separate `DATATHON_STARTER_PATH`.
+
+[Databento US Equities Mini](https://databento.com/blog/databento-us-equities-mini-now-available) is a purchase-on-demand candidate for daily bars whose provider explicitly permits external redistribution. Its documented history starts March 28, 2023 and it aggregates component venues. Check the account's coverage and historical data estimate before downloading. Daily bars and [corporate-action adjustment data](https://databento.com/corporate-actions) are separate products. Use an appropriately authorized adjustment series or a licensed export with the adjustments already applied.
+
+### Publish the verified snapshot
+
 Keep the approved ZIP in a private S3 bucket and grant the app's AWS identity read access to that single object. Enter `DATATHON_PRICE_ARCHIVE_S3_URI` and `DATATHON_PRICE_ARCHIVE_SHA256` in Secrets, using the exact digest of the ZIP. In PowerShell, `Get-FileHash -Algorithm SHA256 -LiteralPath <archive-path>` computes it locally. The app checks the digest before using the data and reads a ZIP of up to 32 MiB. Reports retain the underlying price CSV hash and observation period.
 
 The external Yahoo adapter is disabled by default. Activate `DATATHON_PUBLIC_FALLBACK="1"` only with verified permission for automated access and for the intended use of results. See the [source qualification](../CUSTOMER_RESEARCH.md#sources-and-qualification).

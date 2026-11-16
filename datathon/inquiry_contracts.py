@@ -83,7 +83,7 @@ _MEASURES = {
 _SPECS = {
     "verify_calculations": (["existing price rows and verified calculations"], ["calculation_verification"], ["client_context"], "Independently recheck arithmetic and window counts; does not establish an investment conclusion."),
     "historical_market": (["verified adjusted prices"], ["historical_metrics"], ["asset"], "Observed single-asset history only; no portfolio effects, forecasts or suitability."),
-    "product_comparison": (["at least two resolved products", "common dates and currency"], ["aligned_comparison"], ["product_comparison"], "Compare observed metrics on identical dates and currency; not holdings, valuation or future performance."),
+    "product_comparison": (["at least two resolved products", "common dates, currency and price adjustment"], ["aligned_comparison"], ["product_comparison"], "Compare observed metrics on a shared basis; not holdings, valuation or future performance."),
     "horizon_window": (["one explicit duration", "sufficient price history"], ["holding_period_outcomes"], ["asset"], "Overlapping historical windows; no forecast. Insufficient coverage is a gap, not a completed horizon assessment."),
     "cash_needs": (["budget", "withdrawal amount/currency/timing/frequency"], ["withdrawal_replay"], ["asset"], "One historical starting path with fractional-unit sales; no cross-start shortfall frequency/distribution or future success probability."),
     "purchasing_power": (["CAD price history", "official CPI"], ["real_return"], ["asset"], "CPI-aligned reference months, latest vintage; not a forward inflation forecast."),
@@ -161,6 +161,7 @@ def attach_evidence_scope(report):
         block["scope"] = {"objects": [symbol] if item else [],
             "level": "asset" if item else "limited_check",
             "currency": item["basis"] if item else None,
+            "price_basis": item["asset"].get("price_basis") if item else None,
             "start": item["metrics"]["start"] if item and not key.endswith((".budget", ".stale")) else None,
             "end": item["metrics"]["end"] if item and not key.endswith((".budget", ".stale")) else None,
             "as_of": item["asset"]["price_as_of"] if item else None,

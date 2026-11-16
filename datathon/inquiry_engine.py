@@ -39,6 +39,12 @@ ANALYST = Role(
     "share counts or volume ratios is not this judgment. For a factual or comparison request, answer the "
     "requested fact or trade-off directly without inventing a suitability question. No generic preamble. "
     "Do not say only 'it depends': name the precise condition and explain its consequence. "
+    "When only part of a question is answerable, lead with the concrete finding that matters most for the "
+    "question, then name the exact decision or calculation still blocked and why. An evidenced holding "
+    "overlap remains useful even when its weight cannot be computed. Use an exact observation period and "
+    "condition any current exposure inference on the holding still being present. Distinguish a published "
+    "fund screening method from company-level verification. Every comparison must respect its own dates, "
+    "currency and adjustment basis. Ask about the ticker only when the resolution actually reports ambiguity. "
     "Keep your own prose qualitative, including relevance, assumptions and limitations. Do not type financial "
     "quantities or numeric paraphrases. When a figure is necessary, insert a complete Python quotation "
     "{{EXACT_KEY}} from verified_facts and cite its evidence_id. Copy its key exactly. Detailed numeric "
@@ -91,7 +97,9 @@ AUDITOR = Role(
     "that judgment. Request narrow repair for an evasive conclusion rather than prescribing its verdict. "
     "For a quote, factual or comparison request, a direct measured answer is sufficient; do not demand "
     "an investment recommendation. Missing material evidence can justify an explicit undecidable result, "
-    "but unknowns must be specific and must not erase established local findings."
+    "but unknowns must be specific. If a material part of the question already has a supported finding and "
+    "the conclusion leads only with missing inputs, request a targeted rewrite putting that finding first. "
+    "Reject claims that a specific issuer is excluded based only on a general screen or a fund objective."
 )
 
 
@@ -324,6 +332,9 @@ async def synthesize_inquiry(report, planning, runtime, execute, progress, budge
             available = {}
         payload = {"user_context": planning["context"], "client_profile": report["profile"],
             "tasks": report["tasks"], "verified_evidence": report["blocks"], "verified_facts": fact_registry(report),
+            "source_issues": report.get("source_issues", []),
+            "ambiguous_listings": [item["query"] for item in report.get("resolutions", [])
+                                   if item.get("status") == "needs_confirmation"],
             "tool_outcomes": report["tool_outcomes"], "available_tools": available,
             "review_feedback": feedback, "previous_answer": previous, "budget": budget.snapshot(),
             "completion_instruction": "Conclude with the available evidence and explicit gaps; no further investigation budget remains." if not available else "Investigate only material gaps, or conclude now."}

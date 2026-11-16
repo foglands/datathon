@@ -122,9 +122,15 @@ def _issues(report):
     trace = _trace_events(report)
     if plan.get("origin") != "bedrock" or report.get("planning", {}).get("origin") == "unavailable":
         result.append(_service_problem(trace, plan.get("failure", "")))
+    for issue in report.get("source_issues", []):
+        queries = ", ".join(issue["queries"])
+        result.append({"stage": "Source data", "reason": f"{queries}: {issue['reason']}" if queries else issue["reason"],
+                       "action": issue["action"]})
     for error in report.get("errors", []):
-        result.append({"stage": "Source data", "reason": str(error)[:700],
-                       "action": "Check the instrument name and exchange, or retry if the source is temporarily unavailable."})
+        if not any(error == issue["reason"] or error in {f"{query}: {issue['reason']}" for query in issue["queries"]}
+                   for issue in report.get("source_issues", [])):
+            result.append({"stage": "Evidence limits", "reason": str(error)[:700],
+                           "action": "Use the available evidence or narrow the requested calculation."})
     review = editor.get("explanation_review", {}) or {}
     if report.get("blocks") and editor.get("answer_status") == "evidence_only":
         failure = editor.get("failure") or review.get("failure") or editor.get("budget", {}).get("stop_reason")
@@ -337,8 +343,10 @@ def _conclusion(report):
             st.html('<h1 class="conclusion-unavailable">A conclusion is not available yet.</h1>')
             if report.get("blocks"):
                 st.write("Checked evidence is available below. The written assessment could not be verified.")
+            elif report.get("source_issues"):
+                st.write(report["source_issues"][0]["reason"])
             else:
-                st.write(report["plan"].get("question") or "We could not retrieve enough evidence. Check the investment name and exchange, then try again.")
+                st.write(report["plan"].get("question") or "We could not retrieve enough evidence to complete this assessment.")
 
 
 def _available_evidence(report):
@@ -362,8 +370,11 @@ def _customer_issues(report):
         st.subheader("What remains unanswered")
         for item in outstanding:
             st.write(item)
-    if report.get("errors"):
-        st.warning("Some source data could not be retrieved. This limits the scope of the analysis.")
+    source_issues = report.get("source_issues", [])
+    if len(source_issues) == 1:
+        st.warning(source_issues[0]["reason"])
+    elif report.get("errors"):
+        st.warning("Some evidence could not be collected or calculated. See the details below.")
     with st.expander("Analysis details and limitations"):
         for issue in issues:
             _show_issue(issue)

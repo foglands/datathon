@@ -23,8 +23,7 @@ def default_provider(market_data=None):
     if market_data is not None:
         return StarterResearch(market_data, fallback=public)
     if public is None:
-        return UnavailableResearch("This app has no approved market price source configured. "
-                                   "A data source must be configured by the app operator.")
+        return UnavailableResearch("Daily prices are unavailable because this deployment has no price source configured.")
     return public
 
 
@@ -44,7 +43,7 @@ async def research_question(question, *, runtime=None, provider=None, progress=N
     if any(conflict["field"] in {"investment_amount", "base_currency"} for conflict in profile["conflicts"]):
         plan["budget"] = None
         plan["question"] = "Which investment amount and currency should this research use? Your statements conflict, so sizing has been withheld."
-    result = {"question": question, "plan": plan, "analyses": [], "errors": [], "fx": None,
+    result = {"question": question, "plan": plan, "analyses": [], "errors": [], "source_issues": [], "fx": None,
               "conversation_state": plan.get("conversation_state"), "tasks": [], "resolutions": [], "profile": profile, "risks": [], "rule_checks": [], "cpi": None,
               "blocks": {}, "editor": {}, "method": METHOD, "created_at": datetime.now(timezone.utc).isoformat()}
     requested = [asset for asset in plan["assets"] if asset["role"] == "consider"]
@@ -56,25 +55,37 @@ async def research_question(question, *, runtime=None, provider=None, progress=N
         return result
     progress("Planning which claims need evidence")
     result["planning"] = await plan_analysis(question, plan, runtime, profile=profile, budget=budget_tracker)
+    comparison_tools = {"product_comparison", "portfolio_context", "concentration"}
+    if comparison_tools.intersection(check["tool"] for check in result["planning"]["checks"]):
+        requested = [asset for asset in plan["assets"] if asset["role"] in {"consider", "holding"}]
     result["executed_tools"], result["tool_outcomes"] = [], []
     progress("Looking up dated prices and historical observations")
+
+    def source_issue(message, action, query=None):
+        result["errors"].append(f"{query}: {message}" if query else message)
+        issue = next((row for row in result["source_issues"] if row["reason"] == message and row["action"] == action), None)
+        if issue is None:
+            issue = {"reason": message, "action": action, "queries": []}
+            result["source_issues"].append(issue)
+        if query and query not in issue["queries"]:
+            issue["queries"].append(query)
 
     async def fetch(asset):
         try:
             data = await asyncio.wait_for(asyncio.to_thread(provider.asset, asset["query"]), max(.01, budget_tracker.remaining()))
             if data.get("resolution"):
                 result["resolutions"].append(data["resolution"])
-            return data
+            return {**data, "research_role": asset["role"]}
         except ResearchAmbiguous as exc:
             result["resolutions"].append({"query": exc.query, "status": "needs_confirmation", "candidates": exc.candidates, "source_url": exc.source_url})
-            result["errors"].append(str(exc))
+            source_issue(str(exc), "Confirm the intended listing in the follow-up.", exc.query)
             plan["question"] = "Which ticker and exchange did you mean for " + exc.query + "?"
             return None
         except asyncio.TimeoutError:
-            result["errors"].append("The data request exceeded the research time budget.")
+            source_issue("The data request exceeded the research time budget.", "Try the research again.", asset["query"])
             return None
         except ResearchUnavailable as exc:
-            result["errors"].append(f"{asset['query']}: {exc}")
+            source_issue(str(exc), exc.action, asset["query"])
             return None
 
     assets = [item for item in await asyncio.gather(*(fetch(asset) for asset in requested)) if item]
@@ -95,7 +106,7 @@ async def research_question(question, *, runtime=None, provider=None, progress=N
         try:
             result["fx"] = await asyncio.to_thread(provider.fx)
         except ResearchUnavailable as exc:
-            result["errors"].append(str(exc))
+            source_issue(str(exc), exc.action)
     progress("Calculating the evidence and independently checking each figure")
     try:
         result["analyses"] = analyze(assets, budget, result["fx"], target_currency=target_currency)
@@ -116,7 +127,7 @@ async def research_question(question, *, runtime=None, provider=None, progress=N
             result["blocks"] = raw_blocks
     confirmed = {item["asset"]["symbol"] for item in result["analyses"]}
     ambiguous = {item["query"] for item in result["resolutions"] if item.get("status") == "needs_confirmation"}
-    confirmed.update(asset["query"].strip().removeprefix("$") for asset in plan["assets"]
+    confirmed.update(asset["query"].strip().removeprefix("$").upper() for asset in plan["assets"]
                      if asset["role"] in {"consider", "holding"} and asset["query"] not in ambiguous)
     result["blocks"].update(disclosure_evidence(confirmed))
     if result["blocks"]:

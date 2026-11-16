@@ -22,6 +22,17 @@ class HostedArchiveError(OSError):
     """An operator-safe error without object names, credentials or provider details."""
 
 
+def load_approved_price_archive(path):
+    """Keep approved customer snapshots distinct from the official replay dataset."""
+    result = load_market_data(path)
+    metadata = next((row for row in result.metadata if row.get("file") == "prices_daily.csv"), {})
+    source_url = urlsplit(metadata.get("source_url", ""))
+    if (source_url.scheme != "https" or not source_url.netloc
+            or not all(metadata.get(field) for field in ("source", "retrieved_on", "terms_of_use"))):
+        raise HostedArchiveError("The price archive lacks price source, date or terms metadata.")
+    return replace(result, source_path="", source_name=metadata["source"], official_starter=False)
+
+
 def load_hosted_market_data(uri, expected_digest, region, *, client=None):
     parsed = urlsplit(uri)
     if (parsed.scheme != "s3" or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]", parsed.netloc)
@@ -43,13 +54,7 @@ def load_hosted_market_data(uri, expected_digest, region, *, client=None):
         with TemporaryDirectory() as temp:
             path = Path(temp) / "market-snapshot.zip"
             path.write_bytes(data)
-            result = load_market_data(path)
-        price_metadata = next((row for row in result.metadata if row.get("file") == "prices_daily.csv"), {})
-        source_url = urlsplit(price_metadata.get("source_url", ""))
-        if (source_url.scheme != "https" or not source_url.netloc
-                or not all(price_metadata.get(field) for field in ("source", "retrieved_on", "terms_of_use"))):
-            raise HostedArchiveError("The private price archive lacks price source, date or terms metadata.")
-        return replace(result, source_path="", source_name="Configured market snapshot", official_starter=False)
+            return load_approved_price_archive(path)
     except HostedArchiveError:
         raise
     except (BotoCoreError, ClientError, OSError, BadZipFile, ValueError, KeyError):

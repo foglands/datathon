@@ -59,9 +59,10 @@ def _charts(analyses):
         st.altair_chart(chart.properties(height=270), width="stretch")
     first = analyses[0]["metrics"]
     bases = ", ".join(f"{item['asset']['symbol']}: {item['basis']}" for item in analyses)
-    aligned = len({(item["metrics"]["start"], item["metrics"]["end"], item["metrics"]["observations"]) for item in analyses}) == 1
+    aligned = len({(item["basis"], item["asset"].get("price_basis"),
+                    tuple(point["date"] for point in item["metrics"]["path"])) for item in analyses}) == 1
     st.caption((f"{first['start']} to {first['end']} · {first['observations']} common observations · {bases}. " if aligned
-                else "Individual histories cover different periods; their total returns are not directly comparable. " + bases + ". ") +
+                else "Direct return comparisons need the same dates, currency and price adjustment basis. " + bases + ". ") +
                "Adjusted-close series; excluded dates and source limits are detailed below.")
 
 
@@ -88,6 +89,12 @@ def _sources(report):
                     f"Missing price rows: {asset['omitted_rows']} · Missing same-date FX: {item['missing_fx']} · "
                     f"Other dates excluded for comparison: {item['alignment_omissions']}")
             st.caption(asset["adjustment"])
+            if asset.get("source_retrieved_on"):
+                st.caption("Source snapshot retrieved " + asset["source_retrieved_on"])
+            if asset.get("terms_url"):
+                st.markdown(f"[Source terms]({asset['terms_url']})")
+            if asset.get("limitations"):
+                st.caption(asset["limitations"])
             if asset.get("dataset_sha256"):
                 st.caption("Frozen prices_daily.csv SHA-256: " + asset["dataset_sha256"])
         if report["fx"]:

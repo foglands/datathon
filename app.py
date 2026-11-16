@@ -16,7 +16,7 @@ from datathon.data import load_market_data, market_data_source
 from datathon.decision_view import render_decisions
 from datathon.customer_ui import render_customer
 from datathon.finance import BASE_WEIGHTS
-from datathon.hosted_market import load_hosted_market_data
+from datathon.hosted_market import HostedArchiveError, load_approved_price_archive, load_hosted_market_data
 from datathon.model_settings import configured_bedrock_runtime
 from datathon.publication import publish_check, publish_report
 from datathon.question_language import ENGLISH_QUESTION_MESSAGE, is_english_question
@@ -74,7 +74,20 @@ def _cached_hosted_market_data(uri, digest, region):
     return load_hosted_market_data(uri, digest, region)
 
 
+@st.cache_data(show_spinner=False)
+def _cached_approved_price_archive(source_key):
+    return load_approved_price_archive(source_key[0])
+
+
 def customer_market_data():
+    path = environ.get("DATATHON_PRICE_ARCHIVE_PATH", "").strip()
+    if path:
+        try:
+            return _cached_approved_price_archive(market_data_source(path))
+        except (OSError, ValueError, BadZipFile) as exc:
+            if isinstance(exc, HostedArchiveError):
+                raise
+            raise HostedArchiveError("The daily price archive could not be opened or validated.") from None
     uri = environ.get("DATATHON_PRICE_ARCHIVE_S3_URI", "").strip()
     if uri and not environ.get("DATATHON_STARTER_PATH"):
         return _cached_hosted_market_data(uri, environ.get("DATATHON_PRICE_ARCHIVE_SHA256", "").strip().lower(),

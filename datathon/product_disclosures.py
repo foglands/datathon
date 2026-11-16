@@ -12,7 +12,7 @@ _PRODUCTS = {
     "ESGU": (
         "ESGU · Index screening policy",
         "iShares describes screens for specified involvement in controversial weapons, civilian firearms, tobacco, "
-        "thermal coal and oil sands, and for severe controversies according to MSCI's methodology. "
+        "thermal coal and oil sands, and for controversies rated very severe under MSCI's methodology. "
         "Checking whether a particular company is currently held or screened out requires dated holdings and issuer-level records.",
         ("https://www.ishares.com/us/literature/product-brief/ishares-esg-aware-equity-brief.pdf",),
     ),

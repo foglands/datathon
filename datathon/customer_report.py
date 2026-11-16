@@ -7,11 +7,12 @@ from math import fsum, isclose, sqrt
 import re
 from statistics import stdev
 
+from .customer_data import PRICE_BASES
 from .review_snapshot import fingerprint
 from .decision_replay import evaluate as evaluate_history, verify as verify_history
 
 
-METHOD = "customer-inquiry-v5"
+METHOD = "customer-inquiry-v6"
 
 
 def calculate(rows):
@@ -48,8 +49,8 @@ def review(rows, metrics):
 def _valuation(asset, budget, fx):
     if not budget or budget["currency"] not in {"CAD", "USD"}:
         return None
-    if asset.get("price_field") == "adj_close":
-        # Adjusted historical values cannot establish a share purchase price.
+    if asset.get("price_field") == "adj_close" or asset.get("research_role") == "holding":
+        # A share estimate needs an unadjusted price for the proposed purchase.
         return None
     currency = budget["currency"]
     rate, fx_date = 1.0, None
@@ -116,11 +117,12 @@ def evidence_blocks(plan, analyses, errors):
     for item in analyses:
         asset, metric = item["asset"], item["metrics"]
         symbol, basis = asset["symbol"], item["basis"]
+        convention = PRICE_BASES.get(asset.get("price_basis"), "adjusted prices")
         blocks[f"{symbol}.behavior"] = {
             "title": f"What the history says about {symbol}",
             "text": f"Over {metric['start']} to {metric['end']}, {symbol}'s adjusted-price series changed by "
                     f"{metric['return']:+.2%} in {basis}. Its largest observed fall from a previous high was "
-                    f"{metric['drawdown']:.2%}. These describe different risks: finishing ahead does not mean the journey avoided large losses.",
+                    f"{metric['drawdown']:.2%}. The series uses {convention}.",
             "sources": [asset["source_url"]],
         }
         if item["valuation"]:

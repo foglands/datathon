@@ -23,6 +23,12 @@ from .live_market_data import _NoRedirects
 from .review_snapshot import fingerprint
 
 
+PRICE_BASES = {
+    "split_adjusted_price": "split-adjusted prices, excluding cash distributions",
+    "split_and_cash_distribution_adjusted": "prices adjusted for splits and cash distributions",
+}
+
+
 class ResearchAmbiguous(ValueError):
     """A security name needs a listing choice, with traceable candidates."""
     def __init__(self, query, candidates, source_url):
@@ -32,6 +38,10 @@ class ResearchAmbiguous(ValueError):
 
 class ResearchUnavailable(ValueError):
     """A public, credential-free explanation of missing research evidence."""
+
+    def __init__(self, message, *, action="Try again if the data service is temporarily unavailable."):
+        super().__init__(message)
+        self.action = action
 
 
 def read_public_json(url):
@@ -167,6 +177,7 @@ class PublicResearch:
                 "instrument_type": str(meta.get("instrumentType", "unknown")),
                 "source": "Yahoo Finance", "source_url": f"https://finance.yahoo.com/quote/{quote(symbol, safe='')}/history/",
                 "request_url": url, "adjustment": "provider adjusted close; distributions and splits reflected by provider",
+                "price_basis": "split_and_cash_distribution_adjusted",
                 "terms_url": "https://legal.yahoo.com/us/en/yahoo/terms/otos/index.html",
                 "limitations": "Unofficial research interface; prices may be delayed. Exchange-calendar completeness has not been certified.",
             }
@@ -265,6 +276,11 @@ class StarterResearch:
         self.archive_label = "configured market snapshot" if getattr(market_data, "source_name", "") else "organizer dataset"
         source = next((row for row in getattr(market_data, "metadata", ()) if row.get("file") == "prices_daily.csv"), {})
         self.source_url = source.get("source_url")
+        self.source_retrieved_on = source.get("retrieved_on")
+        self.processing = source.get("processing")
+        self.source_limitations = source.get("limitations")
+        self.price_basis = source.get("price_basis") or (
+            "split_and_cash_distribution_adjusted" if self.archive_label == "organizer dataset" else None)
         terms = re.search(r"https?://[^\s)]+", source.get("terms_of_use", "") or "")
         self.terms_url = terms[0] if terms else None
 
@@ -277,7 +293,7 @@ class StarterResearch:
             return {"symbol": symbol, "query": query, "method": self.archive_label + " ticker", "candidates": [],
                     "source_url": self.source_url, "retrieved_at": self.clock().isoformat()}
         if self.fallback is None:
-            raise ResearchUnavailable(self._outside(query))
+            raise self._outside(query)
         return self.fallback.resolve_security(query, search=search)
 
     def resolve(self, query, *, search=False):
@@ -288,14 +304,14 @@ class StarterResearch:
 
     def _outside(self, query):
         covered = ", ".join(sorted(self.series))
-        return (f"{query.strip()} is not one of the {len(self.series)} instruments in the {self.archive_label} ({covered}). "
-                "No public fallback source is enabled, so no prices were retrieved. Ask about a covered instrument, "
-                "or supply a dated price file with its source.")
+        return ResearchUnavailable(
+            f"{query.strip()} is outside the daily price coverage of the {self.archive_label} ({covered}).",
+            action="Use a covered instrument for daily analysis, or ask the app operator to extend price coverage.")
 
     def asset(self, query):
         if not self.covers(query):
             if self.fallback is None:
-                raise ResearchUnavailable(self._outside(query))
+                raise self._outside(query)
             resolution = self.fallback.resolve_security(query)
             if self.covers(resolution["symbol"]):
                 result = self.asset(resolution["symbol"])
@@ -326,11 +342,14 @@ class StarterResearch:
             "omitted_rows": 0, "trading": trading, "instrument_type": self.archive_label + " instrument",
             "source": self.source_name, "source_url": self.source_url or "https://polyfinances.ca/datathon",
             "request_url": "alphaforge_starter/prices_daily.csv", "dataset_sha256": self.dataset_sha256,
-            "adjustment": "archive adj_close; adjustments are defined by the source metadata" if self.archive_label != "organizer dataset"
-                          else "organizer adj_close; dividends and splits reflected by the organizer",
+            "adjustment": self.processing or ("archive adj_close; adjustments are defined by the source metadata"
+                          if self.archive_label != "organizer dataset" else "organizer adj_close; dividends and splits reflected by the organizer"),
+            "price_basis": self.price_basis,
+            "source_retrieved_on": self.source_retrieved_on,
             "terms_url": self.terms_url,
             "coverage": self.archive_label,
-            "limitations": f"Frozen dataset; last observation {last['date']}. Not a live quote. Reproducible from the archive hash.",
+            "limitations": f"Frozen dataset; last observation {last['date']}. Historical observation. "
+                           + (self.source_limitations or ""),
         }
         result["resolution"] = {"symbol": symbol, "query": query, "method": self.archive_label + " ticker", "candidates": [],
                                 "verified_exchange": result["exchange"], "verified_currency": currency, "verified_type": result["instrument_type"]}
@@ -360,21 +379,22 @@ class UnavailableResearch:
 
     def __init__(self, reason):
         self.reason = reason
+        self.action = "The app operator needs to configure or repair the daily price source."
 
     def resolve_security(self, query, *, search=False):
-        raise ResearchUnavailable(self.reason)
+        raise ResearchUnavailable(self.reason, action=self.action)
 
     def resolve(self, query, *, search=False):
-        raise ResearchUnavailable(self.reason)
+        raise ResearchUnavailable(self.reason, action=self.action)
 
     def asset(self, query):
-        raise ResearchUnavailable(self.reason)
+        raise ResearchUnavailable(self.reason, action=self.action)
 
     def fx(self):
-        raise ResearchUnavailable(self.reason)
+        raise ResearchUnavailable(self.reason, action=self.action)
 
     def cpi(self):
-        raise ResearchUnavailable(self.reason)
+        raise ResearchUnavailable(self.reason, action=self.action)
 
 
 class BudgetedResearch:

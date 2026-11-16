@@ -87,15 +87,19 @@ async def _execute_checks(report, checks, provider, market_data):
             continue
         if key == "product_comparison":
             items = report["analyses"]
-            aligned = len(items) >= 2 and len({(row["basis"], tuple(point["date"] for point in row["rows"])) for row in items}) == 1
+            aligned = len(items) >= 2 and len({
+                (row["basis"], row["asset"].get("price_basis"), tuple(point["date"] for point in row["rows"]))
+                for row in items
+            }) == 1
             text = ("Comparable observed histories: " + "; ".join(
                 f"{row['asset']['symbol']}: adjusted-price change {row['metrics']['return']:+.2%}, largest peak-to-trough fall {row['metrics']['drawdown']:.2%}"
                 for row in items) + f". All use {items[0]['basis']} over {items[0]['metrics']['start']} to {items[0]['metrics']['end']}. "
                 "Independent Python checks passed. These are standalone historical outcomes, not a portfolio allocation or a prediction."
-                if aligned else "A comparable product analysis is unavailable: at least two products on identical dates and currency are required.")
+                if aligned else "A comparable product analysis requires at least two products with the same dates, currency and price adjustment basis.")
             report["blocks"]["analysis.comparison"] = {"title": "Comparable product evidence", "text": text, "sources": [x["asset"]["source_url"] for x in items],
                 "scope": {"level": "product_comparison" if aligned else "limited_check", "objects": [x["asset"]["symbol"] for x in items],
                     "currency": items[0]["basis"] if aligned else None, "start": items[0]["metrics"]["start"] if aligned else None,
+                    "price_basis": items[0]["asset"].get("price_basis") if aligned else None,
                     "end": items[0]["metrics"]["end"] if aligned else None, "method": "common-date adjusted-price buy-and-hold replay"}}
             report["tool_outcomes"].append({**check, "evidence_ids": ["analysis.comparison"], "outcome": text,
                 "status": "assessed" if aligned else "missing_market_data"})

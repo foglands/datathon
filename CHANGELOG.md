@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-16 - Daily data preparation and partial conclusions
+
+- Validate and package daily-price exports for the three customer examples. Record the shared window, observation count, source, adjustment basis and archive digest.
+- Include relevant existing holdings in comparative research without assigning them the proposed purchase amount. Keep comparisons within shared price, date and currency bases.
+- Lead partial conclusions with their strongest supported finding. Show whether a source is unavailable, lacks coverage or needs a listing choice.
+
 ## 2026-11-16 - Hosted AWS and market data readiness
 
 - Recover literal tickers for evidence when model intake is unavailable, while keeping the lack of a reviewed conclusion visible.
