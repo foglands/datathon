@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-16 - Reconcile stashed data changes with the current customer interface
+
+- Resolve stash-restore conflicts while retaining conclusion-first rendering, review reserves and current customer tests.
+- Preserve archive-first research and traceable source hashes without restoring obsolete homepage controls.
+- Use raw archive close for share sizing and adjusted close for historical performance; withhold sizing when raw close is missing.
+- Keep archive price precedence after name resolution and include fallback coverage metadata in the asset fingerprint.
+- Pass 80 targeted fixture tests and compile the application and test modules.
+
 ## 2026-11-16 - Customer assessment layout and completion reliability
 
 - Replace promotional headlines with a functional investment-research entry point and put the released conclusion first on the result page.

@@ -340,3 +340,45 @@ class StarterFirstTests(unittest.TestCase):
         self.assertTrue(report["analyses"])
         self.assertEqual(report["analyses"][0]["asset"]["source"], StarterResearch.SOURCE)
         self.assertIsNotNone(report["fx"])
+
+
+class StarterMergeSafetyTests(unittest.TestCase):
+    def test_raw_close_is_used_for_sizing_and_adjusted_close_for_history(self):
+        market=starter_market()
+        name,prices=market.source_csvs[0]
+        prices=prices.replace(',129,129,1000,USD', ',258,129,1000,USD')
+        from dataclasses import replace
+        source=StarterResearch(replace(market, source_csvs=((name,prices),)),clock=lambda:NOW)
+        found=source.asset('SPY')
+        self.assertEqual(found['price'],258.)
+        self.assertEqual(found['rows'][-1]['price'],129.)
+        self.assertEqual(found['price_field'],'close')
+
+    def test_adjusted_only_archive_withholds_share_sizing(self):
+        from dataclasses import replace
+        import csv,io
+        market=starter_market();name,prices=market.source_csvs[0]
+        rows=list(csv.DictReader(io.StringIO(prices)))
+        output=io.StringIO();fields=['ticker','date','adj_close','currency']
+        writer=csv.DictWriter(output,fieldnames=fields,lineterminator='\n');writer.writeheader()
+        writer.writerows({k:row[k] for k in fields} for row in rows)
+        source=StarterResearch(replace(market,source_csvs=((name,output.getvalue()),)),clock=lambda:NOW)
+        found=source.asset('SPY')
+        self.assertEqual(found['price_field'],'adj_close')
+        self.assertIsNone(analyze([found],{'amount':3000.,'currency':'USD'})[0]['valuation'])
+
+    def test_public_name_resolution_retains_archive_price_precedence(self):
+        from unittest.mock import Mock
+        fallback=Mock()
+        fallback.resolve_security.return_value={'symbol':'SPY','query':'SPDR fund'}
+        source=StarterResearch(starter_market(),fallback=fallback,clock=lambda:NOW)
+        result=source.asset('SPDR fund')
+        self.assertEqual(result['source'],StarterResearch.SOURCE)
+        self.assertEqual(result['resolution']['query'],'SPDR fund')
+        fallback.asset.assert_not_called()
+
+    def test_fallback_coverage_metadata_matches_its_digest(self):
+        from datathon.review_snapshot import fingerprint
+        fallback=PublicResearch(transport=lambda url:PublicSourceTests().payload(),clock=lambda:NOW)
+        found=StarterResearch(starter_market(),fallback=fallback,clock=lambda:NOW).asset('AMD')
+        self.assertEqual(found['digest'],fingerprint({k:v for k,v in found.items() if k!='digest'}))

@@ -88,6 +88,8 @@ def _sources(report):
                     f"Missing price rows: {asset['omitted_rows']} · Missing same-date FX: {item['missing_fx']} · "
                     f"Other dates excluded for comparison: {item['alignment_omissions']}")
             st.caption(asset["adjustment"])
+            if asset.get("dataset_sha256"):
+                st.caption("Frozen prices_daily.csv SHA-256: " + asset["dataset_sha256"])
         if report["fx"]:
             st.markdown(f"[Bank of Canada · CAD per USD]({report['fx']['source_url']})")
             st.caption(f"Retrieved {report['fx']['retrieved_at']}")

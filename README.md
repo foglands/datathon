@@ -49,7 +49,7 @@ export DATATHON_PROFILE_MODEL_ID=global.anthropic.claude-sonnet-4-5-20250929-v1:
 python -m streamlit run app.py
 ```
 
-The customer route can retrieve public prices and FX without the organizer archive. The full reasoning workflow needs a valid Bedrock session. Without it, supported local interpretation/calculations may remain available, but the app reports limited or unavailable research rather than claiming a reviewed model conclusion. Offline historical validation is available separately.
+Set `DATATHON_STARTER_PATH` to prefer covered instruments and FX from the organizer archive. Instruments outside it use the public source; `DATATHON_PUBLIC_FALLBACK=0` disables public price, FX and CPI retrieval. Without an archive, public prices and FX remain the default. The full reasoning workflow needs a valid Bedrock session. Without it, supported local interpretation/calculations may remain available, but the app reports limited or unavailable research rather than claiming a reviewed model conclusion. Offline historical validation is available separately.
 
 See [setup and troubleshooting](docs/RUNNING.md) for organizer data, environment settings, AWS diagnostics and CLI reproduction.
 
@@ -59,7 +59,7 @@ For a hosted submission, see [cloud deployment configuration](docs/DEPLOYMENT.md
 
 | Capability | Current boundary |
 | --- | --- |
-| Public asset research | Up to three requested instruments; Yahoo Finance's unofficial chart interface; up to five years of daily adjusted observations; ambiguous listings need clarification |
+| Asset research | Up to three instruments; configured organizer archive first, with CSV hash and dates retained; public price fallback for uncovered instruments; ambiguous listings need clarification |
 | Historical risk | Return/loss, drawdown, volatility, rolling outcomes, recovery and selected stress replays; history is not a forecast |
 | Currency and purchasing power | CAD/USD conversion using Bank of Canada FX; Canadian CPI where relevant and available; distinct observation periods |
 | Portfolio and withdrawals | Complete explicitly stated weights; single or fixed monthly withdrawal schedules with sufficient inputs; no inferred holdings or success probability |

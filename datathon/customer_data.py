@@ -289,8 +289,17 @@ class StarterResearch:
         if not self.covers(query):
             if self.fallback is None:
                 raise ResearchUnavailable(self._outside(query))
-            result = self.fallback.asset(query)
+            resolution = self.fallback.resolve_security(query)
+            if self.covers(resolution["symbol"]):
+                result = self.asset(resolution["symbol"])
+                result["resolution"].update(query=query, method="public name resolution; organizer dataset prices")
+                result["digest"] = fingerprint({k: v for k, v in result.items() if k != "digest"})
+                return result
+            result = self.fallback.asset(resolution["symbol"])
+            result["resolution"] = {**resolution, "verified_exchange": result["exchange"],
+                                    "verified_currency": result["currency"], "verified_type": result["instrument_type"]}
             result["coverage"] = "outside organizer dataset; public fallback source"
+            result["digest"] = fingerprint({k: v for k, v in result.items() if k != "digest"})
             return result
         symbol = query.strip().removeprefix("$").upper()
         rows = self.series[symbol]
@@ -303,7 +312,8 @@ class StarterResearch:
         trading = [{"date": row["date"], "close": row["close"], "volume": row["volume"]} for row in rows if "close" in row]
         result = {
             "symbol": symbol, "name": self.names.get(symbol, symbol)[:120], "currency": currency,
-            "exchange": "organizer dataset", "price": positive(last["price"]), "price_as_of": as_of.isoformat(),
+            "exchange": "organizer dataset", "price": positive(last.get("close", last["price"])), "price_as_of": as_of.isoformat(),
+            "price_field": "close" if "close" in last else "adj_close",
             "retrieved_at": retrieved.isoformat(), "price_age_days": max(0, (retrieved - as_of).total_seconds() / 86400),
             "rows": [{"date": row["date"], "price": positive(row["price"])} for row in rows],
             "omitted_rows": 0, "trading": trading, "instrument_type": "organizer dataset instrument",

@@ -48,6 +48,9 @@ def review(rows, metrics):
 def _valuation(asset, budget, fx):
     if not budget or budget["currency"] not in {"CAD", "USD"}:
         return None
+    if asset.get("price_field") == "adj_close":
+        # Adjusted historical values cannot establish a share purchase price.
+        return None
     currency = budget["currency"]
     rate, fx_date = 1.0, None
     if asset["currency"] != currency:

@@ -7,7 +7,7 @@ AlphaForge is a conversational investment-research prototype. A user describes a
 
 ## 1. Customer experience and scope
 
-Run `app.py` for the customer interface: one question field, a research action, optional free-text context and follow-up conversation. It exposes no persona buttons, professional mode selector or Reference cases navigation. The separate `validation_app.py` is for developers.
+Run `app.py` for the customer interface: one question field, optional context and follow-up conversation. Sidebar example questions fill the composer only when Apply question is selected; they never run analysis or supply profile defaults. The reviewed conclusion appears before the submitted question and evidence tabs. The separate `validation_app.py` retains developer workflows and persona fixtures.
 
 The report begins with the conclusion, then supporting evidence, counterevidence and important gaps. Context, task status, figures, sources and traces are available below. Downloadable HTML includes vector charts; Markdown provides a text version. A partial result is labeled partial. When review fails, checked evidence remains available without a fabricated personalized conclusion.
 
@@ -53,12 +53,13 @@ The shared default inquiry budget is 240 seconds, 10 model-role calls, 8 tool ca
 
 | Source | Treatment | Boundary |
 | --- | --- | --- |
-| Yahoo Finance chart/search | Listing-resolution provenance, daily adjusted observations, timestamps and completed dates; request-local caching | Unofficial interface; may be delayed, throttled or changed; up to five years; no execution quote |
+| Organizer starter archive (first source) | Historical `adj_close` in listing currency, raw `close` for indicative share sizing, same-date Bank of Canada USD/CAD fixings, price CSV SHA-256 and dated observations retained with the asset; `StarterResearch` in `customer_data.py` | 31 instruments, 2021-11-12 to 2026-11-12; frozen, not a live quote; CPI is not in the price archive |
+| Yahoo Finance chart/search (fallback only) | Used only for instruments outside the archive; listing-resolution provenance, daily adjusted observations, timestamps and completed dates; request-local caching; reports label the row `outside organizer dataset` | Unofficial interface; may be delayed, throttled or changed; up to five years; no execution quote; `DATATHON_PUBLIC_FALLBACK=0` disables it |
 | Bank of Canada Valet | FXUSDCAD, expressed as CAD per USD; compatible dates for historical conversion | FX and equity observations need not be simultaneous for latest-price sizing |
 | Canadian CPI via Bank of Canada | Statistics Canada all-items Canada series V41690973; align month-end observed prices to CPI reference months | Latest vintage, not point-in-time releases or forecast inflation |
 | Bond disclosure catalog | Dated issuer extract with locators, observation/as-of dates and eligibility checks | Initial AGG coverage only; older than 31 days or observed after research date is rejected |
 | Qualified issuer/sector and GPFG evidence | Dated classifications and exposure bounds; unknown weight retained | Partial look-through; a named controversy list is not a comprehensive ESG rating |
-| Organizer starter archive | Frozen CSV hashes, row references and date qualification in historical tools | Optional for public-price research; required for full reference replay; not redistributed |
+| Organizer starter archive (historical workbench) | Frozen CSV hashes, row references and date qualification in the deterministic replay, funding and challenge tools | Required for full reference replay; not redistributed |
 
 Source URLs are retained in reports and catalogs. [CUSTOMER_RESEARCH.md](../CUSTOMER_RESEARCH.md), [DECISION_EVIDENCE.md](../DECISION_EVIDENCE.md) and [bond_disclosures.json](../datathon/bond_disclosures.json) give source-specific qualifications. Availability/publication, observation and retrieval dates are distinct. A currently retrieved adjusted series is retrospective evidence, not proof of what an investor knew on an earlier date.
 
@@ -79,6 +80,18 @@ A fully specified single or fixed monthly withdrawal schedule can be replayed th
 Holding-period analysis uses the explicitly stated horizon and independently checks overlapping historical windows. It does not extrapolate a ten-year result from five years of data or treat overlapping outcomes as future probabilities.
 
 Duration uses first-order negative duration times yield change with labeled system scenarios; it omits convexity, spread and FX responses. Credit buckets describe underlying holdings, not the ETF's credit rating or repayment guarantee. Transaction amount divided by recent observed traded value is a volume proxy only, not a measurement of spread, impact, depth or execution certainty.
+
+## 5b. Deterministic historical engine and traceability
+
+Underneath the conversational route, and exposed directly in the historical workbench, sits a deterministic engine (`datathon/decision_*.py`, with the original `finance.py`/`governance.py` reference pair) that does not depend on any model call:
+
+- **Replay.** Buy-and-hold valuation in CAD on the frozen archive over the full shared history, the named 2022 and early-2025 stress windows, an optional 2023 window and user-specified intervals, each with its own calendar-coverage status.
+- **Metrics.** Signed terminal return, nonnegative terminal loss, maximum drawdown with peak and trough dates, recovery time or unresolved time underwater, rolling 12/36-month outcomes, annualized volatility, worst complete month, per-asset drawdown contributions and FX decomposition.
+- **Funding search.** One or more authorized source holdings, explicit ticker-weight bounds and terminal-loss, drawdown or rolling-loss caps solved as a linear feasibility problem with exact-rational certificates; infeasibility is returned with a certificate rather than a relaxed answer.
+- **Independent review.** A second implementation rebuilds the CAD series from the raw CSV rows and recomputes every published figure; any mismatch blocks publication.
+- **Challenge.** One changed assumption at a time, at most three rounds, stopping when the verdict changes, with the original report preserved.
+
+**Traceability (reference audit).** Published historical metrics retain their rule and method versions, named replay window, aligned observation dates and source hashes. CAD values can be rebuilt from each instrument's `adj_close` row in `prices_daily.csv` and the same-date `usdcad` row in `fx_usdcad_daily.csv` for USD instruments. The independent implementation checks the rebuilt values before publication. Original-proposal results and separately authorized funding searches remain distinct; historical examples and commands are recorded in [verification.md](verification.md) and [historical-workbench.md](../docs/historical-workbench.md).
 
 ## 6. Publication, status and limitations
 

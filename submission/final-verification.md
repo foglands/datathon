@@ -6,9 +6,15 @@ November 16, 2026. Application baseline: `de17408bd400f465ddbe9d9de1ae4bcea06a1b
 
 The customer entry point now uses `datathon/customer_ui.py` and `customer_ui.css`. The reviewed conclusion occupies the first result area, followed by the submitted question and evidence tabs. Promotional headlines and empty argument cards have been removed. Sidebar examples only fill the composer; they do not start a run.
 
-A local browser trial of the AMD / 3,000 CAD / possible two-year withdrawal question first exposed invalid numeric signs/units and reference IDs during synthesis. After improving fact-quotation instructions, repair feedback and review-budget reservation, a fresh run displayed a reviewed conclusion, supporting evidence, counterpoints and a follow-up. The charts and evidence tabs were exercised. This is one observed live success, not a generalization or consistency claim. Hosted deployment has not been updated by this local change.
+A local browser trial of the AMD / 3,000 CAD / possible two-year withdrawal question first exposed invalid numeric signs/units and reference IDs during synthesis. After improving fact-quotation instructions, repair feedback and review-budget reservation, a fresh run displayed a reviewed conclusion, supporting evidence, counterpoints and a follow-up. The charts and evidence tabs were exercised. This is one observed live success, not a generalization or consistency claim. Hosted verification for the merged release is recorded separately below.
 
 Targeted fixture validation: **71 tests passed** on Windows Python 3.10, including conclusion placement, context submission, empty/one-sided/withheld results, report tampering, signed quotations and completion-budget reservation. The restricted shell cannot create the loopback socket used by the normal Windows event loop; the local test harness replaced only event-loop wakeup/polling for these fixture tests. It did not make live network calls. Browser validation used the already running application and its real service configuration. Compilation and whitespace checks passed.
+
+## Stash merge follow-up (Windows, November 16)
+
+Resolved the two stash-restore conflicts by retaining the newer completion-budget logic and customer UI tests. Kept the archive-first provider, export wording and source hash display; did not restore the obsolete homepage or persona-based example buttons. The original stash patch and pre-merge files were saved outside the repository before reconciliation.
+
+Corrected archive share sizing to use raw `close`, keeping `adj_close` for historical returns; adjusted-only inputs withhold share sizing. Public name resolution cannot bypass archive prices, and fallback coverage metadata is included in the asset fingerprint. **80 targeted fixture tests passed**, including four new archive-merge checks, using the same restricted-host test harness described above. Python compilation passed. Local Git index updates are completed through GitHub Desktop because this shell has read-only access to repository metadata.
 
 ## Local results
 
@@ -18,7 +24,7 @@ Targeted fixture validation: **71 tests passed** on Windows Python 3.10, includi
 | Without organizer-data variables | **469 passed, 93 skipped** out of 562 discovered, 4.930 seconds |
 | Offline reference CLI | **6/6** expected outcomes, including ambiguity, missing evidence and injected tampering |
 | Dependency compatibility | `python -m pip check`: no broken requirements |
-| Customer UI | Browser confirmed one question field, research action and optional context; no preset example buttons or Reference cases navigation |
+| Customer UI | Historical browser check: one question field, research action and optional context; the current sidebar-example layout is documented in the follow-up above |
 | Developer UI regression | Reference workflows run through the separate `validation_app.py`; official-data UI regressions passed |
 | PDFs | One-page summary and four-page technical guide regenerated; all five rendered pages visually inspected |
 | Repository checks | Local documentation links resolve; whitespace check passed; credential-pattern scan found only a fixed synthetic regression sentinel; no unresolved matches |
