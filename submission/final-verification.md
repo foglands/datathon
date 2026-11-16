@@ -2,6 +2,14 @@
 
 November 16, 2026. Application baseline: `de17408bd400f465ddbe9d9de1ae4bcea06a1b1c`, plus the customer-only entry-point changes in this finalization commit. [Machine-readable results and tested-file hashes](final-verification.json) identify the checked source without relying on a mutable branch name.
 
+## Customer interface follow-up (Windows, November 16)
+
+The customer entry point now uses `datathon/customer_ui.py` and `customer_ui.css`. The reviewed conclusion occupies the first result area, followed by the submitted question and evidence tabs. Promotional headlines and empty argument cards have been removed. Sidebar examples only fill the composer; they do not start a run.
+
+A local browser trial of the AMD / 3,000 CAD / possible two-year withdrawal question first exposed invalid numeric signs/units and reference IDs during synthesis. After improving fact-quotation instructions, repair feedback and review-budget reservation, a fresh run displayed a reviewed conclusion, supporting evidence, counterpoints and a follow-up. The charts and evidence tabs were exercised. This is one observed live success, not a generalization or consistency claim. Hosted deployment has not been updated by this local change.
+
+Targeted fixture validation: **71 tests passed** on Windows Python 3.10, including conclusion placement, context submission, empty/one-sided/withheld results, report tampering, signed quotations and completion-budget reservation. The restricted shell cannot create the loopback socket used by the normal Windows event loop; the local test harness replaced only event-loop wakeup/polling for these fixture tests. It did not make live network calls. Browser validation used the already running application and its real service configuration. Compilation and whitespace checks passed.
+
 ## Local results
 
 | Check | Observed result |

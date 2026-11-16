@@ -8,7 +8,7 @@
 
 Describe what you are considering and what matters to you. AlphaForge turns that question into an analysis plan, retrieves dated public observations, calculates the evidence in Python, and presents a conclusion with supporting evidence, counterevidence, charts and important gaps.
 
-The customer interface starts with a single question. There are no preset question buttons, professional workflow choices or developer validation navigation. Optional details and later corrections become analysis context. The official investor personas are used only as test fixtures.
+The customer interface starts with a single question and optional context. Example questions can be selected and applied from the sidebar without running an analysis. Professional workflow choices and developer validation navigation remain separate. Optional details and later corrections become analysis context. The official investor personas are used only as test fixtures.
 
 [Quick start](#quick-start) · [Technical guide](submission/technical-summary.md) · [One-page summary](submission/one-pager.pdf) · [Validation](submission/final-verification.md) · [All deliverables](submission/README.md)
 
@@ -22,7 +22,7 @@ The customer interface starts with a single question. There are no preset questi
 4. **Synthesize an answer.** Weigh supporting and opposing evidence. Request additional analysis when a gap can be resolved within the available tools and budget.
 5. **Review the conclusion.** A separate model call checks claims, citations, material context and unresolved tasks. Failed review can trigger repair; unsupported prose is withheld.
 
-The conclusion appears before supporting tables and charts. Download the report as standalone HTML with charts or Markdown. The assistant does not place trades.
+The reviewed conclusion is the first content in the result, above the original question, export action and evidence tabs. Supporting evidence and counterpoints appear only when released by the review; an incomplete assessment displays checked observations instead of empty argument cards. Seven stage indicators show execution progress, and service diagnostics are available under analysis details. Download the report as standalone HTML with charts or Markdown. The assistant does not place trades.
 
 For example: `I am considering investing 3000 CAD in AMD. I may need the money in two years. What should I understand?` Add a relevant condition or correct an earlier statement using the follow-up field. A changed condition should affect the analysis when justified by evidence; a changed name should not.
 
@@ -88,7 +88,7 @@ A separate developer app, `python -m streamlit run validation_app.py`, preserves
 
 | Location | Purpose |
 | --- | --- |
-| `app.py`, `datathon/customer_view.py` | Customer application and conversation |
+| `app.py`, `datathon/customer_ui.py`, `datathon/customer_ui.css` | Customer application, conversation and visual layout |
 | `validation_app.py` | Separate developer workbench and reference cases |
 | `customer_agents.py`, `customer_state.py`, `customer_profile.py` | Grounded intake, sourced state changes and relevant context |
 | `inquiry_engine.py`, `inquiry_contracts.py`, `customer_tools.py` | Analysis tasks, bounded investigation, synthesis and claim/task review |

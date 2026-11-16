@@ -34,15 +34,24 @@ ANALYST = Role(
     "is needed. Return claims: brief checkable argument summaries, NOT private chain-of-thought. Each claim "
     "has an id, heading, text, kind (fact/calculation/interpretation/conditional/limitation), scope, evidence_ids, "
     "context_ids, relevance, assumptions and limitations. Claims are the final prose; no extra unsupported "
-    "paragraphs are added. Start with My research conclusion and use the other headings only where useful. "
+    "paragraphs are added. Start with My research conclusion: directly answer the user's question in one or two "
+    "plain sentences, without a slogan or an introduction. Include What supports this view and What argues "
+    "against it when the checked evidence allows it. The latter must challenge your conclusion, not repeat "
+    "its support. If a side cannot be established, explain that specific evidence gap in Important gaps and next step; "
+    "never fabricate a balancing argument. When available_tools is empty, conclude within the evidence already "
+    "obtained and state the material unknowns; do not request more tools. "
     "Prefer three or four claims, at most six, with one short sentence per relevance field and short lists. Keep the answer concise. Explain how evidence relates to the goal, genuine tradeoffs, "
     "what could weaken the judgment and which unknowns matter. Do not fabricate opposing evidence to fill a "
     "section. Investment amount, required future payment and target wealth are different fields; never turn one into another without an explicit user statement. Do not invent an extra suitability task when the request only asks what history establishes. "
     "section: describe the search scope and unknowns when none was found. Historical facts and goal attainment "
     "are distinct; qualify the latter when targets or capacity are unknown. Preferences do not prove suitability. "
-    "Copy only exact verified numeric quantities from your cited evidence or literal active user statements. "
-    "Do not calculate, round, convert units or create a new threshold. You may alternatively insert a full "
-    "Python quotation using {{EXACT_KEY}} from verified_facts; copy its key exactly and cite its evidence_id. "
+    "Keep the main conclusion qualitative and direct. For calculated financial quantities, insert a Python "
+    "quotation using {{EXACT_KEY}} from verified_facts instead of retyping the numbers; copy the key exactly "
+    "and cite that fact's evidence_id. You can leave detailed quantities in the evidence rather than repeat them. "
+    "Never remove a minus sign to describe a loss, remove a percent unit, calculate, round, convert units or "
+    "create a threshold. Literal active user statements may be repeated only with their valid context_ids. "
+    "Every claim needs evidence_ids from verified_evidence and context_ids from user_context; user.request "
+    "is valid for relevance to the full question. Never put a claim ID or evidence ID in context_ids. "
     "Keep object, unit, currency and period explicit where needed; historical outcomes are not probabilities. For horizon_window, horizon_excerpt quotes the user's exact relevant duration; it can differ from a long-term goal when a nearer withdrawal is stated. "
     "Use plain customer language in claim text; describe analyses without internal tool identifiers. "
     "References alone do not prove support. Do not turn volume into execution liquidity, local history into "
@@ -107,11 +116,15 @@ class TaskReview(TypedDict):
     reason: str
 
 
-async def call(runtime, role, payload, name, handler, budget):
+async def call(runtime, role, payload, name, handler, budget, *, reserve_seconds=0):
+    timeout = min(80, budget.remaining() - reserve_seconds)
+    if timeout <= 0:
+        budget.stop_reason = "review_reserve"
+        return {"ok": False, "trace": [], "failure": budget.stop_reason}
     if not budget.take("model_calls"):
         return {"ok": False, "trace": [], "failure": budget.stop_reason}
     try:
-        result = await asyncio.wait_for(handoff(runtime, role, payload, name, handler, timeout_seconds=min(80, budget.remaining())), min(81, budget.remaining()))
+        result = await asyncio.wait_for(handoff(runtime, role, payload, name, handler, timeout_seconds=timeout), min(timeout + 1, budget.remaining()))
     except asyncio.TimeoutError:
         budget.stop_reason = "time_budget" if budget.remaining() <= 0 else "model_call_timeout"
         return {"ok": False, "trace": [], "failure": budget.stop_reason}
@@ -149,9 +162,10 @@ def validate_claims(claims, report, context):
             raise ValueError(f"Claim {row['id']}: heading {row['heading']!r}, text length {len(row['text'])}. Use one of {HEADINGS} and 15-1800 characters.")
         if row["kind"] not in {"fact", "calculation", "interpretation", "conditional", "limitation"} or row["scope"] not in {"asset", "product_comparison", "portfolio", "client_context"}:
             raise ValueError("Declare a valid judgment type and scope.")
-        if (not row["evidence_ids"] or any(key not in report["blocks"] for key in row["evidence_ids"])
-                or not row["context_ids"] or any(key not in context for key in row["context_ids"])):
-            raise ValueError("Every claim must cite valid evidence and current client context.")
+        if not row["evidence_ids"] or any(key not in report["blocks"] for key in row["evidence_ids"]):
+            raise ValueError(f"Claim {row['id']}: evidence_ids must cite keys from verified_evidence: {', '.join(report['blocks'])}.")
+        if not row["context_ids"] or any(key not in context for key in row["context_ids"]):
+            raise ValueError(f"Claim {row['id']}: context_ids must cite user_context keys: {', '.join(context)}. Use user.request for relevance to the full question.")
         if "risk.market_liquidity" in row["evidence_ids"]:
             # The current catalog has a volume proxy, but no spread/depth/impact tool.
             # Enforce that capability boundary independently of a model's approval.
@@ -192,7 +206,7 @@ def validate_claims(claims, report, context):
         literals = re.findall(NUMBER_PATTERN, prose)
         invalid = [value for value in literals if normalized(value) not in allowed]
         if invalid:
-            raise ValueError(f"Claim {row['id']}: numeric values {invalid} are absent from its cited evidence or active user conditions.")
+            raise ValueError(f"Claim {row['id']}: numeric values {invalid} are absent from cited evidence or active user conditions. Preserve signs and percent units; use a {{{{verified_facts key}}}} quotation instead of retyping calculated values.")
         row["numeric_bindings"] = [{"quotation": value, "support_ids": sorted(set(allowed[normalized(value)]))} for value in literals]
         source_text = " ".join(report["blocks"][key]["text"] for key in row["evidence_ids"]) + " " + inputs
         for day in re.findall(r"\b\d{4}-\d{2}-\d{2}\b", prose):
@@ -284,16 +298,21 @@ async def synthesize_inquiry(report, planning, runtime, execute, progress, budge
         return base
     trace, steps, repairs, rounds, reviews = [], [], 0, 0, 0
     feedback, previous, last_review, retained = None, None, None, []
+    last_failure = ""
     signatures = set()
     while budget.remaining() > 0:
         attach_evidence_scope(report)
         available = {key: value for key, value in tool_catalog().items() if key not in report["executed_tools"] or key == "horizon_window"}
-        if rounds >= budget.limits.investigations or budget.tool_calls >= budget.limits.tool_calls:
+        # Optional research must leave time and call slots for an answer AND its review.
+        # This controls execution, never which investment conclusion is reached.
+        closing = budget.remaining() < 150 or budget.model_calls >= budget.limits.model_calls - 2
+        if closing or rounds >= budget.limits.investigations or budget.tool_calls >= budget.limits.tool_calls:
             available = {}
         payload = {"user_context": planning["context"], "client_profile": report["profile"],
             "tasks": report["tasks"], "verified_evidence": report["blocks"], "verified_facts": fact_registry(report),
             "tool_outcomes": report["tool_outcomes"], "available_tools": available,
-            "review_feedback": feedback, "previous_answer": previous, "budget": budget.snapshot()}
+            "review_feedback": feedback, "previous_answer": previous, "budget": budget.snapshot(),
+            "completion_instruction": "Conclude with the available evidence and explicit gaps; no further investigation budget remains." if not available else "Investigate only material gaps, or conclude now."}
         selected = None
         def advance_analysis(action: Literal["investigate", "conclude"], checks: list[Task],
                              claims: list[Claim], follow_up: str) -> dict:
@@ -313,9 +332,11 @@ async def synthesize_inquiry(report, planning, runtime, execute, progress, budge
             else:
                 raise ValueError("Choose investigate or conclude.")
             return {"status": "ok", "summary": "Evidence investigation or argument recorded."}
-        run = await call(runtime, "customer_analyst", payload, "advance_analysis", advance_analysis, budget)
+        progress("Preparing the conclusion from the current evidence")
+        run = await call(runtime, "customer_analyst", payload, "advance_analysis", advance_analysis, budget, reserve_seconds=60)
         trace.extend(run.get("trace", []))
         if not run["ok"] or selected is None:
+            last_failure = "invalid_handoff" if run.get("validation_errors") else run.get("failure") or run.get("stop_reason") or "invalid_handoff"
             steps.append({"action": "unavailable", "details": run})
             if (run.get("validation_errors") or run.get("stop_reason") in {"tool_not_completed", "invalid_handoff"}) and repairs < budget.limits.format_repairs:
                 repairs += 1
@@ -358,5 +379,7 @@ async def synthesize_inquiry(report, planning, runtime, execute, progress, budge
         retained = [row for row in retained if row["heading"] != HEADINGS[0]]
     return {**base, "order": list(report["blocks"]), "trace": trace, "analysis_steps": steps,
         "arguments": retained, "explanations": render_arguments(retained), "answer_status": "partial" if retained else "evidence_only",
-        "explanation_review": last_review or {"accepted": False, "feedback": "Review could not be completed within the available budget."},
+        "failure": last_failure or budget.stop_reason,
+        "explanation_review": last_review or {"accepted": False, "feedback": "A verified written assessment could not be completed.",
+                                              "failure": last_failure or budget.stop_reason or "review_not_reached"},
         "budget": budget.snapshot()}

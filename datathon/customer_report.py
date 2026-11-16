@@ -208,7 +208,7 @@ def report_markdown(report):
     lines = ["# Investment research report", "", report["question"], "",
              "Simulation and research · dated observations, not future-return estimates.", ""]
     if report["editor"].get("answer_status") in {"partial", "evidence_only"}:
-        lines += ["**Partial analysis: unresolved tasks or unsupported conclusions remain.**", ""]
+        lines += ["**Part of this question could not be answered yet. The findings below are the parts that were checked; open points are listed with the reason.**", ""]
     if analyses:
         for section in report["editor"].get("explanations", []):
             lines += [f"## {section['heading']}", "", section["text"], "",
@@ -281,7 +281,7 @@ def report_html(report):
              f'<blockquote>{escape(report["question"])}</blockquote><small>Research and hypothetical scenarios. No transactions. '
              f'Created {escape(report["created_at"])}</small>']
     if report["editor"].get("answer_status") in {"partial", "evidence_only"}:
-        parts += ['<p><strong>Partial analysis: unresolved tasks or unsupported conclusions remain.</strong></p>']
+        parts += ['<p><strong>Part of this question could not be answered yet. The findings below are the parts that were checked; open points are listed with the reason.</strong></p>']
     for section in report["editor"].get("explanations", []):
         parts += [f'<h2>{escape(section["heading"])}</h2><p>{escape(section["text"])}</p>',
                   '<small>Model interpretation checked against: ' + escape("; ".join(report["blocks"][key]["title"] for key in section["evidence_ids"])) + '</small>']

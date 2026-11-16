@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-16 - Customer assessment layout and completion reliability
+
+- Replace promotional headlines with a functional investment-research entry point and put the released conclusion first on the result page.
+- Increase text size and contrast, use a consistent sans-serif hierarchy, and keep optional context and example questions in the customer workflow.
+- Render reviewed supporting and opposing findings only when present; show checked evidence when a written assessment is unavailable.
+- Reserve time and model calls for conclusion review, and give actionable reference and numeric-format repair feedback. Request Python fact quotations instead of model-retyped calculated quantities.
+- Preserve independent numerical checks, semantic review and withheld unsupported conclusions.
+
 ## 2026-11-16 - Repository finalization and customer-only entry point
 
 - Remove preset question buttons and Reference cases navigation from the customer app.

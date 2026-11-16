@@ -13,7 +13,7 @@ from datathon.audit_view import render_comparison, result_label
 from datathon.counterfactual import counterfactual_options, issuer_disclosure_options, run_counterfactual
 from datathon.data import load_market_data, market_data_source
 from datathon.decision_view import render_decisions
-from datathon.customer_view import render_customer
+from datathon.customer_ui import render_customer
 from datathon.finance import BASE_WEIGHTS
 from datathon.model_settings import configured_bedrock_runtime
 from datathon.publication import publish_check, publish_report

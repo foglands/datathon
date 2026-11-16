@@ -8,7 +8,9 @@ from unittest.mock import AsyncMock, patch
 
 from datathon.agents import AgentRun
 from datathon.customer_agents import understand, edit_report
-from datathon.customer_data import PublicResearch, ResearchUnavailable
+from datathon.customer_data import PublicResearch, ResearchUnavailable, StarterResearch, UnavailableResearch
+from datathon.customer_workflow import default_provider
+from datathon.data import MarketData
 from datathon.customer_report import analyze, calculate, review, evidence_blocks, verify_report
 from datathon.customer_workflow import research_question
 
@@ -273,3 +275,68 @@ class AgentAndWorkflowTests(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def starter_market():
+    prices = "ticker,date,open,high,low,close,adj_close,volume,currency\n"
+    fx = {}
+    for index in range(30):
+        day = (NOW.date() - timedelta(days=40 - index)).isoformat()
+        prices += f"SPY,{day},1,1,1,{100 + index},{100 + index},1000,USD\n"
+        prices += f"XIU.TO,{day},1,1,1,{30 + index / 10},{30 + index / 10},500,CAD\n"
+        fx[day] = 1.35 + index / 1000
+    return MarketData({"SPY": {}, "XIU.TO": {}}, fx, ({"file": "prices_daily.csv", "source": "organizer", "source_url": "https://example.org/starter", "retrieved_on": "2026-11-12"},),
+                      "starter.zip", official_starter=True, source_csvs=(("prices_daily.csv", prices),))
+
+
+class StarterFirstTests(unittest.TestCase):
+    def test_covered_instrument_comes_from_the_frozen_archive_with_hash(self):
+        fallback = PublicResearch(transport=lambda url: (_ for _ in ()).throw(AssertionError("public source must not be called")), clock=lambda: NOW)
+        research = StarterResearch(starter_market(), fallback=fallback, clock=lambda: NOW)
+        result = research.asset("spy")
+        self.assertEqual(result["symbol"], "SPY")
+        self.assertEqual(result["currency"], "USD")
+        self.assertEqual(len(result["rows"]), 30)
+        self.assertEqual(result["coverage"], "organizer dataset")
+        self.assertEqual(len(result["dataset_sha256"]), 64)
+        self.assertEqual(result["source_url"], "https://example.org/starter")
+        self.assertEqual(len(result["trading"]), 30)
+        self.assertEqual(research.fx()["rows"][0]["rate"], 1.35)
+        self.assertIn("organizer", research.fx()["source"])
+
+    def test_uncovered_instrument_uses_fallback_and_is_labelled(self):
+        payload = PublicSourceTests().payload()
+        fallback = PublicResearch(transport=lambda url: payload, clock=lambda: NOW)
+        research = StarterResearch(starter_market(), fallback=fallback, clock=lambda: NOW)
+        result = research.asset("AMD")
+        self.assertEqual(result["source"], "Yahoo Finance")
+        self.assertEqual(result["coverage"], "outside organizer dataset; public fallback source")
+
+    def test_without_fallback_the_gap_is_explained_not_invented(self):
+        research = StarterResearch(starter_market(), fallback=None, clock=lambda: NOW)
+        with self.assertRaises(ResearchUnavailable) as caught:
+            research.asset("AMD")
+        self.assertIn("AMD is not one of the 2 instruments", str(caught.exception))
+        self.assertIn("SPY", str(caught.exception))
+
+    def test_workflow_prefers_the_archive_and_can_disable_the_public_source(self):
+        import os
+        from unittest.mock import patch as patch_env
+        with patch_env.dict(os.environ, {"DATATHON_PUBLIC_FALLBACK": "0"}):
+            provider = default_provider(starter_market())
+            self.assertIsInstance(provider, StarterResearch)
+            self.assertIsNone(provider.fallback)
+            self.assertIsInstance(default_provider(None), UnavailableResearch)
+        with patch_env.dict(os.environ, {"DATATHON_PUBLIC_FALLBACK": "1"}):
+            provider = default_provider(starter_market())
+            self.assertIsInstance(provider.fallback, PublicResearch)
+            self.assertIsInstance(default_provider(None), PublicResearch)
+
+    def test_end_to_end_report_from_archive_only(self):
+        provider = StarterResearch(starter_market(), fallback=None, clock=lambda: NOW)
+        request = "I am considering 3000 CAD in SPY."
+        with patch("datathon.customer_workflow.understand", AsyncMock(return_value=plan(assets=[{"query": "SPY", "excerpt": "SPY", "role": "consider"}]))):
+            report = asyncio.run(research_question(request, provider=provider))
+        self.assertTrue(report["analyses"])
+        self.assertEqual(report["analyses"][0]["asset"]["source"], StarterResearch.SOURCE)
+        self.assertIsNotNone(report["fx"])

@@ -1,10 +1,14 @@
-"""Bounded public-data research for the conversational investment workspace.
+"""Bounded market-data research for the conversational investment workspace.
 
-Yahoo's public chart endpoint is an unofficial research interface. It can be
-delayed, changed, or unavailable. Never relabel it as an execution quote.
+The organizer's frozen dataset is the first source for every instrument it
+covers: dated, hashed, reproducible by the judges, and valued with the Bank of
+Canada fixings shipped in the same archive. Yahoo's public chart endpoint is an
+unofficial fallback for instruments outside that dataset. It can be delayed,
+changed, or unavailable. Never relabel either as an execution quote.
 """
 
 from datetime import datetime, timedelta, timezone
+import hashlib
 import json
 from math import isfinite
 import re
@@ -217,6 +221,142 @@ class PublicResearch:
                     "vintage": "latest available; publication vintages unavailable"}
         except (AttributeError, KeyError, TypeError, ValueError):
             raise ResearchUnavailable("Usable Canadian CPI observations were unavailable. Purchasing-power results are withheld.") from None
+
+
+class StarterResearch:
+    """Organizer dataset first; a fallback source only for instruments outside it.
+
+    Every instrument in the frozen archive is served from the archive: the raw
+    adjusted close in its listing currency, the same-date Bank of Canada USD/CAD
+    fixing, the SHA-256 of the source CSV and the row count. The result keeps the
+    public-source shape so the calculators and the report do not change.
+    """
+
+    SOURCE = "Organizer dataset (PolyFinances Datathon 2026 starter)"
+
+    def __init__(self, market_data, fallback=None, clock=None):
+        from .data import _csv_rows
+        self.market_data = market_data
+        self.fallback = fallback
+        self.clock = clock or (lambda: datetime.now(timezone.utc))
+        texts = dict(getattr(market_data, "source_csvs", ()) or ())
+        prices_text = texts.get("prices_daily.csv", "")
+        self.dataset_sha256 = hashlib.sha256(prices_text.encode("utf-8")).hexdigest() if prices_text else None
+        self.series = {}
+        self.names = {}
+        if prices_text:
+            for row in _csv_rows(prices_text, {"ticker", "date", "adj_close", "currency"}):
+                record = {"date": row["date"], "price": float(row["adj_close"]), "currency": row["currency"]}
+                close, volume = row.get("close"), row.get("volume")
+                try:
+                    if close not in (None, "") and volume not in (None, ""):
+                        record["close"], record["volume"] = float(close), float(volume)
+                except ValueError:
+                    pass
+                if row.get("name"):
+                    self.names[row["ticker"]] = row["name"]
+                self.series.setdefault(row["ticker"], []).append(record)
+        for rows in self.series.values():
+            rows.sort(key=lambda item: item["date"])
+        self.source_url = next((row.get("source_url") for row in getattr(market_data, "metadata", ())
+                                if row.get("file") == "prices_daily.csv" and row.get("source_url")), None)
+
+    def covers(self, query):
+        return query.strip().removeprefix("$").upper() in self.series
+
+    def resolve_security(self, query, *, search=False):
+        if self.covers(query):
+            symbol = query.strip().removeprefix("$").upper()
+            return {"symbol": symbol, "query": query, "method": "organizer dataset ticker", "candidates": [],
+                    "source_url": self.source_url, "retrieved_at": self.clock().isoformat()}
+        if self.fallback is None:
+            raise ResearchUnavailable(self._outside(query))
+        return self.fallback.resolve_security(query, search=search)
+
+    def resolve(self, query, *, search=False):
+        try:
+            return self.resolve_security(query, search=search)["symbol"]
+        except ResearchAmbiguous as exc:
+            raise ResearchUnavailable(str(exc)) from None
+
+    def _outside(self, query):
+        covered = ", ".join(sorted(self.series))
+        return (f"{query.strip()} is not one of the {len(self.series)} instruments in the organizer dataset ({covered}). "
+                "No public fallback source is enabled, so no prices were retrieved. Ask about a covered instrument, "
+                "or supply a dated price file with its source.")
+
+    def asset(self, query):
+        if not self.covers(query):
+            if self.fallback is None:
+                raise ResearchUnavailable(self._outside(query))
+            result = self.fallback.asset(query)
+            result["coverage"] = "outside organizer dataset; public fallback source"
+            return result
+        symbol = query.strip().removeprefix("$").upper()
+        rows = self.series[symbol]
+        currency = rows[-1]["currency"]
+        if any(row["currency"] != currency for row in rows):
+            raise ResearchUnavailable(f"The organizer dataset lists {symbol} in more than one currency.")
+        retrieved = self.clock()
+        last = rows[-1]
+        as_of = datetime.fromisoformat(last["date"]).replace(tzinfo=timezone.utc)
+        trading = [{"date": row["date"], "close": row["close"], "volume": row["volume"]} for row in rows if "close" in row]
+        result = {
+            "symbol": symbol, "name": self.names.get(symbol, symbol)[:120], "currency": currency,
+            "exchange": "organizer dataset", "price": positive(last["price"]), "price_as_of": as_of.isoformat(),
+            "retrieved_at": retrieved.isoformat(), "price_age_days": max(0, (retrieved - as_of).total_seconds() / 86400),
+            "rows": [{"date": row["date"], "price": positive(row["price"])} for row in rows],
+            "omitted_rows": 0, "trading": trading, "instrument_type": "organizer dataset instrument",
+            "source": self.SOURCE, "source_url": self.source_url or "https://polyfinances.ca/datathon",
+            "request_url": "alphaforge_starter/prices_daily.csv", "dataset_sha256": self.dataset_sha256,
+            "adjustment": "organizer adj_close; dividends and splits reflected by the organizer",
+            "terms_url": "organizer distribution terms",
+            "coverage": "organizer dataset",
+            "limitations": f"Frozen dataset; last observation {last['date']}. Not a live quote. Reproducible from the archive hash.",
+        }
+        result["resolution"] = {"symbol": symbol, "query": query, "method": "organizer dataset ticker", "candidates": [],
+                                "verified_exchange": result["exchange"], "verified_currency": currency, "verified_type": result["instrument_type"]}
+        result["digest"] = fingerprint(result)
+        return result
+
+    def fx(self):
+        now = self.clock()
+        fixings = getattr(self.market_data, "fx", {}) or {}
+        rows = [{"date": day, "rate": positive(rate)} for day, rate in sorted(fixings.items())]
+        if not rows:
+            if self.fallback is None:
+                raise ResearchUnavailable("The organizer dataset has no USD/CAD fixings. CAD conversion is withheld.")
+            return self.fallback.fx()
+        return {"rows": rows, "retrieved_at": now.isoformat(), "source": "Bank of Canada (organizer dataset fx_usdcad_daily.csv)",
+                "source_url": "https://www.bankofcanada.ca/rates/exchange/daily-exchange-rates/", "unit": "CAD per USD",
+                "terms_url": "https://www.bankofcanada.ca/terms/"}
+
+    def cpi(self):
+        if self.fallback is None:
+            raise ResearchUnavailable("Canadian CPI is not part of the organizer price archive and no public source is enabled. Purchasing-power results are withheld.")
+        return self.fallback.cpi()
+
+
+class UnavailableResearch:
+    """A provider that explains, for every call, why no market data can be retrieved."""
+
+    def __init__(self, reason):
+        self.reason = reason
+
+    def resolve_security(self, query, *, search=False):
+        raise ResearchUnavailable(self.reason)
+
+    def resolve(self, query, *, search=False):
+        raise ResearchUnavailable(self.reason)
+
+    def asset(self, query):
+        raise ResearchUnavailable(self.reason)
+
+    def fx(self):
+        raise ResearchUnavailable(self.reason)
+
+    def cpi(self):
+        raise ResearchUnavailable(self.reason)
 
 
 class BudgetedResearch:

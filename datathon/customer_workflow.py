@@ -8,15 +8,31 @@ from .customer_agents import understand
 from .inquiry_engine import plan_inquiry as plan_analysis, synthesize_inquiry as synthesize
 from .inquiry_contracts import InquiryBudget
 from .customer_tools import execute_checks
-from .customer_data import PublicResearch, ResearchUnavailable, ResearchAmbiguous, BudgetedResearch
+from .customer_data import PublicResearch, ResearchUnavailable, ResearchAmbiguous, BudgetedResearch, StarterResearch, UnavailableResearch
 from .customer_report import analyze, evidence_blocks, METHOD
 from .review_snapshot import fingerprint
 from .customer_profile import build_profile, risk_plan
 from .customer_risks import explicit_rule_checks
 
 
+def default_provider(market_data=None):
+    """Organizer dataset first; the public source only for instruments it does not cover.
+
+    DATATHON_PUBLIC_FALLBACK=0 disables the public source entirely, so every
+    answer is reproducible from the archive alone.
+    """
+    from os import environ
+    public = None if environ.get("DATATHON_PUBLIC_FALLBACK", "1").strip() == "0" else PublicResearch()
+    if market_data is not None:
+        return StarterResearch(market_data, fallback=public)
+    if public is None:
+        return UnavailableResearch("No market data is configured: set DATATHON_STARTER_PATH to the organizer archive, "
+                                   "or enable the public source with DATATHON_PUBLIC_FALLBACK=1.")
+    return public
+
+
 async def research_question(question, *, runtime=None, provider=None, progress=None, market_data=None, previous_state=None, limits=None):
-    provider = provider or PublicResearch()
+    provider = provider or default_provider(market_data)
     progress = progress or (lambda stage: None)
     progress("Understanding your idea and conditions")
     budget_tracker = InquiryBudget(limits)
