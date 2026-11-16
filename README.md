@@ -4,9 +4,11 @@
 
 **PolyFinances Datathon 2026 · Banque Nationale · AWS**
 
+**Team 38 · Peng Peng, Shaoze Ying, Xuhan Liu**
+
 **Try AlphaForge:** [Open the hosted app](https://alphaforge-datathon.streamlit.app/) · [One-page summary](submission/one-pager.pdf) · [Technical guide](submission/technical-summary.pdf) · [Submission index](submission/README.md)
 
-The hosted verification records Bedrock Converse responses, checked evidence and coverage for the example questions. See the [deployment guide](docs/DEPLOYMENT.md) and [verification record](submission/final-verification.md).
+Hosted verification recorded Bedrock Converse responses and live AgentCore source search. A documented TSLA decline, disclosed SPY/NVIDIA overlap and fund screening differences illustrate how the workflow handles different questions. See the [deployment guide](docs/DEPLOYMENT.md) and [verification record](submission/final-verification.md).
 
 Describe what you are considering and what matters to you. AlphaForge turns that question into an analysis plan, retrieves dated public observations, calculates the evidence in Python, and presents a conclusion with supporting evidence, counterevidence, charts and important gaps.
 
@@ -26,7 +28,7 @@ The examples are fictional adaptations of the official PolyFinances Datathon 202
 
 1. **Understand the question.** Retain stated goals, amounts, horizons, cash needs, holdings and constraints. Missing information remains unknown.
 2. **Plan the analysis.** Propose questions and select the tools needed to answer them.
-3. **Collect and calculate evidence.** Retrieve observations, run Python calculations and verify numerical results. Keep source dates and scope limitations.
+3. **Find sources and calculate evidence.** The planner selects live AgentCore search topics. The app validates eligible observations, runs Python calculations and independently checks numerical results. Reports keep source links, dates, coverage and limitations.
 4. **Synthesize an answer.** Weigh supporting and opposing evidence. Request additional analysis when a gap can be resolved within the available tools and budget.
 5. **Review the conclusion.** A separate model call checks claims, citations, material context and unresolved tasks. Failed review can trigger repair; unsupported prose is withheld.
 
@@ -59,12 +61,13 @@ py -m venv .venv
 
 Open the URL printed by Streamlit, normally `http://localhost:8501`. For model-led research, configure an authorized AWS session with access to the configured Bedrock model in `us-east-1`, then launch the app from that shell. Temporary credentials include a session token. Use the [AWS setup and diagnostics](docs/RUNNING.md#aws-configuration) for local use or the [deployment guide](docs/DEPLOYMENT.md) for Streamlit Cloud Secrets.
 
-The Bedrock planner can select live research topics. AgentCore Web Search locates sources and the app checks selected issuer filing metadata with SEC EDGAR. The report shows search links and coverage gaps. Historical risk metrics use verified daily prices. Optional local or private S3 snapshots support reproducible calculations. See the [data setup](docs/RUNNING.md#organizer-archive-and-full-data-validation) and [hosted configuration](docs/DEPLOYMENT.md).
+The Bedrock planner can select live research topics. AgentCore Web Search locates sources and the app can check selected issuer filing metadata with SEC EDGAR. The report shows search links and coverage gaps. Historical risk metrics use verified daily prices. Optional local or private S3 snapshots support reproducible calculations. See the [data setup](docs/RUNNING.md#organizer-archive-and-full-data-validation) and [hosted configuration](docs/DEPLOYMENT.md).
 
 ## Evidence and supported scope
 
 | Capability | Current boundary |
 | --- | --- |
+| Live source discovery | The planner selects up to two topics for AgentCore Web Search. The app records the query, search time, result links and status. Code can check issuer filing metadata directly against SEC EDGAR. Daily metrics use separately verified observations. |
 | Asset research | Up to three instruments, using the configured archive and an external feed only if authorized and enabled. Reports preserve dates and source hashes. Ambiguous listings need clarification. |
 | Historical risk | Return/loss, drawdown, volatility, rolling outcomes, recovery and selected stress replays; history is not a forecast |
 | Currency and purchasing power | CAD/USD conversion using Bank of Canada FX; Canadian CPI where relevant and available; distinct observation periods |

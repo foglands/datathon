@@ -1,28 +1,30 @@
 # AlphaForge AI
-## An investment idea, examined with evidence
+## Investment research with evidence you can inspect
 
-**PolyFinances Datathon 2026 | Banque Nationale and AWS**
+**PolyFinances Datathon 2026 · Team 38**
 
-### Problem and value
+**Team members · Peng Peng, Shaoze Ying, Xuhan Liu**
 
-Investment questions begin with an idea and real conditions, not a professional risk dashboard. AlphaForge lets a user describe what they are considering, what the money is for and what is unknown. It returns a conclusion with evidence, charts, counterarguments and important gaps. The customer interface has one question field and optional context; validation tools live in a separate developer app.
+### The problem
 
-### Agentic analysis
+A promising investment can look very different when the investor needs the money soon, already owns similar assets, or has limits on acceptable losses. AlphaForge turns a plain-language question into traceable research tied to the user's stated goals, holdings, time horizon and constraints.
 
-The workflow understands the question, plans the analysis, calls evidence tools, synthesizes a judgment and independently reviews it. Amazon Bedrock performs the language tasks through Strands handoffs. The analyst can request further evidence after seeing results; missing holdings or unsupported measures can narrow the answer or prompt clarification. Task completion is checked against actual outputs.
+### How AlphaForge works
 
-### Evidence discipline
+Bedrock Converse understands the question and plans the investigation. AgentCore Web Search retrieves relevant public source links during the request. Python computes financial measures from qualified data and independently checks the figures. The analyst weighs supporting and opposing evidence, and a separate Bedrock call reviews the claims and completed tasks. The report shows sources, assumptions, unresolved questions and the actual review status.
 
-Financial calculations belong to Python and receive separate numerical checks. Claims cite checked results or the user's own statements. Unprovided information remains unknown. Goals, willingness to take risk, loss capacity and withdrawal needs are separate; a name or persona never supplies a threshold or dictates a conclusion. Failed semantic review withholds the interpretation while retaining checked evidence.
+### What the prototype can show
 
-### Data and demonstration
+**Retirement risk.** An [SEC-filed price table](https://www.sec.gov/Archives/edgar/data/1114446/000111444623000724/tc8172999f_1fwp.htm) supports a 73.39% Tesla decline between split-adjusted closing prices in Q4 2021 and Q4 2022. The live app finds additional sources and marks full-history measures as unresolved while the daily series remains unverified.
 
-Three examples use verifiable evidence: SPY's disclosed NVIDIA holding and IBIT's Bitcoin exposure, ESGU's screening and historical fund returns, and a documented TSLA decline. A configured price archive adds daily risk charts. HTML reports keep the sources and limits. The evidence tab shows a successful Bedrock Converse receipt for the current run.
+**Diversification and ESG.** Dated disclosures establish SPY's NVIDIA overlap, IBIT's Bitcoin exposure, and differences between ESGU's screening method and SPY's index objective. Quantifying portfolio changes or checking present-day exclusions requires further holdings and screening evidence.
 
-### Honest limits and validation
+### Analysis and audit capabilities
 
-Quotes may be delayed. Historical observations do not predict performance or establish suitability. Complete fund look-through, fundamentals/news and unrestricted ESG research are unavailable; initial duration/credit coverage is a dated AGG extract. A volume ratio does not establish execution feasibility. No trades are placed.
+With qualified inputs, the system supports returns, drawdowns, volatility, recovery, rolling holding-period outcomes, stress replay, CAD/USD conversion, Canadian purchasing power, stated-weight portfolios and specified withdrawals. It can also show dated exposure and screening evidence, bond duration and credit, and a traded-volume proxy. The developer workbench supports independently reviewed portfolio replay and explicitly authorized funding searches.
 
-Automated regression covers calculations, provenance, state, authorization, tampering and the interface. Live validation records inconsistent responses to paraphrases and errors in semantic review. Each example runs through the same analysis workflow as a question typed from scratch.
+### Validation and limits
 
-[Hosted app](https://alphaforge-datathon.streamlit.app/) | [Code and setup](https://github.com/foglands/datathon/tree/architecture-completion-20261115) | [Technical guide](technical-summary.md) | [Validation](final-verification.md)
+The public app demonstrated Bedrock Converse and live AgentCore search. The full regression suite passed 591 tests. Reports preserve checked evidence when stronger claims cannot be supported. Complete ETF holdings, certified daily coverage and some provider data remain gaps. AlphaForge is a research prototype and places no trades.
+
+[Live app](https://alphaforge-datathon.streamlit.app/) · [GitHub](https://github.com/foglands/datathon) · [Technical PDF](technical-summary.pdf) · [Verification](final-verification.md)

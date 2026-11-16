@@ -1,15 +1,17 @@
 # AlphaForge AI
 ## Technical documentation
 
-PolyFinances Datathon 2026 | Banque Nationale and AWS | Finalization: November 16, 2026
+**PolyFinances Datathon 2026 · Team 38 · November 16, 2026**
 
-AlphaForge is a conversational investment-research prototype. A user describes an idea and relevant conditions; the system plans an inquiry, collects public evidence, calculates results and produces a reviewed explanation. This document describes the current customer route. The [historical workbench](../docs/historical-workbench.md) is retained separately for development and reproducible reference audits.
+**Team members · Peng Peng, Shaoze Ying, Xuhan Liu**
+
+AlphaForge is a conversational investment-research prototype. A user describes an idea and relevant conditions. The system plans the inquiry, searches for public sources, runs Python calculations on qualified data and reviews the claims. This guide covers the customer route. The [historical workbench](../docs/historical-workbench.md) supports reproducible reference audits.
 
 ## 1. Customer experience and scope
 
 Run `app.py` for the customer interface with one question field, optional context and follow-up conversation. Three optional examples adapt the official case brief (pp. 5–7): diversification with AI and Bitcoin, growth and stability with ESG preferences, and stock risk before retirement. **Apply question** fills editable text, and **Analyze my question** submits it. All questions use the same workflow. The separate `validation_app.py` retains developer workflows and formal persona fixtures.
 
-The report begins with a scoped conclusion of up to 80 words, followed by supporting evidence, counterevidence and important gaps. Context, tasks, figures, sources and traces are available below. Downloadable HTML includes vector charts. Markdown provides a text version. When review cannot release a conclusion, the report preserves checked evidence and explains the limit.
+The report leads with a scoped conclusion when review supports one. Supporting evidence, counterevidence, tasks, sources and open questions follow. Downloadable HTML includes vector charts when qualified prices are available. Markdown provides a text version. When review withholds a conclusion, the report retains the checked observations.
 
 Profiles supply context, not verdicts. Goals, willingness, loss capacity, withdrawal needs, holdings and explicit rules are separate facts. Names, ages and the official personas do not supply default thresholds. Changing context may change the investigation or interpretation; identical numerical inputs must preserve their calculations.
 
@@ -29,8 +31,8 @@ flowchart TD
 | Stage | Responsibility | Main modules |
 | --- | --- | --- |
 | Understanding | Extract source-linked instruments and statements; preserve corrections, retractions, conflicts and unknowns | customer_agents, customer_state, customer_profile |
-| Planning | Propose up to four relevant tasks with inputs, measures, scope and observable completion conditions | inquiry_engine, inquiry_contracts |
-| Execution | Resolve listings, retrieve dated observations and run selected calculations with numerical checks | customer_data, customer_tools, customer_risks, customer_bonds |
+| Planning | Propose up to four analytical tasks with required outputs and observable completion conditions. Select up to two live research topics | inquiry_engine, inquiry_contracts |
+| Execution | Run AgentCore search, resolve listings, retrieve qualified observations and check Python calculations | web_research, customer_data, customer_tools, customer_risks, customer_bonds |
 | Synthesis | Produce checkable claims; request additional feasible evidence; distinguish asset, product and portfolio scope | inquiry_engine |
 | Review | Check claim support, material context, task completion, scope and counterevidence; request repair or narrow the answer | inquiry_engine |
 | Publication | Preserve provenance, review results and content fingerprint in the displayed/exported report | customer_workflow, customer_report, customer_ui |
@@ -51,12 +53,15 @@ The shared default inquiry budget is 240 seconds, 10 model-role calls, 8 tool ca
 
 ## 4. Data sources and qualification
 
+Live discovery starts from the instrument identifiers and the planner's topic. Supported topics cover adjusted daily prices, fund methodology and issuer filings. The app sends the public instrument names and fixed topic wording to AgentCore. The evidence tab displays the query, timestamp, links and lookup status. An issuer-filing task can check the ticker, SEC filing identifier and filing date directly against SEC EDGAR. The report treats search excerpts as leads and keeps them out of numerical evidence. Daily metrics require an eligible series with dates, listing currency and documented adjustment basis. The price archive is optional for discovery.
+
 | Source | Treatment | Boundary |
 | --- | --- | --- |
+| AgentCore Web Search | Request-time public source discovery. Captures links, search time and lookup status | Search excerpts establish leads. Daily figures require qualified observations |
 | Organizer starter archive (first source) | Historical `adj_close` in listing currency, raw `close` for indicative share sizing, same-date Bank of Canada USD/CAD fixings, price CSV SHA-256 and dated observations retained with the asset; `StarterResearch` in `customer_data.py` | 31 instruments, 2021-11-12 to 2026-11-12; frozen, not a live quote; CPI is not in the price archive |
 | Private S3 price snapshot | Optional approved ZIP with a pinned SHA-256 digest and source metadata | Requires permission to use the data and read access to the named S3 object |
 | Yahoo Finance chart/search | Optional external adapter for daily prices | Disabled by default. Enable only with authorization for automated access and intended use |
-| SEC EDGAR and issuer disclosures | SPY holding and IBIT objective, ESG screening and annual fund returns, and a TSLA historical decline calculated from split-adjusted closes | Dates and sources appear in reports. These limited extracts do not substitute for a daily price series or current holdings |
+| SEC EDGAR and issuer disclosures | Can check filing metadata. Dated extracts cover SPY holdings, IBIT's objective, ESG methodology, annual fund returns and TSLA price observations | Metadata verifies filing identity and date. Dated extracts support the specific periods and claims shown |
 | Bank of Canada Valet | FXUSDCAD, expressed as CAD per USD; compatible dates for historical conversion | FX and equity observations need not be simultaneous for latest-price sizing |
 | Canadian CPI via Bank of Canada | Statistics Canada all-items Canada series V41690973; align month-end observed prices to CPI reference months | Latest vintage, not point-in-time releases or forecast inflation |
 | Bond disclosure catalog | Dated issuer extract with locators, observation/as-of dates and eligibility checks | Initial AGG coverage only; older than 31 days or observed after research date is rejected |
@@ -109,14 +114,24 @@ A separate reviewer may reject valid conditional wording or miss an unsupported 
 
 ## 7. AWS, reproduction and validation
 
-Bedrock Converse interprets the question, plans tasks, synthesizes findings and reviews claims. The report's Evidence & sources tab shows a runtime receipt only after a successful Converse response. It displays the model, request region and roles. Python calculates financial figures and checks citations and scope. Bedrock's Standard tier bills by input and output tokens. To estimate a run, multiply each token total by its corresponding per-million-token rate from [Bedrock pricing](https://aws.amazon.com/bedrock/pricing/) and divide by one million. Optional S3 reads for price snapshots are billed separately.
+Bedrock Converse runs the intake, planner, analyst and reviewer. **Evidence & sources** displays the model, request region and observed roles after a successful call. AgentCore runs the selected live searches under the same AWS identity using `bedrock-agentcore:InvokeWebSearch` with `web-search.v1`. The report records search outcomes separately. Optional S3 reads can load an approved price snapshot pinned by SHA-256. Consult the [deployment guide](../docs/DEPLOYMENT.md#live-web-research) for IAM configuration and [AWS pricing](https://aws.amazon.com/bedrock/pricing/) for service-specific costs.
 
 Open the [hosted app](https://alphaforge-datathon.streamlit.app/) or install `requirements.txt`, authenticate the application process and run `python -m streamlit run app.py`. For developer validation, run `python -m streamlit run validation_app.py`. Set both starter-path variables for full-data tests. See the [running guide](../docs/RUNNING.md) and [deployment guide](../docs/DEPLOYMENT.md) for AWS setup, reproduction and limitations.
 
-Automated regression establishes arithmetic, provenance, state, authorization, publication and interface behavior. Live model evaluation is a separate question. Earlier name/material-context pairs passed while paraphrase/irrelevant-detail consistency failed; later task-contract runs exposed semantic-review false positives and retained partial outcomes. These observations are not relabeled as complete acceptance.
+The source-search revision passed 591 local regression tests with the organizer archive and passed GitHub Actions on both branches. The suite covers arithmetic, provenance, conversation state, authorization, publication and interface behavior. Live model trials also found paraphrase and irrelevant-detail inconsistencies and semantic-review false positives. Those outcomes inform how to interpret a reviewed answer.
 
-[Final verification](final-verification.md) records the current local suite and packaging checks. [Analysis reliability](analysis-validation-2209.md) retains live failures and same-data comparisons. [Earlier reasoning evaluation](reasoning-validation.md) and [historical verification](verification.md) identify their own revisions. The old MP4 is not a recording of the finalized customer interface.
+## 8. Demonstration and observed results
 
-## 8. Next evaluation
+| Case | Published evidence and decision relevance | Open question |
+| --- | --- | --- |
+| Tesla before retirement | The [SEC-filed price table](https://www.sec.gov/Archives/edgar/data/1114446/000111444623000724/tc8172999f_1fwp.htm) gives split-adjusted USD closes of 409.97 in Q4 2021 and 109.10 in Q4 2022. Python checks the 73.39% decline. The episode shows why loss magnitude matters near retirement | Complete adjusted daily history for maximum drawdown, recovery and rolling outcomes. Position size for impact on total savings |
+| SPY, NVIDIA and Bitcoin | The dated SPY filing lists NVIDIA. The IBIT objective identifies Bitcoin exposure. A direct NVDA purchase adds exposure to an issuer already represented in the disclosed holdings | Current holdings and allocation weights for the combined diversification impact |
+| ESGU and SPY | ESGU's published method describes activity and controversy screens. SPY's prospectus states its S&P 500 objective. Their reported calendar 2022 returns supply a narrow comparison | Verified daily risk comparison, dated holdings and issuer-level exclusions |
+
+The TSLA online run returned live daily-price and issuer-filing links. A later public run of the company name with its ticker in parentheses also returned TSLA price-source links. Full-history metrics stayed open because the public run had no verified daily series. Local SEC EDGAR retrieval confirmed Tesla's October 22, 2026 Form 10-Q. The public report had yet to display that registry entry.
+
+[Final verification](final-verification.md) records these runs. [Analysis reliability](analysis-validation-2209.md) retains live failures and same-data comparisons. [Historical verification](verification.md) describes earlier workbench revisions. The [demo script](demo-script.md) covers the current customer interface.
+
+## 9. Next evaluation
 
 Use untouched questions with independently labeled claim/task expectations, repeated runs and human review of both rejected and accepted answers. Measure invariance to names and irrelevant details, consistency under paraphrase, and justified sensitivity to material constraints. Broader data coverage should use the same explicit contracts; additional providers must not hide unsupported scope.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-16 - Team 38 submission package
+
+- Credit Peng Peng, Shaoze Ying and Xuhan Liu. Align the one-pager, technical guide, recording plan and setup documentation with the current customer workflow.
+- Document live AWS searches, the verified Tesla price episode, supported analysis and the remaining public-data gaps.
+
 ## 2026-11-16 - Live web research
 
 - Let the Bedrock planner select search topics and surface AgentCore search status and source links in the customer report.

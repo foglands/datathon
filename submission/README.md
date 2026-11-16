@@ -1,5 +1,7 @@
 # Submission and evidence index
 
+**PolyFinances Datathon 2026 · Team 38 · Peng Peng, Shaoze Ying, Xuhan Liu**
+
 The customer application is `app.py`. Developer/reference tools are in `validation_app.py`, separate from the customer UI. Repository documentation and product text are in English.
 
 ## Current deliverables
@@ -9,9 +11,9 @@ The customer application is `app.py`. Developer/reference tools are in `validati
 | [Repository README](../README.md) | Product overview, startup and navigation |
 | [Running guide](../docs/RUNNING.md) | Configuration, organizer data, diagnostics and CLI reproduction |
 | [Hosted customer app](https://alphaforge-datathon.streamlit.app/) | Streamlit deployment of the customer entry point |
-| [One-pager](one-pager.md) / [PDF](one-pager.pdf) | One-page product, agentic approach, evidence and limits |
-| [Technical documentation](technical-summary.md) / [PDF](technical-summary.pdf) | Current inquiry architecture, methods, AWS contribution and boundaries |
-| [Demo script](demo-script.md) | Walkthrough of contrasting official case adaptations in the current customer interface |
+| [One-pager](one-pager.md) / [PDF](one-pager.pdf) | Team 38, problem, architecture, worked evidence, supported capabilities and limits |
+| [Technical documentation](technical-summary.md) / [PDF](technical-summary.pdf) | Current inquiry architecture, live AWS calls, financial methods, evidence and verification |
+| [Demo script](demo-script.md) | Five-minute recording plan centered on the same retirement-risk case as both PDFs |
 | [Final verification](final-verification.md) | Current regression and packaging checks |
 
 The PDFs are generated from their adjacent Markdown by `python scripts/render_submission.py`.
